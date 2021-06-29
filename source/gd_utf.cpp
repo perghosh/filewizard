@@ -5,8 +5,43 @@
 namespace gd { 
    namespace utf8 {
 
-      uint32_t character(const uint8_t* pubszText)
+      const uint8_t pNeededByteCount[0x100] =
       {
+          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 0x00-0x0F */
+          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 0x10-0x1F */
+          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 0x20-0x2F */
+          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 0x30-0x3F */
+          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 0x40-0x4F */
+          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 0x50-0x5F */
+          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 0x60-0x6F */
+          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 0x70-0x7F */
+          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 0x80-0x8F */
+          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 0x90-0x9F */
+          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 0xA0-0xAF */
+          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 0xB0-0xBF */
+          0,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2, /* 0xC0-0xCF */
+          2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, /* 0xD0-0xDF */
+          3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3, /* 0xE0-0xEF */
+          4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0, /* 0xF0-0xFF */
+      };
+
+
+      uint32_t character(const uint8_t* pubszCharacter)
+      {
+         switch( pNeededByteCount[ *pubszCharacter ] )
+         {
+         case 0:
+            throw std::runtime_error("invalid UTF-8  (operation = character)");
+         case 1:
+            return static_cast<uint32_t>(*pubszCharacter);
+         case 2:
+            return static_cast<uint32_t>( ((0x1f & pubszCharacter[0]) << 6) | (0x3f & pubszCharacter[1]) );
+         case 3:
+            return static_cast<uint32_t>( ((0x0f & pubszCharacter[0]) << 12) | ((0x3f & pubszCharacter[1]) << 6) | (0x3f & pubszCharacter[2]) );
+         case 4:
+            return static_cast<uint32_t>( ((0x07 & pubszCharacter[0]) << 18) | ((0x3f & pubszCharacter[1]) << 12) | ((0x3f & pubszCharacter[2]) << 6) | (0x3f & pubszCharacter[3]) );
+         }
+         /*
          if(*pubszText < 0x80) return static_cast<uint32_t>(*pubszText);
          else if((*pubszText & 0xe0) == 0xc0)
          {
@@ -22,6 +57,7 @@ namespace gd {
          }
 
          throw std::runtime_error("invalid UTF-8  (operation = character)");
+         */
       }
 
       /**
@@ -35,32 +71,43 @@ namespace gd {
          const uint8_t* pubszPosition = pubszText;
          while( *pubszPosition != '\0' )
          {
+            pubszPosition += pNeededByteCount[*pubszPosition];
+            uCount++;
+
+            /*
             if((*pubszPosition & 0x80) == 0)          pubszPosition += 1;
             else if((*pubszPosition & 0xc0) == 0xc0)  pubszPosition += 2;
             else if((*pubszPosition & 0xf0) == 0xe0)  pubszPosition += 3;
             else if((*pubszPosition & 0xf8) == 0xf0)  pubszPosition += 4;
             else throw std::runtime_error("invalid UTF-8  (operation = count)");
+            */
 
-            uCount++;
          }
 
          return std::pair<std::size_t, const uint8_t*>(uCount, pubszPosition);
       }
 
 
-
+      /**
+       * @brief convert ascii text to utf8   
+       * @param pbszFrom pointer to ascii text that will be converted
+       * @param pbszTo pointer to buffer where utf8 characters are stored
+       * @param pbszEnd end of buffer
+       * @return {std::pair<bool, const uint8_t*>} true or false if all characters have been converted, and pointer to position where conversion ended
+      */
       std::pair<bool, const uint8_t*> convert_ascii(const uint8_t* pbszFrom, uint8_t* pbszTo, const uint8_t* pbszEnd)
       {
          const uint8_t* pbszPosition = pbszFrom;
          uint8_t* pbszInsert = pbszTo;
 
-
+         pbszEnd--; // reserve one character in buffer, some ascii characters will need two bytes
          while(pbszInsert < pbszEnd && *pbszPosition)
          {
             if(*pbszPosition < 0x80) { *pbszInsert = *pbszPosition; pbszInsert++; }
             else
             {
-               *pbszInsert = (uint16_t)((0xc0 | ((*pbszPosition >> 6) & 0x1f)) << 8) | (0x80 | (*pbszPosition & 0x3f));
+               pbszInsert[0] = (0xc0 | ((*pbszPosition >> 6) & 0x1f));
+               pbszInsert[1] = (0x80 | (*pbszPosition & 0x3f));
                pbszInsert += 2;
             }
 
@@ -71,6 +118,44 @@ namespace gd {
 
          return std::make_pair(true, pbszPosition);
       }
+
+      /**
+       * @brief convert ascii text to utf8   
+       * @param pbszFrom pointer to ascii text that will be converted
+       * @param pbszTo pointer to buffer where utf8 characters are stored
+       * @param pbszEnd end of buffer
+       * @return {std::pair<bool, const uint8_t*>} true or false if all characters have been converted, and pointer to position where conversion ended
+      */
+      std::pair<bool, const uint16_t*> convert_unicode(const uint16_t* pwszFrom, uint8_t* pbszTo, const uint8_t* pbszEnd)
+      {
+         const uint16_t* pwszPosition = pwszFrom;
+         uint8_t* pbszInsert = pbszTo;
+
+         pbszEnd--; // reserve one character in buffer, some ascii characters will need two bytes
+         while(pbszInsert < pbszEnd && *pwszPosition)
+         {
+            if(*pwszPosition < 0x80) { *pbszInsert = *pwszPosition; pbszInsert++; }
+            else if( *pwszPosition < 0x800 )
+            {
+               pbszInsert[0] = (0xc0 | ((*pwszPosition >> 6) & 0x1f));
+               pbszInsert[1] = (0x80 | (*pwszPosition & 0x3f));
+               pbszInsert += 2;
+            }
+            else if( *pwszPosition < 0x800 )
+            {
+               pbszInsert[0] = (0xc0 | ((*pwszPosition >> 6) & 0x1f));
+               pbszInsert[1] = (0x80 | (*pwszPosition & 0x3f));
+               pbszInsert += 2;
+            }
+
+            pwszPosition++;
+         }
+
+         if(pbszInsert < pbszEnd) *pbszInsert = '\0';
+
+         return std::make_pair(true, pwszPosition);
+      }
+
    }  
 }
 
@@ -211,5 +296,7 @@ size_t utf8codepointsize(utf8_int32_t chr) {
     return 4;
   }
 }
+
+
 
 */
