@@ -19,8 +19,9 @@ int main(int iArgumentCount, char* ppbszArgumentValue[] )
 {
 	//std::cout << "Hello CMake." << gd::utf8::strlen("test") << gd::utf8::strlen((const char8_t*)"test") << endl;
 
-	std::string s = (const char*)u8"AAAÄ";
-	auto l = s.length();
+	const char* p = "12345";
+	const char** pp = &p;
+
 
 	int result = Catch::Session().run(iArgumentCount, ppbszArgumentValue);
 

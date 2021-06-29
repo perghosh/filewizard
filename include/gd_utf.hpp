@@ -49,6 +49,7 @@ namespace gd { namespace utf8 {
        * @brief move operation for pointer in utf-8 buffer
       */
       namespace move {
+
          ///@{ 
          const uint8_t* next(const uint8_t* pubszPosition);
          template <typename UTF8_TYPE>
@@ -63,9 +64,28 @@ namespace gd { namespace utf8 {
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>( next(reinterpret_cast<const uint8_t*>(pubszPosition), uCount) );
          };
+
+         inline bool next(const uint8_t** ppubszPosition) {
+            const uint8_t* p = next(*ppubszPosition);
+            if(p != *ppubszPosition) { ppubszPosition = &p; return true; }
+            return false;
+         }
+         template <typename UTF8_TYPE>
+         bool next(const UTF8_TYPE** ppubszPosition) {
+            static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
+            return reinterpret_cast<const UTF8_TYPE*>(next(reinterpret_cast<const uint8_t**>(ppubszPosition)));
+         };
+         bool next(const uint8_t** ppubszPosition, std::size_t uCount);
+         template <typename UTF8_TYPE>
+         bool next(const UTF8_TYPE** ppubszPosition, std::size_t uCount) {
+            static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
+            return reinterpret_cast<const UTF8_TYPE*>(next(reinterpret_cast<const uint8_t**>(ppubszPosition), uCount));
+         };
          ///@}
 
 
+         ///@{ 
+         ///@}
 
 
          ///@{ 

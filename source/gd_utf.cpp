@@ -110,6 +110,29 @@ namespace gd {
             return pubszPosition;
          }
 
+         /**
+          * @brief move pointer in utf-8 text
+          * @param ppubszPosition pointer to pointer that is moved in text
+          * @param uCount how much movement
+          * @return {bool} true if pointer was moved, false if not
+         */
+         bool next(const uint8_t** ppubszPosition, std::size_t uCount) {
+            auto pubszPosition = *ppubszPosition;
+            
+            while(uCount-- > 0)
+            {
+               auto pubszSave = pubszPosition;
+               pubszPosition = next(pubszPosition);
+               if(pubszSave == pubszPosition) return false;
+               pubszSave = pubszPosition;
+            }
+
+            *ppubszPosition = pubszPosition;
+            return true;
+
+         }
+
+
 
          /**
           * @brief Move to previous character in utf8 buffer
