@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-#include "gd_utf.hpp"
+#include "gd_utf8.hpp"
 #include "filewizard.h"
 
 using namespace std;

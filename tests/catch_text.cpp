@@ -1,6 +1,6 @@
 ﻿#include "catch.hpp"
 
-#include "gd_utf.hpp"
+#include "gd_utf8.hpp"
 
 TEST_CASE("utf8 move operations", "[utf8]") {
    char pBuffer[100] = { 0 };

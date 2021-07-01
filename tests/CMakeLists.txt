@@ -12,7 +12,8 @@ project ("fw_test")
 include( "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CompilerOptions.cmake" )
 
 set( source_cpp 
-   ${CMAKE_CURRENT_SOURCE_DIR}/../source/gd_utf.cpp
+   "../source/gd_utf8.cpp"
+   "../source/gd_utf8_string.cpp"
 )
 
 #  ${CMAKE_CURRENT_SOURCE_DIR}/../libraries/catch2/catch_amalgamated.cpp

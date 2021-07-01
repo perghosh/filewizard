@@ -9,7 +9,7 @@
 #include "catch2/catch.hpp"
 
 
-#include "gd_utf.hpp"
+#include "gd_utf8.hpp"
 
 #include "fw_test.h"
 

@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 project ("fw_console")
 
-set( source_cpp ${CMAKE_CURRENT_SOURCE_DIR}/../../source/gd_utf.cpp
+set( source_cpp "../../source/gd_utf8.cpp"
 )
 
 # Add source to this project's executable.

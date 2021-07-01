@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <stdexcept>
-#include "gd_utf.hpp"
+#include "gd_utf8.hpp"
 
 namespace gd { 
    namespace utf8 {
@@ -120,8 +120,8 @@ namespace gd {
       }
 
       /**
-       * @brief convert ascii text to utf8   
-       * @param pbszFrom pointer to ascii text that will be converted
+       * @brief convert unicode text to utf8   
+       * @param pwszFrom pointer to unicode text that will be converted
        * @param pbszTo pointer to buffer where utf8 characters are stored
        * @param pbszEnd end of buffer
        * @return {std::pair<bool, const uint8_t*>} true or false if all characters have been converted, and pointer to position where conversion ended
@@ -134,18 +134,19 @@ namespace gd {
          pbszEnd--; // reserve one character in buffer, some ascii characters will need two bytes
          while(pbszInsert < pbszEnd && *pwszPosition)
          {
-            if(*pwszPosition < 0x80) { *pbszInsert = *pwszPosition; pbszInsert++; }
-            else if( *pwszPosition < 0x800 )
+            if(*pwszPosition < 0x80) { *pbszInsert = static_cast<uint8_t>(*pwszPosition); pbszInsert++; }
+            else if( (*pwszPosition & 0xf800) == 0 )
             {
-               pbszInsert[0] = (0xc0 | ((*pwszPosition >> 6) & 0x1f));
+               pbszInsert[0] = (0xc0 | (*pwszPosition >> 6));
                pbszInsert[1] = (0x80 | (*pwszPosition & 0x3f));
                pbszInsert += 2;
             }
-            else if( *pwszPosition < 0x800 )
+            else 
             {
-               pbszInsert[0] = (0xc0 | ((*pwszPosition >> 6) & 0x1f));
-               pbszInsert[1] = (0x80 | (*pwszPosition & 0x3f));
-               pbszInsert += 2;
+               pbszInsert[0] = (0xE0 | (*pwszPosition >> 12));
+               pbszInsert[1] = (0x80 | ((*pwszPosition >> 6) & 0x3F));
+               pbszInsert[2] = (0x80 | (*pwszPosition & 0x3F));
+               pbszInsert += 3;
             }
 
             pwszPosition++;
