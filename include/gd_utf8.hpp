@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdint.h>
 #include <string>
 #include <string_view>
@@ -19,24 +21,40 @@ namespace gd { namespace utf8 {
        * Count number of characters in utf8 buffer
        */
       ///@{ 
-      std::pair<std::size_t, const uint8_t*> count(const uint8_t* pubszText);                      // count utf8 characters
-      inline std::pair<std::size_t, const uint8_t*> count(const std::string_view stringText) { return count( reinterpret_cast<const uint8_t*>(stringText.data()) ); };
+      std::pair<uint32_t, const uint8_t*> count(const uint8_t* pubszText);                         // count utf8 characters
+      inline std::pair<uint32_t, const uint8_t*> count(const std::string_view stringText) { return count( reinterpret_cast<const uint8_t*>(stringText.data()) ); };
       template <typename UTF8_TYPE>
-      std::pair<std::size_t, const uint8_t*> count(const UTF8_TYPE* pbszText) {                    // count utf8 characters
+      std::pair<uint32_t, const uint8_t*> count(const UTF8_TYPE* pbszText) {                       // count utf8 characters
          static_assert( sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
          return count( reinterpret_cast<const uint8_t*>(pbszText) ); 
       };
-      inline std::size_t strlen(const uint8_t* pubszText) { return count(pubszText).first; };      // count utf8 characters
-      inline std::size_t strlen(const std::string_view stringText) { return count( reinterpret_cast<const uint8_t*>(stringText.data()) ).first; };
+      inline uint32_t strlen(const uint8_t* pubszText) { return count(pubszText).first; };         // count utf8 characters
+      inline uint32_t strlen(const std::string_view stringText) { return count( reinterpret_cast<const uint8_t*>(stringText.data()) ).first; };
       template <typename UTF8_TYPE>
-      std::size_t strlen(const UTF8_TYPE* pbszText) {                                              // count utf8 characters
+      uint32_t strlen(const UTF8_TYPE* pbszText) {                                                 // count utf8 characters
          static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
          return count(reinterpret_cast<const uint8_t*>(pbszText)).first;
       };
+
+      ///@}
+
+      ///@{ 
+      /// Count number of utf8 bytes needed to store char text
+      uint32_t size( const char* pbszText, uint32_t uLength );
       ///@}
 
 
+
       ///@{
+      uint32_t convert(uint8_t uCharacter, uint8_t* pbszTo);
+      uint32_t convert(uint16_t uCharacter, uint8_t* pbszTo);
+      uint32_t convert(uint32_t uCharacter, uint8_t* pbszTo);
+
+      std::pair<bool, const uint8_t*> convert_ascii(const uint8_t* pbszFrom, uint8_t* pbszTo);
+      template <typename UTF8_TYPE, typename TYPE>
+      std::pair<bool, const uint8_t*> convert_ascii(const UTF8_TYPE* pbszFrom, TYPE* pbszTo) {
+         return convert_ascii(reinterpret_cast<const uint8_t*>(pbszFrom), reinterpret_cast<uint8_t*>(pbszTo));
+      }
       std::pair<bool, const uint8_t*> convert_ascii(const uint8_t* pbszFrom, uint8_t* pbszTo, const uint8_t* pbszEnd);
       template <typename UTF8_TYPE, typename TYPE>
       std::pair<bool, const uint8_t*> convert_ascii(const UTF8_TYPE* pbszFrom, TYPE* pbszTo, const TYPE* pbszEnd) {
@@ -68,10 +86,10 @@ namespace gd { namespace utf8 {
             return reinterpret_cast<UTF8_TYPE*>( next( reinterpret_cast<uint8_t*>(pubszPosition) ) );
          };
 
-         const uint8_t* next(const uint8_t* pubszPosition, std::size_t uCount );                   // move specified count in buffer pointer points at
-         inline uint8_t* next(uint8_t* pubszPosition, std::size_t uCount ) { return const_cast<uint8_t*>( next( static_cast<const uint8_t*>(pubszPosition), uCount ) ); } // move specified count in buffer pointer points at
+         const uint8_t* next(const uint8_t* pubszPosition, uint32_t uCount );                      // move specified count in buffer pointer points at
+         inline uint8_t* next(uint8_t* pubszPosition, uint32_t uCount ) { return const_cast<uint8_t*>( next( static_cast<const uint8_t*>(pubszPosition), uCount ) ); } // move specified count in buffer pointer points at
          template <typename UTF8_TYPE>
-         const UTF8_TYPE* next(const UTF8_TYPE* pubszPosition, std::size_t uCount ) {              // move specified count in buffer pointer points at
+         const UTF8_TYPE* next(const UTF8_TYPE* pubszPosition, uint32_t uCount ) {                 // move specified count in buffer pointer points at
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>( next(reinterpret_cast<const uint8_t*>(pubszPosition), uCount) );
          };
@@ -86,9 +104,9 @@ namespace gd { namespace utf8 {
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>(next(reinterpret_cast<const uint8_t**>(ppubszPosition)));
          };
-         bool next(const uint8_t** ppubszPosition, std::size_t uCount);
+         bool next(const uint8_t** ppubszPosition, uint32_t uCount);
          template <typename UTF8_TYPE>
-         bool next(const UTF8_TYPE** ppubszPosition, std::size_t uCount) {
+         bool next(const UTF8_TYPE** ppubszPosition, uint32_t uCount) {
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>(next(reinterpret_cast<const uint8_t**>(ppubszPosition), uCount));
          };
@@ -113,10 +131,10 @@ namespace gd { namespace utf8 {
             return reinterpret_cast<UTF8_TYPE*>( previous( reinterpret_cast<uint8_t*>(pubszPosition) ) );
          };
 
-         const uint8_t* previous(const uint8_t* pubszPosition, std::size_t uCount);                // move backwards specified count in utf8 character buffer pointer points at
-         inline uint8_t* previous(uint8_t* pubszPosition, std::size_t uCount ) { return const_cast<uint8_t*>( previous( static_cast<const uint8_t*>(pubszPosition), uCount ) ); } // // move backwards specified count in utf8 character buffer pointer points at
+         const uint8_t* previous(const uint8_t* pubszPosition, uint32_t uCount);                   // move backwards specified count in utf8 character buffer pointer points at
+         inline uint8_t* previous(uint8_t* pubszPosition, uint32_t uCount ) { return const_cast<uint8_t*>( previous( static_cast<const uint8_t*>(pubszPosition), uCount ) ); } // // move backwards specified count in utf8 character buffer pointer points at
          template <typename UTF8_TYPE>
-         const UTF8_TYPE* previous( const UTF8_TYPE* pubszPosition, std::size_t uCount ) {         // move backwards specified count in utf8 character buffer pointer points at
+         const UTF8_TYPE* previous( const UTF8_TYPE* pubszPosition, uint32_t uCount ) {            // move backwards specified count in utf8 character buffer pointer points at
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>( previous( reinterpret_cast<const uint8_t*>(pubszPosition), uCount ) );
          };

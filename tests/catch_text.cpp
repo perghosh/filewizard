@@ -1,6 +1,7 @@
 ﻿#include "catch.hpp"
 
 #include "gd_utf8.hpp"
+#include "gd_utf8_string.hpp"
 
 TEST_CASE("utf8 move operations", "[utf8]") {
    char pBuffer[100] = { 0 };
@@ -24,13 +25,12 @@ TEST_CASE("utf8 move operations", "[utf8]") {
    p1 = gd::utf8::move::previous(p1, 1);  REQUIRE(*p1 == '.');
    p1 = gd::utf8::move::previous(p1, 1);  REQUIRE(memcmp(p1, u8"Ö", 2) == 0);
 
-   wchar_t wch = gd::utf8::character(p1);
-   char ch = gd::utf8::character(p1);
+   //wchar_t wch = gd::utf8::character(p1);
+   //char ch = gd::utf8::character(p1);
 }
 
 
 TEST_CASE("utf8 convert operations", "[utf8]") {
-
    {
       uint8_t pBuffer[100] = { 0 };
       const char* pAscii = "Ä";
@@ -61,7 +61,11 @@ TEST_CASE("utf8 convert operations", "[utf8]") {
       p1 = gd::utf8::move::previous(p1, 1);  REQUIRE(*p1 == '.');
       p1 = gd::utf8::move::previous(p1, 1);  REQUIRE(memcmp(p1, u8"Ö", 2) == 0);
    }
-   
-
 }
 
+TEST_CASE("utf8 add to string", "[utf8]") {
+   gd::utf8::string stringText;
+
+   stringText.append((uint32_t)'Ö');         REQUIRE(stringText.length() == 2);  REQUIRE(stringText.count() == 1);
+
+}

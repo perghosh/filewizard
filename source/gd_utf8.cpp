@@ -41,23 +41,7 @@ namespace gd {
          case 4:
             return static_cast<uint32_t>( ((0x07 & pubszCharacter[0]) << 18) | ((0x3f & pubszCharacter[1]) << 12) | ((0x3f & pubszCharacter[2]) << 6) | (0x3f & pubszCharacter[3]) );
          }
-         /*
-         if(*pubszText < 0x80) return static_cast<uint32_t>(*pubszText);
-         else if((*pubszText & 0xe0) == 0xc0)
-         {
-            return static_cast<uint32_t>( ((0x1f & pubszText[0]) << 6) | (0x3f & pubszText[1]) );
-         }
-         else if((*pubszText & 0xf0) == 0xe0)
-         {
-            return static_cast<uint32_t>( ((0x0f & pubszText[0]) << 12) | ((0x3f & pubszText[1]) << 6) | (0x3f & pubszText[2]) );
-         }
-         else if((*pubszText & 0xf8) == 0xf0)
-         {
-            return static_cast<uint32_t>( ((0x07 & pubszText[0]) << 18) | ((0x3f & pubszText[1]) << 12) | ((0x3f & pubszText[2]) << 6) | (0x3f & pubszText[3]) );
-         }
-
-         throw std::runtime_error("invalid UTF-8  (operation = character)");
-         */
+         return 0;
       }
 
       /**
@@ -65,9 +49,9 @@ namespace gd {
        * @param pubszText pointer to buffer with text where characters are counted
        * @return 
       */
-      std::pair<std::size_t, const uint8_t*> count( const uint8_t* pubszText )
+      std::pair<uint32_t, const uint8_t*> count( const uint8_t* pubszText )
       {
-         std::size_t uCount = 0; // counted characters in buffer
+         uint32_t uCount = 0; // counted characters in buffer
          const uint8_t* pubszPosition = pubszText;
          while( *pubszPosition != '\0' )
          {
@@ -84,7 +68,115 @@ namespace gd {
 
          }
 
-         return std::pair<std::size_t, const uint8_t*>(uCount, pubszPosition);
+         return std::pair<uint32_t, const uint8_t*>(uCount, pubszPosition);
+      }
+
+      uint32_t size( const char* pbszText, uint32_t uLength )
+      {
+         uint32_t uSize = 0;
+         const char* pbszEnd = pbszText + uLength;
+         while( pbszText < pbszEnd )
+         {
+            uSize += *pbszText < 0x08 ? 1 : 2;
+            pbszText++;
+         }
+         return uSize;
+      }
+
+      uint32_t convert( uint8_t uCharacter, uint8_t* pbszTo )
+      {
+         if( uCharacter < 0x8 )
+         {
+            *pbszTo = static_cast<char>(uCharacter);
+            return 1;
+         }
+         else
+         {
+            pbszTo[0] = static_cast<char>( 0xc0 | ((uCharacter >> 6) & 0x1f) );
+            pbszTo[1] = static_cast<char>( 0x80 | (uCharacter & 0x3f) );
+            return 2;
+         }
+         return 0;
+      }
+
+
+
+      uint32_t convert( uint16_t uCharacter, uint8_t* pbszTo )
+      {
+         if( uCharacter < 0x8 )
+         {
+            *pbszTo = static_cast<char>(uCharacter);
+            return 1;
+         }
+         else if( uCharacter < 0x800 )
+         {
+            pbszTo[0] = static_cast<char>( 0xc0 | ((uCharacter >> 6) & 0x1f) );
+            pbszTo[1] = static_cast<char>( 0x80 | (uCharacter & 0x3f) );
+            return 2;
+         }
+         return 0;
+      }
+
+
+      uint32_t convert( uint32_t uCharacter, uint8_t* pbszTo )
+      {
+         if( uCharacter < 0x8 )
+         {
+            *pbszTo = static_cast<char>(uCharacter);
+            return 1;
+         }
+         else if( uCharacter < 0x800 )
+         {
+            pbszTo[0] = static_cast<char>( 0xc0 | ((uCharacter >> 6) & 0x1f) );
+            pbszTo[1] = static_cast<char>( 0x80 | (uCharacter & 0x3f) );
+            return 2;
+         }
+         else if( uCharacter < 0x10000 )
+         {
+            pbszTo[0] = static_cast<char>( 0xe0 | ((uCharacter >> 12) & 0x0f) );
+            pbszTo[1] = static_cast<char>( 0x80 | ((uCharacter >> 6) & 0x3f) );
+            pbszTo[2] = static_cast<char>( 0x80 | (uCharacter & 0x3f) );
+            return 3;
+         }
+         else
+         {
+            pbszTo[0] = static_cast<char>( 0xf0 | ((uCharacter >> 18) & 0x07) );
+            pbszTo[1] = static_cast<char>( 0x80 | ((uCharacter >> 12) & 0x3f) );
+            pbszTo[2] = static_cast<char>( 0x80 | ((uCharacter >> 6) & 0x3f) );
+            pbszTo[2] = static_cast<char>( 0x80 | (uCharacter & 0x3f) );
+            return 4;
+         }
+         return 0;
+      }
+
+
+      /**
+       * @brief convert ascii text to utf8   
+       * @param pbszFrom pointer to ascii text that will be converted
+       * @param pbszTo pointer to buffer where utf8 characters are stored
+       * @return {std::pair<bool, const uint8_t*>} true or false if all characters have been converted, and pointer to position where conversion ended
+      */
+      std::pair<bool, const uint8_t*> convert_ascii(const uint8_t* pbszFrom, uint8_t* pbszTo )
+      {
+         const uint8_t* pbszPosition = pbszFrom;
+         uint8_t* pbszInsert = pbszTo;
+
+         while(*pbszPosition)
+         {
+            if(*pbszPosition < 0x80) { *pbszInsert = *pbszPosition; pbszInsert++; }
+            else
+            {
+               pbszInsert[0] = (0xc0 | ((*pbszPosition >> 6) & 0x1f));
+               pbszInsert[1] = (0x80 | (*pbszPosition & 0x3f));
+               pbszInsert += 2;
+            }
+
+            pbszPosition++;
+         }
+
+         *pbszInsert = '\0';
+
+         return std::make_pair(true, pbszPosition);
       }
 
 
@@ -190,7 +282,7 @@ namespace gd {
           * @param uCount number of characters to move
           * @return pointer to new position
          */
-         const uint8_t* next( const uint8_t* pubszPosition, std::size_t uCount )
+         const uint8_t* next( const uint8_t* pubszPosition, uint32_t uCount )
          {
             while(uCount-- > 0) pubszPosition = next( pubszPosition );
             return pubszPosition;
@@ -202,7 +294,7 @@ namespace gd {
           * @param uCount how much movement
           * @return {bool} true if pointer was moved, false if not
          */
-         bool next(const uint8_t** ppubszPosition, std::size_t uCount) {
+         bool next(const uint8_t** ppubszPosition, uint32_t uCount) {
             auto pubszPosition = *ppubszPosition;
             
             while(uCount-- > 0)
@@ -243,7 +335,7 @@ namespace gd {
           * @param uCount number of characters to move
           * @return {const uint8_t*} pointer to new position
          */
-         const uint8_t* previous(const uint8_t* pubszPosition, std::size_t uCount)
+         const uint8_t* previous(const uint8_t* pubszPosition, uint32_t uCount)
          {
             while(uCount-- > 0) pubszPosition = previous(pubszPosition);
             return pubszPosition;

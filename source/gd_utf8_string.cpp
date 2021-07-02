@@ -1,17 +1,69 @@
 
 #include "gd_utf8_string.hpp"
-#include "..\include\gd_utf8_string.h"
+#include "..\include\gd_utf8_string.hpp"
 
 namespace gd { namespace utf8 { 
 
 
-string::~string()
+
+
+void string::push_back( uint8_t ch )
 {
-	delete [] m_puString;
+	allocate( 1 );
+
+	auto pbszEnd = c_end();
+	auto uLength = convert( ch, pbszEnd );
+
+	pbszEnd[uLength] = '\0';
+
+	m_uSize += uLength;
+	m_uCount++;
 }
 
-string& string::assign( char32_t ch )
+
+void string::push_back( uint16_t ch )
 {
+	allocate( 2 );
+
+	auto pbszEnd = c_end();
+	auto uLength = convert( ch, pbszEnd );
+
+	pbszEnd[uLength] = '\0';
+
+	m_uSize += uLength;
+	m_uCount++;
+}
+
+
+/**
+ * @brief append character store in 32 bit value
+ * @param ch character added to string
+ */
+void string::push_back( uint32_t ch )
+{
+	allocate( 4 );
+
+	auto pbszEnd = c_end();
+	auto uLength = convert( ch, pbszEnd );
+
+	pbszEnd[uLength] = '\0';
+
+	m_uSize += uLength;
+	m_uCount++;
+}
+
+
+string& string::append( const char* pbszText, uint32_t uLength )
+{
+	uint32_t uSize = gd::utf8::size( pbszText, uLength );
+	allocate( uSize );
+
+	auto pbszEnd = c_end();
+	convert_ascii( pbszText, pbszEnd );
+
+	m_uSize += uLength;
+	m_uCount += uSize;
+
 	return *this;
 }
 
@@ -19,7 +71,7 @@ string& string::assign( char32_t ch )
  * @brief allocate new buffer for string if needed
  * @param uSize added size string needs to have
 */
-void string::allocate(std::size_t uSize)
+void string::allocate(uint32_t uSize)
 {
 	if( uSize + m_uSize >= m_uSizeBuffer )
 	{
@@ -29,7 +81,7 @@ void string::allocate(std::size_t uSize)
 		else if( _size < 1024 ) _size = 1024;
 		else
 		{
-			std::size_t uAdd = _size % 4096;
+			uint32_t uAdd = _size % 4096;
 			_size += uAdd;
 
 			if( uAdd < 64 ) _size += 4096;
