@@ -87,13 +87,13 @@ namespace gd {
       {
          if( uCharacter < 0x80 )
          {
-            *pbszTo = static_cast<char>(uCharacter);
+            *pbszTo = static_cast<uint8_t>(uCharacter);
             return 1;
          }
          else
          {
-            pbszTo[0] = static_cast<char>( 0xc0 | ((uCharacter >> 6) & 0x1f) );
-            pbszTo[1] = static_cast<char>( 0x80 | (uCharacter & 0x3f) );
+            pbszTo[0] = static_cast<uint8_t>( 0xc0 | ((uCharacter >> 6) & 0x1f) );
+            pbszTo[1] = static_cast<uint8_t>( 0x80 | (uCharacter & 0x3f) );
             return 2;
          }
          return 0;
@@ -105,13 +105,13 @@ namespace gd {
       {
          if( uCharacter < 0x80 )
          {
-            *pbszTo = static_cast<char>(uCharacter);
+            *pbszTo = static_cast<uint8_t>(uCharacter);
             return 1;
          }
          else if( uCharacter < 0x800 )
          {
-            pbszTo[0] = static_cast<char>( 0xc0 | ((uCharacter >> 6) & 0x1f) );
-            pbszTo[1] = static_cast<char>( 0x80 | (uCharacter & 0x3f) );
+            pbszTo[0] = static_cast<uint8_t>( 0xc0 | ((uCharacter >> 6) & 0x1f) );
+            pbszTo[1] = static_cast<uint8_t>( 0x80 | (uCharacter & 0x3f) );
             return 2;
          }
          return 0;
@@ -122,28 +122,28 @@ namespace gd {
       {
          if( uCharacter < 0x80 )
          {
-            *pbszTo = static_cast<char>(uCharacter);
+            *pbszTo = static_cast<uint8_t>(uCharacter);
             return 1;
          }
          else if( uCharacter < 0x800 )
          {
-            pbszTo[0] = static_cast<char>( 0xc0 | ((uCharacter >> 6) & 0x1f) );
-            pbszTo[1] = static_cast<char>( 0x80 | (uCharacter & 0x3f) );
+            pbszTo[0] = static_cast<uint8_t>( 0xc0 | ((uCharacter >> 6) & 0x1f) );
+            pbszTo[1] = static_cast<uint8_t>( 0x80 | (uCharacter & 0x3f) );
             return 2;
          }
          else if( uCharacter < 0x10000 )
          {
-            pbszTo[0] = static_cast<char>( 0xe0 | ((uCharacter >> 12) & 0x0f) );
-            pbszTo[1] = static_cast<char>( 0x80 | ((uCharacter >> 6) & 0x3f) );
-            pbszTo[2] = static_cast<char>( 0x80 | (uCharacter & 0x3f) );
+            pbszTo[0] = static_cast<uint8_t>( 0xe0 | ((uCharacter >> 12) & 0x0f) );
+            pbszTo[1] = static_cast<uint8_t>( 0x80 | ((uCharacter >> 6) & 0x3f) );
+            pbszTo[2] = static_cast<uint8_t>( 0x80 | (uCharacter & 0x3f) );
             return 3;
          }
          else
          {
-            pbszTo[0] = static_cast<char>( 0xf0 | ((uCharacter >> 18) & 0x07) );
-            pbszTo[1] = static_cast<char>( 0x80 | ((uCharacter >> 12) & 0x3f) );
-            pbszTo[2] = static_cast<char>( 0x80 | ((uCharacter >> 6) & 0x3f) );
-            pbszTo[2] = static_cast<char>( 0x80 | (uCharacter & 0x3f) );
+            pbszTo[0] = static_cast<uint8_t>( 0xf0 | ((uCharacter >> 18) & 0x07) );
+            pbszTo[1] = static_cast<uint8_t>( 0x80 | ((uCharacter >> 12) & 0x3f) );
+            pbszTo[2] = static_cast<uint8_t>( 0x80 | ((uCharacter >> 6) & 0x3f) );
+            pbszTo[2] = static_cast<uint8_t>( 0x80 | (uCharacter & 0x3f) );
             return 4;
          }
          return 0;
