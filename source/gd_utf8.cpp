@@ -77,7 +77,7 @@ namespace gd {
          const char* pbszEnd = pbszText + uLength;
          while( pbszText < pbszEnd )
          {
-            uSize += *pbszText < 0x08 ? 1 : 2;
+            uSize += *pbszText < 0x80 ? 1 : 2;
             pbszText++;
          }
          return uSize;
@@ -85,7 +85,7 @@ namespace gd {
 
       uint32_t convert( uint8_t uCharacter, uint8_t* pbszTo )
       {
-         if( uCharacter < 0x8 )
+         if( uCharacter < 0x80 )
          {
             *pbszTo = static_cast<char>(uCharacter);
             return 1;
@@ -103,7 +103,7 @@ namespace gd {
 
       uint32_t convert( uint16_t uCharacter, uint8_t* pbszTo )
       {
-         if( uCharacter < 0x8 )
+         if( uCharacter < 0x80 )
          {
             *pbszTo = static_cast<char>(uCharacter);
             return 1;
@@ -120,7 +120,7 @@ namespace gd {
 
       uint32_t convert( uint32_t uCharacter, uint8_t* pbszTo )
       {
-         if( uCharacter < 0x8 )
+         if( uCharacter < 0x80 )
          {
             *pbszTo = static_cast<char>(uCharacter);
             return 1;

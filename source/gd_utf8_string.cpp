@@ -4,20 +4,24 @@
 
 namespace gd { namespace utf8 { 
 
-
-
+string::buffer string::m_pbuffer_empty[] = {0,0,0,0,-1, 0};
 
 void string::push_back( uint8_t ch )
 {
 	allocate( 1 );
 
 	auto pbszEnd = c_end();
-	auto uLength = convert( ch, pbszEnd );
 
-	pbszEnd[uLength] = '\0';
+	auto uSize = convert( ch, pbszEnd );
+	pbszEnd[uSize] = '\0';
 
-	m_uSize += uLength;
+	m_pbuffer->size( m_pbuffer->size() + uSize );
+	m_pbuffer->count( m_pbuffer->count() + 1 );
+
+/*
+	m_uSize += uSize;
 	m_uCount++;
+	*/
 }
 
 
@@ -26,12 +30,17 @@ void string::push_back( uint16_t ch )
 	allocate( 2 );
 
 	auto pbszEnd = c_end();
-	auto uLength = convert( ch, pbszEnd );
+	auto uSize = convert( ch, pbszEnd );
 
-	pbszEnd[uLength] = '\0';
+	pbszEnd[uSize] = '\0';
 
-	m_uSize += uLength;
+	m_pbuffer->size( m_pbuffer->size() + uSize );
+	m_pbuffer->count( m_pbuffer->count() + 1 );
+
+/*
+	m_uSize += uSize;
 	m_uCount++;
+	*/
 }
 
 
@@ -44,12 +53,17 @@ void string::push_back( uint32_t ch )
 	allocate( 4 );
 
 	auto pbszEnd = c_end();
-	auto uLength = convert( ch, pbszEnd );
+	auto uSize = convert( ch, pbszEnd );
 
-	pbszEnd[uLength] = '\0';
+	pbszEnd[uSize] = '\0';
 
-	m_uSize += uLength;
+	m_pbuffer->size( m_pbuffer->size() + uSize );
+	m_pbuffer->count( m_pbuffer->count() + 1 );
+
+/*
+	m_uSize += uSize;
 	m_uCount++;
+	*/
 }
 
 
@@ -61,8 +75,13 @@ string& string::append( const char* pbszText, uint32_t uLength )
 	auto pbszEnd = c_end();
 	convert_ascii( pbszText, pbszEnd );
 
-	m_uSize += uLength;
-	m_uCount += uSize;
+	m_pbuffer->size( m_pbuffer->size() + uSize );
+	m_pbuffer->count( m_pbuffer->count() + uLength );
+
+/*
+	m_uSize += uSize;
+	m_uCount += uLength;
+	*/
 
 	return *this;
 }
@@ -73,9 +92,11 @@ string& string::append( const char* pbszText, uint32_t uLength )
 */
 void string::allocate(uint32_t uSize)
 {
-	if( uSize + m_uSize >= m_uSizeBuffer )
+	uSize += sizeof(string::buffer);
+	//if( uSize + m_uSize >= m_uSizeBuffer )
+	if( uSize + m_pbuffer->size() >= m_pbuffer->capacity() )
 	{
-		auto _size = uSize + m_uSize;
+		auto _size = uSize + m_pbuffer->size();
 
 		if( _size < 64 ) _size = 64;
 		else if( _size < 1024 ) _size = 1024;
@@ -87,13 +108,25 @@ void string::allocate(uint32_t uSize)
 			if( uAdd < 64 ) _size += 4096;
 		}
 
-
+		/*
 		uint8_t* puNew = new uint8_t[_size];
 		memcpy( puNew, m_puString, m_uSize );
 
 		delete [] m_puString;
 		m_puString = puNew;
 		m_uSizeBuffer = _size;
+		*/
+
+
+		uint8_t* puNew = new uint8_t[_size];
+		memcpy( puNew, m_pbuffer, _size );
+		if( m_pbuffer != string::m_pbuffer_empty )
+		{
+			delete [] m_pbuffer;
+		}
+		m_pbuffer = reinterpret_cast<string::buffer*>( puNew );
+		m_pbuffer->set_reference( 1 );
+		m_pbuffer->capacity( _size - sizeof(string::buffer) );
 	}
 }
 

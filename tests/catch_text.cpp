@@ -1,4 +1,6 @@
-﻿#include "catch.hpp"
+﻿#include <iterator>
+
+#include "catch.hpp"
 
 #include "gd_utf8.hpp"
 #include "gd_utf8_string.hpp"
@@ -66,6 +68,29 @@ TEST_CASE("utf8 convert operations", "[utf8]") {
 TEST_CASE("utf8 add to string", "[utf8]") {
    gd::utf8::string stringText;
 
-   stringText.append((uint32_t)'Ö');         REQUIRE(stringText.length() == 2);  REQUIRE(stringText.count() == 1);
+   stringText.append(U'Ö');         REQUIRE(stringText.length() == 2);  REQUIRE(stringText.count() == 1);
+   stringText.append("0123456789"); REQUIRE(stringText.length() == 12); REQUIRE(stringText.count() == 11);
+
+   unsigned uCount = 0;
+   for( auto it : stringText ) {
+      auto ch = it;
+      char chCharacter = ch;
+      uCount++;
+   }                                REQUIRE(uCount == 11);
+
+   stringText.append(u'Ö');
+
+   
+   //auto l = std::distance( it, stringText.end() );
+   auto it = stringText.begin();
+
+   static_assert(std::is_same_v<gd::utf8::string::iterator::iterator_category, std::bidirectional_iterator_tag>);
+
+   std::advance( it, 5 );           REQUIRE( *it == '4' );
+
 
 }
+
+
+
+// regex: https://www.geeksforgeeks.org/check-three-or-more-consecutive-identical-characters-or-numbers/
