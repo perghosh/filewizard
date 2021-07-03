@@ -7,26 +7,33 @@
 
 namespace gd { namespace utf8 { 
 
-
 	/**
 	 * @brief character taken from utf8 string
 	 */
-	struct character
+	struct value32
 	{
-		character( const uint8_t* pubszCharacter ) {
-			auto uCount = gd::utf8::count( pubszCharacter ).first;    				 assert( uCount != 0 );
-			while( --uCount ) { m_pCharacter[4 - uCount] = pubszCharacter[4 - uCount]; }
+		value32( const uint8_t* pubszValue ) {
+			m_uValue = character( pubszValue );
 		}
 
-		character( const character& o ) { *reinterpret_cast<uint32_t*>( m_pCharacter ) = *reinterpret_cast<uint32_t*>( const_cast<character*>(&o)->m_pCharacter); }
+		value32( const value32& o ) { m_uValue = o.m_uValue; }
+		value32& operator=( const value32& o ) { m_uValue = o.m_uValue; return *this; }
 
-		operator char() const {
-			uint32_t ch = gd::utf8::character( c_buffer() );							 assert( ch < 0x100 );
-			return static_cast<char>(ch);
+
+/*
+		value32( const value32& o ) { *reinterpret_cast<uint32_t*>( m_pValue ) = *reinterpret_cast<uint32_t*>( const_cast<value32*>(&o)->m_pValue); }
+		value32& operator=( const value32& o ) { *reinterpret_cast<uint32_t*>( m_pValue ) = *reinterpret_cast<uint32_t*>( const_cast<value32*>(&o)->m_pValue); return *this; }
+*/
+
+		operator char() const {                                                  assert( m_uValue < 0x100 );
+			return static_cast<char>(m_uValue);
 		}
-		const uint8_t* c_buffer() const { return m_pCharacter; }
 
-		uint8_t m_pCharacter[4];
+		operator wchar_t() const {                                               assert( m_uValue < 0x10000 );
+			return static_cast<wchar_t>(m_uValue);
+		}
+
+		uint32_t m_uValue;
 	};
 
 
@@ -40,6 +47,7 @@ public:
 	typedef const value_type*     const_pointer;
    typedef value_type&           reference;
    typedef const value_type&     const_reference;
+	typedef std::size_t				size_type;
 
 
 public:
@@ -75,6 +83,7 @@ public:
 		typedef const_iterator     self;
 		typedef uint8_t 				value_type;
 		typedef uint8_t*				pointer;
+		typedef const pointer	   const_pointer;
 		typedef uint8_t&				reference;
 		typedef std::size_t        size_type;
 		typedef std::ptrdiff_t     difference_type;
@@ -84,6 +93,8 @@ public:
 
 		const reference operator*() const { return *m_pPosition; }
 		const pointer operator->() { return m_pPosition; }
+
+		operator const_pointer() { return m_pPosition; }
 
 		self operator++() { m_pPosition = gd::utf8::move::next( m_pPosition ); return *this; }  
 		self operator++( int ) { self it = *this; ++(*this); return it; }  
@@ -106,12 +117,14 @@ public:
 		if( string::m_pbuffer_empty != m_pbuffer) m_pbuffer->release();
 	}
 
-	uint32_t size() const { return m_pbuffer->size(); }
-	uint32_t length() const { return m_pbuffer->size(); }
-	uint32_t count() const { return m_pbuffer->count(); }
-	uint32_t capacity() const { return m_pbuffer->capacity(); }
-	bool empty() const { return m_pbuffer->empty(); }
-	const uint8_t* c_str() const { assert(m_pbuffer != string::m_pbuffer_empty); m_pbuffer->c_str(); }
+	gd::utf8::value32 operator [](size_type uIndex ) const { return at( uIndex ); }
+
+	[[nodiscard]] uint32_t size() const { return m_pbuffer->size(); }
+	[[nodiscard]] uint32_t length() const { return m_pbuffer->size(); }
+	[[nodiscard]] uint32_t count() const { return m_pbuffer->count(); }
+	[[nodiscard]] uint32_t capacity() const { return m_pbuffer->capacity(); }
+	[[nodiscard]] bool empty() const { return m_pbuffer->empty(); }
+	[[nodiscard]] const uint8_t* c_str() const { assert(m_pbuffer != string::m_pbuffer_empty); m_pbuffer->c_str(); }
 	
 
 public:
@@ -130,15 +143,22 @@ public:
 	string& append( std::string_view stringText ) { return append( stringText.data(), static_cast<uint32_t>(stringText.length()) ); }
 	string& append( const char* pbszText, uint32_t uLength );
 
-	iterator begin() { return iterator( m_pbuffer->c_buffer() ); }
-	iterator end() { return iterator( m_pbuffer->c_buffer_end() ); }
-	const_iterator begin() const { return const_iterator( m_pbuffer->c_buffer() ); }
-	const_iterator end() const { return const_iterator( m_pbuffer->c_buffer_end() ); }
+	[[nodiscard]] gd::utf8::value32 at( size_type uIndex ) const { 
+		auto it = begin();
+		std::advance( it, uIndex );
+		return value32( it ); 
+	}
+	[[nodiscard]] gd::utf8::value32 at( const_iterator it ) const { return value32( it ); }
+
+	[[nodiscard]] iterator begin() { return iterator( m_pbuffer->c_buffer() ); }
+	[[nodiscard]] iterator end() { return iterator( m_pbuffer->c_buffer_end() ); }
+	[[nodiscard]] const_iterator begin() const { return const_iterator( m_pbuffer->c_buffer() ); }
+	[[nodiscard]] const_iterator end() const { return const_iterator( m_pbuffer->c_buffer_end() ); }
 
 	//character at( std::size_t uPosition );
 
 	/// Get last position in buffer
-	uint8_t* c_end() const { return m_pbuffer->c_buffer_end(); }
+	[[nodiscard]] uint8_t* c_end() const { return m_pbuffer->c_buffer_end(); }
 
 	void allocate( uint32_t uSize );
 

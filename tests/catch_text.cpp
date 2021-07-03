@@ -87,6 +87,13 @@ TEST_CASE("utf8 add to string", "[utf8]") {
    static_assert(std::is_same_v<gd::utf8::string::iterator::iterator_category, std::bidirectional_iterator_tag>);
 
    std::advance( it, 5 );           REQUIRE( *it == '4' );
+   auto uDistance = std::distance( stringText.begin(), stringText.end() );     REQUIRE( uDistance == 12 );
+
+   REQUIRE( 'Ö' == (char)stringText[0]);
+   REQUIRE( L'Ö' == (wchar_t)stringText[0]);
+   REQUIRE( L'Ö' == (wchar_t)stringText[11]);
+
+   auto test = stringText.at(20);
 
 
 }
