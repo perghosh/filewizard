@@ -91,7 +91,9 @@ TEST_CASE("utf8 add to string", "[utf8]") {
 
    REQUIRE( 'Ö' == (char)stringText[0]);
    REQUIRE( L'Ö' == (wchar_t)stringText[0]);
-   REQUIRE( L'Ö' == (wchar_t)stringText[11]);
+   REQUIRE( stringText[0] == stringText[11]);
+   if( stringText[0] == stringText[11] ) stringText = "ok";
+   if( stringText[11] == 'Ö' ) stringText = "ok";
 
    auto test = stringText.at(20);
 

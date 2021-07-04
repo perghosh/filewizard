@@ -12,12 +12,17 @@ namespace gd { namespace utf8 {
 	 */
 	struct value32
 	{
+		value32(): m_uValue(0) {}
 		value32( const uint8_t* pubszValue ) {
 			m_uValue = character( pubszValue );
 		}
 
 		value32( const value32& o ) { m_uValue = o.m_uValue; }
 		value32& operator=( const value32& o ) { m_uValue = o.m_uValue; return *this; }
+		constexpr auto operator<=>( const value32& _1 ) const { return m_uValue <=> _1.m_uValue; }
+		bool operator==( const value32& _1 ) { return m_uValue == _1.m_uValue; }
+		//bool operator==( const char* _1 ) { return m_uValue == _1.m_uValue; }
+		//friend bool operator<=>( const value32& _1, const value32& _2 ) { return _1.m_uValue == _2.m_uValue; }
 
 
 /*
@@ -25,13 +30,9 @@ namespace gd { namespace utf8 {
 		value32& operator=( const value32& o ) { *reinterpret_cast<uint32_t*>( m_pValue ) = *reinterpret_cast<uint32_t*>( const_cast<value32*>(&o)->m_pValue); return *this; }
 */
 
-		operator char() const {                                                  assert( m_uValue < 0x100 );
-			return static_cast<char>(m_uValue);
-		}
-
-		operator wchar_t() const {                                               assert( m_uValue < 0x10000 );
-			return static_cast<wchar_t>(m_uValue);
-		}
+		operator char() const { assert( m_uValue < 0x100 ); return static_cast<char>(m_uValue); }
+		operator wchar_t() const { assert( m_uValue < 0x10000 ); return static_cast<wchar_t>(m_uValue); }
+		operator uint32_t() const { return m_uValue; }
 
 		uint32_t m_uValue;
 	};
@@ -94,7 +95,10 @@ public:
 		const reference operator*() const { return *m_pPosition; }
 		const pointer operator->() { return m_pPosition; }
 
-		operator const_pointer() { return m_pPosition; }
+		operator const_pointer() const { return m_pPosition; }
+		operator char() const { return value32(m_pPosition); }
+		operator wchar_t() const { return value32(m_pPosition); }
+		operator uint32_t() const { return value32(m_pPosition); }
 
 		self operator++() { m_pPosition = gd::utf8::move::next( m_pPosition ); return *this; }  
 		self operator++( int ) { self it = *this; ++(*this); return it; }  
@@ -111,11 +115,16 @@ public:
 
 public:
 	string() {}
+	explicit string( const char* pbszText ) { assign( pbszText ); }
+	explicit string( std::string_view stringText ) { assign( stringText.data(), static_cast<uint32_t>(stringText.length()) );; }
+	explicit string( const char* pbszText, uint32_t uLength ) { assign( pbszText, uLength ); }
 	~string()
 	{
 		//delete [] m_puString;
 		if( string::m_pbuffer_empty != m_pbuffer) m_pbuffer->release();
 	}
+
+	string& operator=( const char* pbszText ) { return assign( pbszText ); }
 
 	gd::utf8::value32 operator [](size_type uIndex ) const { return at( uIndex ); }
 
@@ -128,6 +137,10 @@ public:
 	
 
 public:
+	string& assign( const char* pbszText ) { return assign( pbszText, static_cast<uint32_t>( std::strlen( pbszText ) ) ); }
+	string& assign( std::string_view stringText ) { return assign( stringText.data(), static_cast<uint32_t>(stringText.length()) ); }
+	string& assign( const char* pbszText, uint32_t uLength );
+
 	void push_back( uint8_t ch );
 	void push_back( uint16_t ch );
 	void push_back( uint32_t ch );
