@@ -10,7 +10,7 @@ void string::push_back( uint8_t ch )
 {
 	allocate( 1 );
 
-	auto pbszEnd = c_end();
+	auto pbszEnd = c_buffer_end();
 
 	auto uSize = convert( ch, pbszEnd );
 	pbszEnd[uSize] = '\0';
@@ -18,10 +18,6 @@ void string::push_back( uint8_t ch )
 	m_pbuffer->size( m_pbuffer->size() + uSize );
 	m_pbuffer->count( m_pbuffer->count() + 1 );
 
-/*
-	m_uSize += uSize;
-	m_uCount++;
-	*/
 }
 
 string& string::assign( const char* pbszText, uint32_t uLength )
@@ -37,22 +33,31 @@ string& string::assign( const char* pbszText, uint32_t uLength )
 	return *this;
 }
 
+string& string::assign( const value_type* pbszText, uint32_t uSize, uint32_t uCount )
+{
+	string::release( m_pbuffer );
+	m_pbuffer = string::m_pbuffer_empty;
+
+	if( uSize > m_pbuffer->capacity() ) allocate_exact( uSize );
+
+	memcpy( c_buffer(), pbszText, uSize );
+	m_pbuffer->count( uCount );
+
+	return *this;
+}
+
+
 void string::push_back( uint16_t ch )
 {
-	allocate( 2 );
+	allocate( sizeof(uint16_t) );
 
-	auto pbszEnd = c_end();
+	auto pbszEnd = c_buffer_end();
 	auto uSize = convert( ch, pbszEnd );
 
 	pbszEnd[uSize] = '\0';
 
 	m_pbuffer->size( m_pbuffer->size() + uSize );
 	m_pbuffer->count( m_pbuffer->count() + 1 );
-
-/*
-	m_uSize += uSize;
-	m_uCount++;
-	*/
 }
 
 
@@ -62,20 +67,15 @@ void string::push_back( uint16_t ch )
  */
 void string::push_back( uint32_t ch )
 {
-	allocate( 4 );
+	allocate( sizeof(uint32_t) );																// add four bytes, max size for utf32_t character
 
-	auto pbszEnd = c_end();
+	auto pbszEnd = c_buffer_end();
 	auto uSize = convert( ch, pbszEnd );
 
 	pbszEnd[uSize] = '\0';
 
 	m_pbuffer->size( m_pbuffer->size() + uSize );
 	m_pbuffer->count( m_pbuffer->count() + 1 );
-
-/*
-	m_uSize += uSize;
-	m_uCount++;
-	*/
 }
 
 string& string::append( const char* pbszText, uint32_t uLength )
@@ -83,7 +83,7 @@ string& string::append( const char* pbszText, uint32_t uLength )
 	uint32_t uSize = gd::utf8::size( pbszText, uLength );
 	allocate( uSize );
 
-	auto pbszEnd = c_end();
+	auto pbszEnd = c_buffer_end();
 	convert_ascii( pbszText, pbszEnd );
 
 	m_pbuffer->size( m_pbuffer->size() + uSize );
@@ -116,15 +116,59 @@ void string::allocate(uint32_t uSize)
 
 		uint8_t* puNew = new uint8_t[_size];
 		memcpy( puNew, m_pbuffer, _size );
-		if( m_pbuffer != string::m_pbuffer_empty )
-		{
-			delete [] m_pbuffer;
-		}
+		if( m_pbuffer != string::m_pbuffer_empty ) string::release( m_pbuffer );
 		m_pbuffer = reinterpret_cast<string::buffer*>( puNew );
 		m_pbuffer->set_reference( 1 );
 		m_pbuffer->capacity( _size - sizeof(string::buffer) );
 	}
 }
+
+/**
+ * @brief Allocate buffer and specify the exact buffer size
+ * @param uSize size buffer gets
+*/
+void string::allocate_exact(uint32_t uSize)
+{																										 assert( uSize < 0x01000000 ); // realistic !!
+	buffer* pbufferOld = m_pbuffer;
+
+	// ## allocate buffer
+	auto _size = uSize + sizeof(string::buffer);
+	uint8_t* puNew = new uint8_t[_size];
+	m_pbuffer = reinterpret_cast<string::buffer*>( puNew );
+
+	if( string::is_empty( m_pbuffer ) == false )											// if old buffer has a valid string, copy
+	{
+		m_pbuffer->capacity( uSize );
+		if( pbufferOld->size() > 0 )
+		{
+			if( pbufferOld->size() > uSize )													// if string is larger then we need to walk backwards to find where to cut, utf8 remember... a character may be stored in multiple bytes
+			{
+				auto uCount = pbufferOld->count();
+				auto pubszEnd = pbufferOld->c_buffer_end();
+				while( uCount > 0 && pubszEnd - pbufferOld->c_buffer() > uSize )
+				{
+					pubszEnd = move::previous( pubszEnd );
+					uCount--;
+				}
+
+				uSize = static_cast<uint32_t>( pubszEnd - pbufferOld->c_buffer() );
+				m_pbuffer->count( uCount );
+				m_pbuffer->size( uSize );
+			}
+
+			memcpy( m_pbuffer->c_buffer(), pbufferOld->c_buffer(), uSize );
+			m_pbuffer->c_buffer()[uSize] = '\0';
+			string::release( pbufferOld );
+		}
+
+		pbufferOld->release();
+	}
+	else
+	{
+		m_pbuffer->reset( uSize );
+	}
+}
+
 
 
 } }

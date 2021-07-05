@@ -42,6 +42,13 @@ namespace gd { namespace utf8 {
 class string
 {
 public:
+	enum enumBufferStorage : std::uint32_t {
+		eBufferStorageReferenceCount	= 0x00,
+		eBufferStorageStack				= 0x01,	// string data is on stack, do not delete
+		eBufferStorageSingle				= 0x02,	// string data is not reference counted
+	};
+
+public:
 	typedef string						self;
    typedef uint8_t					value_type;
 	typedef value_type*           pointer;
@@ -118,10 +125,13 @@ public:
 	explicit string( const char* pbszText ) { assign( pbszText ); }
 	explicit string( std::string_view stringText ) { assign( stringText.data(), static_cast<uint32_t>(stringText.length()) );; }
 	explicit string( const char* pbszText, uint32_t uLength ) { assign( pbszText, uLength ); }
+
+	string( const string& o ) {
+
+	}
 	~string()
 	{
-		//delete [] m_puString;
-		if( string::m_pbuffer_empty != m_pbuffer) m_pbuffer->release();
+		string::release( m_pbuffer );
 	}
 
 	string& operator=( const char* pbszText ) { return assign( pbszText ); }
@@ -133,20 +143,27 @@ public:
 	[[nodiscard]] uint32_t count() const { return m_pbuffer->count(); }
 	[[nodiscard]] uint32_t capacity() const { return m_pbuffer->capacity(); }
 	[[nodiscard]] bool empty() const { return m_pbuffer->empty(); }
-	[[nodiscard]] const uint8_t* c_str() const { assert(m_pbuffer != string::m_pbuffer_empty); m_pbuffer->c_str(); }
+	[[nodiscard]] const value_type* c_str() const { assert(m_pbuffer != string::m_pbuffer_empty); m_pbuffer->c_str(); }
 	
 
 public:
 	string& assign( const char* pbszText ) { return assign( pbszText, static_cast<uint32_t>( std::strlen( pbszText ) ) ); }
 	string& assign( std::string_view stringText ) { return assign( stringText.data(), static_cast<uint32_t>(stringText.length()) ); }
 	string& assign( const char* pbszText, uint32_t uLength );
+	string& assign( const value_type* pbszText, uint32_t uSize, uint32_t uCount );
+	string& assign( const value_type* pbszText, uint32_t uSize ) { return assign( pbszText, uSize, gd::utf8::count( pbszText ).first ); }
+	string& assign( const string& stringFrom );
 
+
+/** @name APPEND
+ *  Append text 
+*///@{
 	void push_back( uint8_t ch );
 	void push_back( uint16_t ch );
 	void push_back( uint32_t ch );
 
-	string& append( uint8_t ch ) { push_back( ch ); return *this; };
-	string& append( char8_t ch ) { push_back( static_cast<uint8_t>( ch ) ); return *this; };
+	string& append( uint8_t ch ) { push_back( static_cast<value_type>( ch ) ); return *this; };
+	string& append( char8_t ch ) { push_back( static_cast<value_type>( ch ) ); return *this; };
 	string& append( uint16_t ch ) { push_back( ch ); return *this; };
 	string& append( char16_t ch ) { push_back( static_cast<uint16_t>( ch ) ); return *this; };
 	string& append( uint32_t ch ) { push_back( ch ); return *this; };
@@ -155,6 +172,7 @@ public:
 	string& append( const char* pbszText ) { return append( pbszText, static_cast<uint32_t>( std::strlen( pbszText ) ) ); }
 	string& append( std::string_view stringText ) { return append( stringText.data(), static_cast<uint32_t>(stringText.length()) ); }
 	string& append( const char* pbszText, uint32_t uLength );
+//@}
 
 	[[nodiscard]] gd::utf8::value32 at( size_type uIndex ) const { 
 		auto it = begin();
@@ -171,17 +189,14 @@ public:
 	//character at( std::size_t uPosition );
 
 	/// Get last position in buffer
-	[[nodiscard]] uint8_t* c_end() const { return m_pbuffer->c_buffer_end(); }
+	[[nodiscard]] const value_type* c_end() const { return m_pbuffer->c_buffer_end(); }
+	[[nodiscard]] value_type* c_buffer() const { return m_pbuffer->c_buffer(); }
+	[[nodiscard]] value_type* c_buffer_end() const { return m_pbuffer->c_buffer_end(); }
 
 	void allocate( uint32_t uSize );
+	void allocate_exact( uint32_t uSize );
 
 public:
-/*
-	uint8_t* m_puString = nullptr;		/// pointer to string
-	uint32_t m_uSize = 0;					/// string length in bytes
-	uint32_t m_uSizeBuffer = 0;   		/// string length in bytes
-	uint32_t m_uCount = 0;					/// Number of utf8 characters in text
-	*/
 
 	struct buffer
 	{
@@ -191,15 +206,29 @@ public:
 		uint32_t m_uFlags;			   /// Internal flags how string logic works
 		int32_t  m_iReferenceCount;
 
-		uint32_t size() const { return m_uSize; }
-		void size( uint32_t uSize ) { m_uSize = uSize; }
+		uint32_t flags() const { return m_uFlags; }
+		void flags( uint32_t uFlags ) { m_uFlags = uFlags; }
 		uint32_t length() const { return m_uSize; }
 		void length( uint32_t uLength ) { m_uSize = uLength; }
+		uint32_t size() const { return m_uSize; }
+		void size( uint32_t uSize ) { m_uSize = uSize; }
 		uint32_t count() const { return m_uCount; }
 		void count( uint32_t uCount ) { m_uCount = uCount; }
 		uint32_t capacity() const { return m_uSizeBuffer; }
 		void capacity( uint32_t uCapacity ) { m_uSizeBuffer = uCapacity; }
 		bool empty() const { return m_uSize == 0; }
+
+		bool is_stack() const { return (m_uFlags & eBufferStorageStack) ? true : false; }
+		bool is_single() const { return (m_uFlags & eBufferStorageSingle) ? true : false; }
+		
+		void reset( uint32_t uBufferSize ) { 
+			m_uSize = 0; 
+			m_uSizeBuffer = uBufferSize;
+			m_uCount = 0;
+			m_uFlags = 0;
+			m_iReferenceCount = 1;
+			if( m_uSizeBuffer > 0 ) *c_buffer() = '\0';
+		}
 
 
 		string::pointer c_buffer() { return reinterpret_cast<string::pointer>(this + 1); }
@@ -220,6 +249,15 @@ public:
 
 	buffer* m_pbuffer = string::m_pbuffer_empty;
 
+private:
+	static bool is_empty( const buffer* p ) { return p == string::m_pbuffer_empty; }
+	static void release( buffer* p ) { if( p != string::m_pbuffer_empty ) p->release(); }
+	static buffer* clone( buffer* p ) { 
+		if( p != string::m_pbuffer_empty ) {
+			if( p->flags() == 0 ) { p->add_reference(); return p; }
+		}
+		return string::m_pbuffer_empty;
+	}
 
 	static buffer m_pbuffer_empty[];
 };

@@ -80,6 +80,8 @@ TEST_CASE("utf8 add to string", "[utf8]") {
 
    stringText.append(u'Ö');
 
+   gd::utf8::string stringText2( stringText );
+
    
    //auto l = std::distance( it, stringText.end() );
    auto it = stringText.begin();

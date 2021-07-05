@@ -14,6 +14,7 @@ include( "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CompilerOptions.cmake" )
 set( source_cpp 
    "../source/gd_utf8.cpp"
    "../source/gd_utf8_string.cpp"
+   "../source/app_file.cpp"
 )
 
 #  ${CMAKE_CURRENT_SOURCE_DIR}/../libraries/catch2/catch_amalgamated.cpp
@@ -22,6 +23,7 @@ set( source_cpp
 set( catch_test 
    "catch.h"
    "catch_text.cpp"
+   "catch_file.cpp"
 )
 
 message( ${CMAKE_PREFIX_PATH} )
@@ -30,7 +32,7 @@ message( ${CMAKE_PREFIX_PATH} )
 
 
 # Add source to this project's executable.
-add_executable ("fw_test" "fw_test.cpp" "fw_test.h" "${source_cpp}" "${catch_test}")
+add_executable ("fw_test" "fw_test.cpp" "fw_test.h" "${source_cpp}" "${catch_test}" )
 find_package(Catch2 CONFIG REQUIRED)
 
 
