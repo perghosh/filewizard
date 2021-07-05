@@ -6,6 +6,15 @@ namespace gd { namespace utf8 {
 
 string::buffer string::m_pbuffer_empty[] = {0,0,0,0,-1, 0};
 
+string::string( gd::utf8::buffer bufferStack ) {										assert( bufferStack.m_uSize > sizeof( string::buffer ) );
+	m_pbuffer = reinterpret_cast<string::buffer*>( bufferStack.m_pBuffer );
+	m_pbuffer->capacity( bufferStack.m_uSize - sizeof( string::buffer ) );
+	m_pbuffer->flags( eBufferStorageStack | eBufferStorageSingle );
+	m_pbuffer->size( 0 );
+	m_pbuffer->count( 0 );
+	m_pbuffer->set_reference( 1 );
+}
+
 void string::push_back( uint8_t ch )
 {
 	allocate( 1 );

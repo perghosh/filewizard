@@ -77,7 +77,7 @@ namespace gd {
          const char* pbszEnd = pbszText + uLength;
          while( pbszText < pbszEnd )
          {
-            uSize += *pbszText < 0x80 ? 1 : 2;
+            uSize += static_cast<uint8_t>(*pbszText) < 0x80 ? 1 : 2;
             pbszText++;
          }
          return uSize;

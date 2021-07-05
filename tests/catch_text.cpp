@@ -98,10 +98,20 @@ TEST_CASE("utf8 add to string", "[utf8]") {
    if( stringText[11] == 'Ö' ) stringText = "ok";
 
    auto test = stringText.at(20);
-
-
 }
 
+TEST_CASE("Test stack based string", "[utf8]") {
+   uint8_t pBuffer[100];
+
+   gd::utf8::string stringText( gd::utf8::buffer{ pBuffer, 100 } );
+   stringText.append("0123456789");
+   stringText.append("0123456789");          REQUIRE(stringText.size() == 20);                             
+   stringText.append("åäö");                 REQUIRE(stringText.size() == 26); 
+   
+   auto v = stringText[21];
+   
+   //REQUIRE(v == 'ä');
+}
 
 
 // regex: https://www.geeksforgeeks.org/check-three-or-more-consecutive-identical-characters-or-numbers/

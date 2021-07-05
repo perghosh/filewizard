@@ -38,6 +38,7 @@ namespace gd { namespace utf8 {
 	};
 
 
+	struct buffer;
 
 class string
 {
@@ -122,6 +123,7 @@ public:
 
 public:
 	string() {}
+	explicit string( gd::utf8::buffer bufferStack );
 	explicit string( const char* pbszText ) { assign( pbszText ); }
 	explicit string( std::string_view stringText ) { assign( stringText.data(), static_cast<uint32_t>(stringText.length()) );; }
 	explicit string( const char* pbszText, uint32_t uLength ) { assign( pbszText, uLength ); }
@@ -238,12 +240,12 @@ public:
 		string::const_pointer c_str() const { return reinterpret_cast<string::const_pointer>(this + 1); }
 
 		void set_reference( int32_t iCount ) { m_iReferenceCount = iCount; }
-		void add_reference() { m_iReferenceCount++; }
+		void add_reference() { if( is_single() == false ) m_iReferenceCount++;  }
 
 		void release()
 		{																								assert( m_iReferenceCount > 0 );
 			m_iReferenceCount--;
-			if( m_iReferenceCount == 0 ) delete [] reinterpret_cast<buffer*>( this );
+			if( m_iReferenceCount == 0 && is_stack() == false ) delete [] reinterpret_cast<buffer*>( this );
 		}
 	};
 
@@ -251,10 +253,12 @@ public:
 
 private:
 	static bool is_empty( const buffer* p ) { return p == string::m_pbuffer_empty; }
-	static void release( buffer* p ) { if( p != string::m_pbuffer_empty ) p->release(); }
+	static void release( buffer* p ) {
+		if( p != string::m_pbuffer_empty ) p->release(); 
+	}
 	static buffer* clone( buffer* p ) { 
 		if( p != string::m_pbuffer_empty ) {
-			if( p->flags() == 0 ) { p->add_reference(); return p; }
+			if( p->is_single() == false ) { p->add_reference(); return p; }
 		}
 		return string::m_pbuffer_empty;
 	}
@@ -262,7 +266,14 @@ private:
 	static buffer m_pbuffer_empty[];
 };
 
-
+/**
+ * @brief buffer for use in string when string is storing data on stack
+*/
+struct buffer
+{
+	string::value_type* m_pBuffer;
+	uint32_t m_uSize;
+};
 
 
 } }
