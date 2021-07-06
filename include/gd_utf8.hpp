@@ -8,12 +8,14 @@
 namespace gd { namespace utf8 {
 
       ///@{ 
+      void normalize( uint32_t uCharacter, char8_t& value );
       uint32_t character(const uint8_t* pubszText);
       template <typename UTF8_TYPE>
       uint32_t character(const UTF8_TYPE* pbszText) {
          static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
          return character(reinterpret_cast<const uint8_t*>(pbszText));
       };
+      uint32_t character(const uint16_t* pubszText);
       ///@}
 
 

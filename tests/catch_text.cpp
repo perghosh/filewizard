@@ -107,10 +107,38 @@ TEST_CASE("Test stack based string", "[utf8]") {
    stringText.append("0123456789");
    stringText.append("0123456789");          REQUIRE(stringText.size() == 20);                             
    stringText.append("åäö");                 REQUIRE(stringText.size() == 26); 
+                                             REQUIRE(stringText.count() == 23); 
+
+   auto s1 = stringText;
+   auto s2 = s1;
+   auto s3 = s2;
+
+/*
    
-   auto v = stringText[21];
+   auto v = stringText[20];
+   auto v1 = v;
+   if(v == gd::utf8::value32(u8"å"))
+   {
+      REQUIRE(v == gd::utf8::value32(u8"å"));
+   }
+   wchar_t wch = v;
+   if((char8_t)'å' == v)
+   {
+      REQUIRE(v == (uint8_t)'å');
+      v = stringText[21];
+      REQUIRE(v == (uint8_t)'ä');
+      v = stringText[22];
+      REQUIRE(v == (uint8_t)'ö');
+   }
+
+   /*
+   char8_t ch;
+   gd::utf8::normalize( v, ch );
    
-   //REQUIRE(v == 'ä');
+   if(ch == (char8_t)'ä') {
+      REQUIRE(stringText.size() == 26);  
+   };
+   */
 }
 
 

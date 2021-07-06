@@ -25,6 +25,18 @@ namespace gd {
           4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0, /* 0xF0-0xFF */
       };
 
+      void normalize( uint32_t uCharacter, char8_t& value )
+      {
+         if( uCharacter < 0x80 ) value = static_cast<uint8_t>(uCharacter);
+         else if( ((uCharacter >> 8) & 0xc0) == 0xc0 )
+         {
+            value = static_cast<uint8_t>(uCharacter >> 8) & 0x1f;
+            value |= static_cast<uint8_t>(uCharacter) & 0x3f;
+            
+         }
+         throw std::runtime_error("invalid convert  (operation = normalize)");
+      }
+
 
       uint32_t character(const uint8_t* pubszCharacter)
       {
@@ -43,6 +55,13 @@ namespace gd {
          }
          return 0;
       }
+
+      uint32_t character(const uint16_t* pubszCharacter)
+      {
+         uint32_t uCode = 0;
+         return uCode;
+      }
+
 
       /**
        * @brief count utf8 characters in buffer
