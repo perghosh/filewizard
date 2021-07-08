@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdexcept>
+#include <initializer_list>
 #include "gd_utf8.hpp"
 
 namespace gd { 
@@ -56,13 +57,6 @@ namespace gd {
          return 0;
       }
 
-      uint32_t character(const uint16_t* pubszCharacter)
-      {
-         uint32_t uCode = 0;
-         return uCode;
-      }
-
-
       /**
        * @brief count utf8 characters in buffer
        * @param pubszText pointer to buffer with text where characters are counted
@@ -88,6 +82,12 @@ namespace gd {
          }
 
          return std::pair<uint32_t, const uint8_t*>(uCount, pubszPosition);
+      }
+
+      uint32_t size( uint8_t uCharacter ) 
+      {
+         if( uCharacter < 0x80 ) return 1;  
+         return 2;
       }
 
       uint32_t size( const char* pbszText, uint32_t uLength )

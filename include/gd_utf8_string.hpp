@@ -3,6 +3,8 @@
 #include <cassert>
 #include <iterator>
 #include <string_view>
+#include <initializer_list>
+		
 #include "gd_utf8.hpp"
 
 namespace gd { namespace utf8 { 
@@ -55,7 +57,7 @@ public:
    enum enumBufferStorage : std::uint32_t {
       eBufferStorageReferenceCount   = 0x00,
       eBufferStorageStack            = 0x01,   // string data is on stack, do not delete
-      eBufferStorageSingle            = 0x02,   // string data is not reference counted
+      eBufferStorageSingle           = 0x02,   // string data is not reference counted
    };
 
 public:
@@ -136,6 +138,8 @@ public:
    explicit string( const char* pbszText ) { assign( pbszText ); }
    explicit string( std::string_view stringText ) { assign( stringText.data(), static_cast<uint32_t>(stringText.length()) ); }
    explicit string( const char* pbszText, uint32_t uLength ) { assign( pbszText, uLength ); }
+   template<typename CHAR>
+   string( std::initializer_list<CHAR> listString ) { assign( listString ); }
 
    string(string&& o) noexcept {
       m_pbuffer = o.m_pbuffer; o.m_pbuffer = string::m_pbuffer_empty;
@@ -173,6 +177,11 @@ public:
    string& assign( const value_type* pbszText, uint32_t uSize, uint32_t uCount );
    string& assign( const value_type* pbszText, uint32_t uSize ) { return assign( pbszText, uSize, gd::utf8::count( pbszText ).first ); }
    string& assign( const string& stringFrom );
+   template<typename CHAR>
+   string& assign( std::initializer_list<CHAR> listString ) { // _Ilist.begin(), _Convert_size<size_type>(_Ilist.size()));
+      for( auto it : listString ) push_back( static_cast<value_type>(it) );
+      return *this;
+   }
 
 
 /** @name APPEND

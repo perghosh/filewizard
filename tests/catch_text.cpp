@@ -5,9 +5,11 @@
 #include "gd_utf8.hpp"
 #include "gd_utf8_string.hpp"
 
-TEST_CASE("utf8 move operations", "[utf8]") {
+TEST_CASE("utf8 count and move operations", "[utf8]") {
    char pBuffer[100] = { 0 };
    const char* p1 = "01234567890123456789012345678901234567890123456789";
+
+   auto uCount = gd::utf8::count( p1 ).first;REQUIRE(uCount == 50);
 
    p1 = gd::utf8::move::next(p1);         REQUIRE(*p1 == '1');
    p1 = gd::utf8::move::next(p1, 9);      REQUIRE(*p1 == '0');
@@ -16,6 +18,11 @@ TEST_CASE("utf8 move operations", "[utf8]") {
    
 
    const char* pAscii = (const char*)u8"AAA. Xåäö.XÅÄÖ.X ©¢¥¹ X";
+   uCount = gd::utf8::count( pAscii ).first;REQUIRE(uCount == 23);
+   uCount = reinterpret_cast<const char*>(gd::utf8::count( pAscii ).second) - pAscii;REQUIRE(uCount == 33);
+   uCount = gd::utf8::size("AAA. Xåäö.XÅÄÖ.X ©¢¥¹ X");REQUIRE(uCount == 33);
+   uCount = gd::utf8::size({'A','A','A','.',' ','X','å','ä','ö','.','X','Å','Ä','Ö','.','X',' ','©','¢','¥','¹',' ','X'});REQUIRE(uCount == 33);
+   std::vector<char> v({'A','A','A','.',' ','X','å','ä','ö','.','X','Å','Ä','Ö','.','X',' ','©','¢','¥','¹',' ','X'});
 
    p1 = pAscii; 
    p1 = gd::utf8::move::next(p1, 5);      REQUIRE(*p1 == 'X');
@@ -112,6 +119,10 @@ TEST_CASE("Test stack based string", "[utf8]") {
    auto s1 = stringText;
    auto s2 = s1;
    auto s3 = s2;
+
+   gd::utf8::string s5("12345");
+   std::string ss5{'1','2'};
+   gd::utf8::string s6{'1','2'};
 
 /*
    

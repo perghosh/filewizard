@@ -38,6 +38,21 @@ namespace gd { namespace utf8 {
          return count(reinterpret_cast<const uint8_t*>(pbszText)).first;
       };
 
+      /// count needed size to store character as utf8 value
+      uint32_t size( uint8_t ch );
+      /// count needed size to store char string as utf8 string
+      inline uint32_t size( const char* pbsz ) {
+         uint32_t uSize = 0;
+         while( *pbsz++ != 0 ) uSize += size( static_cast<uint8_t>(*pbsz) );
+         return uSize;
+      }
+      /// count needed size to store list of char values as utf8 string
+      inline uint32_t size( std::initializer_list<char> listString ) {
+         uint32_t uSize = 0;
+         for( auto it : listString ) uSize += size( static_cast<uint8_t>(it) );
+         return uSize;
+      }
+
       ///@}
 
       ///@{ 

@@ -4,6 +4,10 @@
 
 namespace gd { namespace utf8 { 
 
+constexpr uint32_t SIZE8_MAX_UTF_SIZE = 2;
+constexpr uint32_t SIZE16_MAX_UTF_SIZE = 3;
+constexpr uint32_t SIZE32_MAX_UTF_SIZE = 6;
+
 string::buffer string::m_pbuffer_empty[] = {0,0,0,0,-1, 0};
 
 string::string( gd::utf8::buffer bufferStack ) {                              assert( bufferStack.m_uSize > sizeof( string::buffer ) );
@@ -13,19 +17,6 @@ string::string( gd::utf8::buffer bufferStack ) {                              as
    m_pbuffer->size( 0 );
    m_pbuffer->count( 0 );
    m_pbuffer->set_reference( 1 );
-}
-
-void string::push_back( uint8_t ch )
-{
-   allocate( 1 );
-
-   auto pbszEnd = c_buffer_end();
-
-   auto uSize = convert( ch, pbszEnd );
-   pbszEnd[uSize] = '\0';
-
-   m_pbuffer->size( m_pbuffer->size() + uSize );
-   m_pbuffer->count( m_pbuffer->count() + 1 );
 }
 
 /**
@@ -77,10 +68,24 @@ string& string::assign( const value_type* pbszText, uint32_t uSize, uint32_t uCo
    return *this;
 }
 
+void string::push_back( uint8_t ch )
+{
+   allocate( SIZE8_MAX_UTF_SIZE );
+
+   auto pbszEnd = c_buffer_end();
+
+   auto uSize = convert( ch, pbszEnd );
+   pbszEnd[uSize] = '\0';
+
+   m_pbuffer->size( m_pbuffer->size() + uSize );
+   m_pbuffer->count( m_pbuffer->count() + 1 );
+}
+
+
 
 void string::push_back( uint16_t ch )
 {
-   allocate( sizeof(uint16_t) );
+   allocate( SIZE16_MAX_UTF_SIZE );
 
    auto pbszEnd = c_buffer_end();
    auto uSize = convert( ch, pbszEnd );
@@ -98,7 +103,7 @@ void string::push_back( uint16_t ch )
  */
 void string::push_back( uint32_t ch )
 {
-   allocate( sizeof(uint32_t) );                                                // add four bytes, max size for utf32_t character
+   allocate( SIZE32_MAX_UTF_SIZE );                                                     // add four bytes, max size for utf32_t character
 
    auto pbszEnd = c_buffer_end();
    auto uSize = convert( ch, pbszEnd );
