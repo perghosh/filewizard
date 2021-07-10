@@ -1,3 +1,4 @@
+#include <cassert>
 #include <stdint.h>
 #include <stdexcept>
 #include <initializer_list>
@@ -371,6 +372,90 @@ namespace gd {
             while(*pubszPosition != '\0') pubszPosition++;
             return pubszPosition;
          }
+
+         const uint8_t* find( const uint8_t* pubszPosition, uint32_t uCharacter )
+         {
+            uint8_t puBuffer[SIZE32_MAX_UTF_SIZE + 1];
+            auto uLength = gd::utf8::convert( uCharacter, puBuffer );
+            puBuffer[uLength] = '\0';
+
+            return find_character( pubszPosition, puBuffer, uLength );
+         }
+
+         const uint8_t* find( const uint8_t* pubszPosition, const uint8_t* pubszEnd, uint32_t uCharacter )
+         {
+            uint8_t puBuffer[SIZE32_MAX_UTF_SIZE + 1];
+            auto uLength = gd::utf8::convert( uCharacter, puBuffer );
+            puBuffer[uLength] = '\0';
+
+            return find_character( pubszPosition, pubszEnd, puBuffer, uLength );
+         }
+
+         const uint8_t* find_character( const uint8_t* pubszPosition, const uint8_t* pubszCharacter, uint32_t ulength ) 
+         {                                                                                         assert( ulength < 6 );
+            auto pubszFind = pubszPosition;
+            while( *pubszFind != '\0' )
+            {
+               if( *pubszFind == *pubszCharacter )
+               {
+                  switch( ulength )
+                  {
+                     case 1: return pubszFind;
+                     case 2: if( pubszFind[1] == pubszCharacter[1] ) return pubszFind;
+                        break;
+                     case 3: if( pubszFind[1] == pubszCharacter[1] && pubszFind[2] == pubszCharacter[2] ) return pubszFind;
+                        break;
+                     case 4: if( pubszFind[1] == pubszCharacter[1] && pubszFind[2] == pubszCharacter[2] && pubszFind[3] == pubszCharacter[3] ) return pubszFind;
+                        break;
+                     case 5: if( pubszFind[1] == pubszCharacter[1] && pubszFind[2] == pubszCharacter[2] && pubszFind[3] == pubszCharacter[3] && pubszFind[4] == pubszCharacter[4] ) return pubszFind;
+                        break;
+                     default: throw std::runtime_error("invalid UTF-8 (operation = find_character)");
+                  }
+               }
+
+               pubszFind++;
+            }
+
+            return nullptr;
+         }
+
+         /**
+          * @brief Find utf8 character sequence in buffer
+          * @param pubszFind text to look for utf8 character
+          * @param pubszEnd where to stop searching
+          * @param pubszCharacter character to look for, remember that this need to be a utf8 sequence
+          * @param uLength utf8 sequence length
+          * @return position to found character or if not found return null
+         */
+         const uint8_t* find_character( const uint8_t* pubszFind, const uint8_t* pubszEnd, const uint8_t* pubszCharacter, uint32_t uLength ) 
+         {                                                                                         assert( uLength < 6 );
+            while( pubszFind < pubszEnd )
+            {
+               if( *pubszFind == *pubszCharacter )
+               {
+                  switch( uLength )
+                  {
+                     case 1: return pubszFind;
+                     case 2: if( pubszFind[1] == pubszCharacter[1] ) return pubszFind;
+                        break;
+                     case 3: if( pubszFind[1] == pubszCharacter[1] && pubszFind[2] == pubszCharacter[2] ) return pubszFind;
+                        break;
+                     case 4: if( pubszFind[1] == pubszCharacter[1] && pubszFind[2] == pubszCharacter[2] && pubszFind[3] == pubszCharacter[3] ) return pubszFind;
+                        break;
+                     case 5: if( pubszFind[1] == pubszCharacter[1] && pubszFind[2] == pubszCharacter[2] && pubszFind[3] == pubszCharacter[3] && pubszFind[4] == pubszCharacter[4] ) return pubszFind;
+                        break;
+                     default: throw std::runtime_error("invalid UTF-8 (operation = find_character)");
+                  }
+               }
+
+               pubszFind++;
+            }
+
+            return nullptr;
+         }
+
+
+         
       } // move
    } // utf8
 } // gd

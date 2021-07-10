@@ -7,6 +7,11 @@
 
 namespace gd { namespace utf8 {
 
+      constexpr uint32_t SIZE8_MAX_UTF_SIZE = 2;
+      constexpr uint32_t SIZE16_MAX_UTF_SIZE = 3;
+      constexpr uint32_t SIZE32_MAX_UTF_SIZE = 6;
+
+
       ///@{ 
       void normalize( uint32_t uCharacter, char8_t& value );
       uint32_t character(const uint8_t* pubszText);
@@ -164,7 +169,40 @@ namespace gd { namespace utf8 {
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>(end(reinterpret_cast<const uint8_t*>(pubszPosition)));
          };
+
+
+         const uint8_t* find( const uint8_t* pubszPosition, uint32_t uCharacter );
+         template <typename UTF8_TYPE, typename CHARACTER>
+         const UTF8_TYPE* find( const UTF8_TYPE* pubszPosition, CHARACTER Character ) {
+            static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
+            uint32_t uCharacter;
+            if constexpr( sizeof(Character) == sizeof(uint8_t) ) uCharacter = static_cast<uint8_t>(Character);       // 1 byte
+            else if constexpr( sizeof(Character) == sizeof(uint16_t) ) uCharacter = static_cast<uint16_t>(Character);// 2 byte value
+            else uCharacter = static_cast<uint32_t>(Character);                                                      // 4 byte or over
+            return reinterpret_cast<const UTF8_TYPE*>( find( reinterpret_cast<const uint8_t*>(pubszPosition), uCharacter ) );
+         }
+         const uint8_t* find( const uint8_t* pubszPosition, const uint8_t* pubszEnd, uint32_t uCharacter );
+         template <typename UTF8_TYPE, typename CHARACTER>
+         const UTF8_TYPE* find( const UTF8_TYPE* pubszPosition, const UTF8_TYPE* pubszEnd, CHARACTER Character ) {
+            static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
+            uint32_t uCharacter;
+            if constexpr( sizeof(Character) == sizeof(uint8_t) ) uCharacter = static_cast<uint8_t>(Character);       // 1 byte
+            else if constexpr( sizeof(Character) == sizeof(uint16_t) ) uCharacter = static_cast<uint16_t>(Character);// 2 byte value
+            else uCharacter = static_cast<uint32_t>(Character);                                                      // 4 byte or over
+            return reinterpret_cast<const UTF8_TYPE*>( find( reinterpret_cast<const uint8_t*>(pubszPosition), reinterpret_cast<const uint8_t*>(pubszEnd), uCharacter ) );
+         }
+         const uint8_t* find_character( const uint8_t* pubszPosition, const uint8_t* pubszCharacter, uint32_t ulength );
+         const uint8_t* find_character( const uint8_t* pubszPosition, const uint8_t* pubszEnd, const uint8_t* pubszCharacter, uint32_t ulength );
+         inline const uint8_t* find_character( const uint8_t* pubszPosition, const uint8_t* pubszCharacter ) { return find_character( pubszPosition, pubszCharacter, static_cast<uint32_t>(std::strlen( reinterpret_cast<const char*>(pubszCharacter)) ) ); }
       }
+
+/*
+         const UTF8_TYPE* find( const UTF8_TYPE* pubszPosition, CHARACTER uCharacter ) {
+            static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
+            return reinterpret_cast<const UTF8_TYPE*>( find( reinterpret_cast<const uint8_t*>(pubszPosition), static_cast<uint32_t>(uCharacter) ) );
+         }
+
+*/
 
 
 } }

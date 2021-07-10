@@ -4,10 +4,6 @@
 
 namespace gd { namespace utf8 { 
 
-constexpr uint32_t SIZE8_MAX_UTF_SIZE = 2;
-constexpr uint32_t SIZE16_MAX_UTF_SIZE = 3;
-constexpr uint32_t SIZE32_MAX_UTF_SIZE = 6;
-
 string::buffer string::m_pbuffer_empty[] = {0,0,0,0,-1, 0};
 
 string::string( gd::utf8::buffer bufferStack ) {                              assert( bufferStack.m_uSize > sizeof( string::buffer ) );
@@ -128,6 +124,18 @@ string& string::append( const char* pbszText, uint32_t uLength )
    return *this;
 }
 
+
+string::const_iterator string::find( value_type ch ) const
+{
+   auto itEnd = std::end( *this );
+   for( auto it = std::begin( *this ); it != itEnd; it++ )
+   {
+      
+   }
+
+   return end();
+}
+
 /**
  * @brief allocate new buffer for string if needed
  * @param uSize added size string needs to have
@@ -204,6 +212,7 @@ void string::allocate_exact(uint32_t uSize)
       m_pbuffer->reset( uSize );
    }
 }
+
 
 /**
  * @brief clone string

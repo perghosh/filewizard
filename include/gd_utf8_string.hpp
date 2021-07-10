@@ -7,7 +7,7 @@
 		
 #include "gd_utf8.hpp"
 
-namespace gd { namespace utf8 { 
+namespace gd::utf8 { 
 
    /**
     * @brief character taken from utf8 string
@@ -101,10 +101,10 @@ public:
    struct const_iterator
    {
       typedef const_iterator     self;
-      typedef uint8_t             value_type;
-      typedef uint8_t*            pointer;
+      typedef uint8_t            value_type;
+      typedef uint8_t*           pointer;
       typedef const pointer      const_pointer;
-      typedef uint8_t&            reference;
+      typedef uint8_t&           reference;
       typedef std::size_t        size_type;
       typedef std::ptrdiff_t     difference_type;
       typedef std::bidirectional_iterator_tag  iterator_category;
@@ -210,6 +210,9 @@ public:
    }
    [[nodiscard]] gd::utf8::value32 at( const_iterator it ) const { return value32( static_cast<const_iterator::const_pointer>(it) ); }
 
+   [[nodiscard]] const_iterator find( value_type ch ) const;
+   [[nodiscard]] const_iterator find( value_type ch, const_iterator itFrom ) const;
+
    [[nodiscard]] iterator begin() { return iterator( m_pbuffer->c_buffer() ); }
    [[nodiscard]] iterator end() { return iterator( m_pbuffer->c_buffer_end() ); }
    [[nodiscard]] const_iterator begin() const { return const_iterator( m_pbuffer->c_buffer() ); }
@@ -222,6 +225,8 @@ public:
 
    void allocate( uint32_t uSize );
    void allocate_exact( uint32_t uSize );
+
+   static bool compare( const_iterator it, value_type v );
 
 public:
 
@@ -307,4 +312,4 @@ struct buffer
 };
 
 
-} }
+}

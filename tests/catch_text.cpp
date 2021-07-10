@@ -1,11 +1,13 @@
-﻿#include <iterator>
+﻿#include <iostream>
+#include <iterator>
+#include <array>
 
 #include "catch.hpp"
 
 #include "gd_utf8.hpp"
 #include "gd_utf8_string.hpp"
 
-TEST_CASE("utf8 count and move operations", "[utf8]") {
+TEST_CASE("utf8 count, move and find operations", "[utf8]") {
    char pBuffer[100] = { 0 };
    const char* p1 = "01234567890123456789012345678901234567890123456789";
 
@@ -33,6 +35,13 @@ TEST_CASE("utf8 count and move operations", "[utf8]") {
    p1 = gd::utf8::move::previous(p1,7);   REQUIRE(*p1 == 'X');
    p1 = gd::utf8::move::previous(p1, 1);  REQUIRE(*p1 == '.');
    p1 = gd::utf8::move::previous(p1, 1);  REQUIRE(memcmp(p1, u8"Ö", 2) == 0);
+
+   p1 = pAscii; 
+   p1 = gd::utf8::move::find( p1, '.');  REQUIRE(*p1 == '.');
+   p1 = pAscii; 
+   p1 = gd::utf8::move::find( p1, 'Ö');  REQUIRE(memcmp(p1, u8"Ö", 2) == 0);
+   p1 = pAscii; 
+   p1 = gd::utf8::move::find( p1, 214.01);  REQUIRE(memcmp(p1, u8"Ö", 2) == 0);
 
    //wchar_t wch = gd::utf8::character(p1);
    //char ch = gd::utf8::character(p1);
@@ -107,6 +116,9 @@ TEST_CASE("utf8 add to string", "[utf8]") {
    auto test = stringText.at(20);
 }
 
+
+
+
 TEST_CASE("Test stack based string", "[utf8]") {
    uint8_t pBuffer[100];
 
@@ -119,10 +131,6 @@ TEST_CASE("Test stack based string", "[utf8]") {
    auto s1 = stringText;
    auto s2 = s1;
    auto s3 = s2;
-
-   gd::utf8::string s5("12345");
-   std::string ss5{'1','2'};
-   gd::utf8::string s6{'1','2'};
 
 /*
    
