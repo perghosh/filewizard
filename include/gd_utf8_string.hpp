@@ -61,7 +61,7 @@ public:
    };
 
 public:
-   typedef string                  self;
+   typedef string                self;
    typedef uint8_t               value_type;
    typedef value_type*           pointer;
    typedef const value_type*     const_pointer;
@@ -74,9 +74,9 @@ public:
    struct iterator
    {
       typedef iterator           self;
-      typedef uint8_t             value_type;
-      typedef uint8_t*            pointer;
-      typedef uint8_t&            reference;
+      typedef uint8_t            value_type;
+      typedef uint8_t*           pointer;
+      typedef uint8_t&           reference;
       typedef std::size_t        size_type;
       typedef std::ptrdiff_t     difference_type;
       typedef std::bidirectional_iterator_tag  iterator_category;
@@ -86,11 +86,11 @@ public:
       reference operator*() const { return *m_pPosition; }
       pointer operator->() { return m_pPosition; }
 
-      self operator++() { m_pPosition = gd::utf8::move::next( m_pPosition ); return *this; }  
-      self operator++( int ) { self it = *this; ++(*this); return it; }  
+      self& operator++() { m_pPosition = gd::utf8::move::next( m_pPosition ); return *this; }  
+      self& operator++( int ) { self it = *this; ++(*this); return it; }  
 
-      self operator--() { m_pPosition = gd::utf8::move::previous( m_pPosition ); return *this; }  
-      self operator--( int ) { self it = *this; --(*this); return it; }  
+      self& operator--() { m_pPosition = gd::utf8::move::previous( m_pPosition ); return *this; }  
+      self& operator--( int ) { self it = *this; --(*this); return it; }  
 
       bool operator==(const self& r) { return m_pPosition == r.m_pPosition; }
       bool operator!=(const self& r) { return m_pPosition != r.m_pPosition; }
@@ -102,33 +102,34 @@ public:
    {
       typedef const_iterator     self;
       typedef uint8_t            value_type;
-      typedef uint8_t*           pointer;
-      typedef const pointer      const_pointer;
-      typedef uint8_t&           reference;
+      typedef value_type*        pointer;
+      typedef const value_type*  const_pointer;
+      typedef value_type&        reference;
+      typedef const value_type&  const_reference;
       typedef std::size_t        size_type;
       typedef std::ptrdiff_t     difference_type;
       typedef std::bidirectional_iterator_tag  iterator_category;
 
-      const_iterator( pointer p ): m_pPosition(p) { }
+      const_iterator( const_pointer p ): m_pPosition(p) { }
 
-      const reference operator*() const { return *m_pPosition; }
-      const pointer operator->() { return m_pPosition; }
+      const_reference operator*() const { return *m_pPosition; }
+      const_pointer operator->() const { return m_pPosition; }
 
-      operator const_pointer() const { return m_pPosition; }
+      operator const value_type*() { return m_pPosition; }
       operator char() const { return value32(m_pPosition); }
       operator wchar_t() const { return value32(m_pPosition); }
       operator uint32_t() const { return value32(m_pPosition); }
 
-      self operator++() { m_pPosition = gd::utf8::move::next( m_pPosition ); return *this; }  
-      self operator++( int ) { self it = *this; ++(*this); return it; }  
+      self& operator++() { m_pPosition = gd::utf8::move::next(m_pPosition); return *this; }
+      self& operator++( int ) { const_iterator it = *this; ++(*this); return it; }  
 
-      self operator--() { m_pPosition = gd::utf8::move::previous( m_pPosition ); return *this; }  
-      self operator--( int ) { self it = *this; --(*this); return it; }  
+      self& operator--() { m_pPosition = gd::utf8::move::previous( m_pPosition ); return *this; }  
+      self& operator--( int ) { const_iterator it = *this; --(*this); return it; }  
 
-      bool operator==(const self& r) { return m_pPosition == r.m_pPosition; }
-      bool operator!=(const self& r) { return m_pPosition != r.m_pPosition; }
+      bool operator==(const const_iterator& r) { return m_pPosition == r.m_pPosition; }
+      bool operator!=(const const_iterator& r) { return m_pPosition != r.m_pPosition; }
 
-      pointer m_pPosition;      /// position in string   
+      const_pointer m_pPosition;      /// position in string   
    };
 
 
@@ -206,9 +207,9 @@ public:
    [[nodiscard]] gd::utf8::value32 at( size_type uIndex ) const { 
       auto it = begin();
       std::advance( it, uIndex );
-      return value32(static_cast<const_iterator::const_pointer>(it) );
+      return value32( it.m_pPosition );
    }
-   [[nodiscard]] gd::utf8::value32 at( const_iterator it ) const { return value32( static_cast<const_iterator::const_pointer>(it) ); }
+   [[nodiscard]] gd::utf8::value32 at( const_iterator it ) const { return value32( it.m_pPosition ); }
 
    [[nodiscard]] const_iterator find( value_type ch ) const;
    [[nodiscard]] const_iterator find( value_type ch, const_iterator itFrom ) const;
@@ -226,7 +227,7 @@ public:
    void allocate( uint32_t uSize );
    void allocate_exact( uint32_t uSize );
 
-   static bool compare( const_iterator it, value_type v );
+   static bool verify_iterator( const string& stringObject, const_pointer p );
 
 public:
 

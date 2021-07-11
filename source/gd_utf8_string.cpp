@@ -125,16 +125,33 @@ string& string::append( const char* pbszText, uint32_t uLength )
 }
 
 
+/**
+ * @brief find character in string
+ * @param ch character to find
+ * @return iterator to position in string where character is found, if iterator is equal to end then no character is found
+*/
 string::const_iterator string::find( value_type ch ) const
 {
-   auto itEnd = std::end( *this );
-   for( auto it = std::begin( *this ); it != itEnd; it++ )
-   {
-      
-   }
+   auto p = gd::utf8::move::find( c_str(), ch );
+   if( p != nullptr ) return const_iterator( p );
 
    return end();
 }
+
+/**
+ * @brief find character in string
+ * @param ch character to find
+ * @param itFrom positoin to start search from
+ * @return iterator to position in string where character is found, if iterator is equal to end then no character is found
+*/
+string::const_iterator string::find( value_type ch, const_iterator itFrom ) const
+{                                                                             assert( string::verify_iterator( *this, itFrom ) == true );
+   auto p = gd::utf8::move::find( itFrom, ch );
+   if( p != nullptr ) return const_iterator( p );
+
+   return end();
+}
+
 
 /**
  * @brief allocate new buffer for string if needed
@@ -213,10 +230,19 @@ void string::allocate_exact(uint32_t uSize)
    }
 }
 
+bool string::verify_iterator( const string& stringObject, const_pointer p )
+{
+   auto itBegin = std::begin( stringObject );
+   auto itEnd = std::end( stringObject );
+
+   if( p >= itBegin && p <= itEnd ) return true;
+   return false;
+}
+
 
 /**
  * @brief clone string
- * This will allways create a new copy of string, no reference copy
+ * This will always create a new copy of string, no reference copy
  * @param o string that is copied
 */
 void string::_clone(const string& o)

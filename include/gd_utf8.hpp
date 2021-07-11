@@ -196,13 +196,4 @@ namespace gd { namespace utf8 {
          inline const uint8_t* find_character( const uint8_t* pubszPosition, const uint8_t* pubszCharacter ) { return find_character( pubszPosition, pubszCharacter, static_cast<uint32_t>(std::strlen( reinterpret_cast<const char*>(pubszCharacter)) ) ); }
       }
 
-/*
-         const UTF8_TYPE* find( const UTF8_TYPE* pubszPosition, CHARACTER uCharacter ) {
-            static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
-            return reinterpret_cast<const UTF8_TYPE*>( find( reinterpret_cast<const uint8_t*>(pubszPosition), static_cast<uint32_t>(uCharacter) ) );
-         }
-
-*/
-
-
 } }
