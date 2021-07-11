@@ -58,6 +58,17 @@ namespace gd {
          return 0;
       }
 
+      uint32_t character(const uint16_t* pubszCharacter)
+      {
+         if( *pubszCharacter < 0x80 ) return static_cast<uint32_t>(*pubszCharacter);
+         else if( *pubszCharacter < 0x800 ) return static_cast<uint32_t>( ((0x1f & pubszCharacter[0]) << 6) | (0x3f & pubszCharacter[1]) );
+         else if( *pubszCharacter < 0x10000 ) return static_cast<uint32_t>( ((0x0f & pubszCharacter[0]) << 12) | ((0x3f & pubszCharacter[1]) << 6) | (0x3f & pubszCharacter[2]) );
+         else if( *pubszCharacter < 0x200000 ) return static_cast<uint32_t>( ((0x07 & pubszCharacter[0]) << 18) | ((0x3f & pubszCharacter[1]) << 12) | ((0x3f & pubszCharacter[2]) << 6) | (0x3f & pubszCharacter[3]) );
+         else throw std::runtime_error("invalid UTF-8  (operation = character)");
+         return 0;
+      }
+
+
       /**
        * @brief count utf8 characters in buffer
        * @param pubszText pointer to buffer with text where characters are counted

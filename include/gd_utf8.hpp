@@ -14,13 +14,13 @@ namespace gd { namespace utf8 {
 
       ///@{ 
       void normalize( uint32_t uCharacter, char8_t& value );
-      uint32_t character(const uint8_t* pubszText);
+      uint32_t character(const uint8_t* pubszText); // -------------------------------------------- character
       template <typename UTF8_TYPE>
-      uint32_t character(const UTF8_TYPE* pbszText) {
+      uint32_t character(const UTF8_TYPE* pbszText) { // ------------------------------------------ character
          static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
          return character(reinterpret_cast<const uint8_t*>(pbszText));
       };
-      uint32_t character(const uint16_t* pubszText);
+      uint32_t character(const uint16_t* pubszText); // ------------------------------------------- character
       ///@}
 
 
@@ -43,16 +43,16 @@ namespace gd { namespace utf8 {
          return count(reinterpret_cast<const uint8_t*>(pbszText)).first;
       };
 
-      /// count needed size to store character as utf8 value
-      uint32_t size( uint8_t ch );
+      /// calculate needed size to store character as utf8 value
+      uint32_t size( uint8_t ch ); // ------------------------------------------------------------- size
       /// count needed size to store char string as utf8 string
-      inline uint32_t size( const char* pbsz ) {
+      inline uint32_t size( const char* pbsz ) { // ----------------------------------------------- size
          uint32_t uSize = 0;
          while( *pbsz++ != 0 ) uSize += size( static_cast<uint8_t>(*pbsz) );
          return uSize;
       }
       /// count needed size to store list of char values as utf8 string
-      inline uint32_t size( std::initializer_list<char> listString ) {
+      inline uint32_t size( std::initializer_list<char> listString ) { // ------------------------- size
          uint32_t uSize = 0;
          for( auto it : listString ) uSize += size( static_cast<uint8_t>(it) );
          return uSize;
@@ -68,9 +68,9 @@ namespace gd { namespace utf8 {
 
 
       ///@{
-      uint32_t convert(uint8_t uCharacter, uint8_t* pbszTo);
-      uint32_t convert(uint16_t uCharacter, uint8_t* pbszTo);
-      uint32_t convert(uint32_t uCharacter, uint8_t* pbszTo);
+      uint32_t convert(uint8_t uCharacter, uint8_t* pbszTo); // ----------------------------------- convert
+      uint32_t convert(uint16_t uCharacter, uint8_t* pbszTo); // ---------------------------------- convert
+      uint32_t convert(uint32_t uCharacter, uint8_t* pbszTo); // ---------------------------------- convert
 
       std::pair<bool, const uint8_t*> convert_ascii(const uint8_t* pbszFrom, uint8_t* pbszTo);
       template <typename UTF8_TYPE, typename TYPE>
@@ -94,21 +94,25 @@ namespace gd { namespace utf8 {
 
          ///@{ 
 
-         const uint8_t* next(const uint8_t* pubszPosition);                                        // move to next utf8 character in buffer pointer points at
-         inline uint8_t* next(uint8_t* pubszPosition) { return const_cast<uint8_t*>( next( static_cast<const uint8_t*>(pubszPosition) ) ); }// move to next utf8 character in buffer pointer points at
-
+         // move to next utf8 character in buffer pointer points at
+         const uint8_t* next(const uint8_t* pubszPosition); // ------------------------------------ next                                       
+         // move to next utf8 character in buffer pointer points at
+         inline uint8_t* next(uint8_t* pubszPosition) { return const_cast<uint8_t*>( next( static_cast<const uint8_t*>(pubszPosition) ) ); } // next
+         // move to next utf8 character in buffer pointer points at
          template <typename UTF8_TYPE>
-         const UTF8_TYPE* next(const UTF8_TYPE* pubszPosition) {                                   // move to next utf8 character in buffer pointer points at
+         const UTF8_TYPE* next(const UTF8_TYPE* pubszPosition) { // ------------------------------- next
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>( next( reinterpret_cast<const uint8_t*>(pubszPosition) ) );
          };
+         // move to next utf8 character in buffer pointer points at
          template <typename UTF8_TYPE>
-         UTF8_TYPE* next(UTF8_TYPE* pubszPosition) {                                               // move to next utf8 character in buffer pointer points at
+         UTF8_TYPE* next(UTF8_TYPE* pubszPosition) { // ------------------------------------------- next
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<UTF8_TYPE*>( next( reinterpret_cast<uint8_t*>(pubszPosition) ) );
          };
 
-         const uint8_t* next(const uint8_t* pubszPosition, uint32_t uCount );                      // move specified count in buffer pointer points at
+         // move specified count in buffer pointer points at
+         const uint8_t* next(const uint8_t* pubszPosition, uint32_t uCount ); // ------------------ next
          inline uint8_t* next(uint8_t* pubszPosition, uint32_t uCount ) { return const_cast<uint8_t*>( next( static_cast<const uint8_t*>(pubszPosition), uCount ) ); } // move specified count in buffer pointer points at
          template <typename UTF8_TYPE>
          const UTF8_TYPE* next(const UTF8_TYPE* pubszPosition, uint32_t uCount ) {                 // move specified count in buffer pointer points at
@@ -116,19 +120,21 @@ namespace gd { namespace utf8 {
             return reinterpret_cast<const UTF8_TYPE*>( next(reinterpret_cast<const uint8_t*>(pubszPosition), uCount) );
          };
 
-         inline bool next(const uint8_t** ppubszPosition) {                                        // move pointer to next utf8 character in buffer pointer to pointer points at, return true or false if it succeeded
+         // move pointer to next utf8 character in buffer pointer to pointer points at, return true or false if it succeeded
+         inline bool next(const uint8_t** ppubszPosition) { // ------------------------------------ next
             const uint8_t* p = next(*ppubszPosition);
             if(p != *ppubszPosition) { ppubszPosition = &p; return true; }
             return false;
          }
+         // move pointer to next utf8 character in buffer pointer to pointer points at, return true or false if it succeeded
          template <typename UTF8_TYPE>
-         bool next(const UTF8_TYPE** ppubszPosition) {                                             // move pointer to next utf8 character in buffer pointer to pointer points at, return true or false if it succeeded
+         bool next(const UTF8_TYPE** ppubszPosition) { // ----------------------------------------- next
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>(next(reinterpret_cast<const uint8_t**>(ppubszPosition)));
          };
-         bool next(const uint8_t** ppubszPosition, uint32_t uCount);
+         bool next(const uint8_t** ppubszPosition, uint32_t uCount); // --------------------------- next
          template <typename UTF8_TYPE>
-         bool next(const UTF8_TYPE** ppubszPosition, uint32_t uCount) {
+         bool next(const UTF8_TYPE** ppubszPosition, uint32_t uCount) { // ------------------------ next
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>(next(reinterpret_cast<const uint8_t**>(ppubszPosition), uCount));
          };
@@ -140,40 +146,44 @@ namespace gd { namespace utf8 {
 
 
          ///@{ 
-         const uint8_t* previous(const uint8_t* pubszPosition);                                    // move to previous utf8 character in buffer pointer points at
+         // move to previous utf8 character in buffer pointer points at
+         const uint8_t* previous(const uint8_t* pubszPosition); // -------------------------------- previous
          inline uint8_t* previous(uint8_t* pubszPosition) { return const_cast<uint8_t*>( previous( static_cast<const uint8_t*>(pubszPosition) ) ); }// move to previous utf8 character in buffer pointer points at
          template <typename UTF8_TYPE>
          const UTF8_TYPE* previous(const UTF8_TYPE* pubszPosition) {                               // move to previous utf8 character in buffer pointer points at
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>( previous( reinterpret_cast<const uint8_t*>(pubszPosition) ) );
          };
+         // move to previous utf8 character in buffer pointer points at
          template <typename UTF8_TYPE>
-         UTF8_TYPE* previous(UTF8_TYPE* pubszPosition) {                                           // move to previous utf8 character in buffer pointer points at
+         UTF8_TYPE* previous(UTF8_TYPE* pubszPosition) { // --------------------------------------- previous
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<UTF8_TYPE*>( previous( reinterpret_cast<uint8_t*>(pubszPosition) ) );
          };
 
          const uint8_t* previous(const uint8_t* pubszPosition, uint32_t uCount);                   // move backwards specified count in utf8 character buffer pointer points at
          inline uint8_t* previous(uint8_t* pubszPosition, uint32_t uCount ) { return const_cast<uint8_t*>( previous( static_cast<const uint8_t*>(pubszPosition), uCount ) ); } // // move backwards specified count in utf8 character buffer pointer points at
+         // move backwards specified count in utf8 character buffer pointer points at
          template <typename UTF8_TYPE>
-         const UTF8_TYPE* previous( const UTF8_TYPE* pubszPosition, uint32_t uCount ) {            // move backwards specified count in utf8 character buffer pointer points at
+         const UTF8_TYPE* previous( const UTF8_TYPE* pubszPosition, uint32_t uCount ) { // -------- previous     
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>( previous( reinterpret_cast<const uint8_t*>(pubszPosition), uCount ) );
          };
          ///@}
 
-         const uint8_t* end(const uint8_t* pubszPosition);                                         // move to end of string (finds zero character and stop)
+         // move to end of string (finds zero character and stop)
+         const uint8_t* end(const uint8_t* pubszPosition); // ------------------------------------- end 
          inline uint8_t* end(uint8_t* pubszPosition) { return const_cast<uint8_t*>( end( static_cast<const uint8_t*>(pubszPosition) ) ); }// move to end of string (finds zero character and stop)
          template <typename UTF8_TYPE>
-         const UTF8_TYPE* end(const UTF8_TYPE* pubszPosition) {
+         const UTF8_TYPE* end(const UTF8_TYPE* pubszPosition) { // -------------------------------- end
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>(end(reinterpret_cast<const uint8_t*>(pubszPosition)));
          };
 
 
-         const uint8_t* find( const uint8_t* pubszPosition, uint32_t uCharacter );
+         const uint8_t* find( const uint8_t* pubszPosition, uint32_t uCharacter ); // ------------- find
          template <typename UTF8_TYPE, typename CHARACTER>
-         const UTF8_TYPE* find( const UTF8_TYPE* pubszPosition, CHARACTER Character ) {
+         const UTF8_TYPE* find( const UTF8_TYPE* pubszPosition, CHARACTER Character ) { // -------- find
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             uint32_t uCharacter;
             if constexpr( sizeof(Character) == sizeof(uint8_t) ) uCharacter = static_cast<uint8_t>(Character);       // 1 byte
@@ -181,9 +191,9 @@ namespace gd { namespace utf8 {
             else uCharacter = static_cast<uint32_t>(Character);                                                      // 4 byte or over
             return reinterpret_cast<const UTF8_TYPE*>( find( reinterpret_cast<const uint8_t*>(pubszPosition), uCharacter ) );
          }
-         const uint8_t* find( const uint8_t* pubszPosition, const uint8_t* pubszEnd, uint32_t uCharacter );
+         const uint8_t* find( const uint8_t* pubszPosition, const uint8_t* pubszEnd, uint32_t uCharacter ); // find
          template <typename UTF8_TYPE, typename CHARACTER>
-         const UTF8_TYPE* find( const UTF8_TYPE* pubszPosition, const UTF8_TYPE* pubszEnd, CHARACTER Character ) {
+         const UTF8_TYPE* find( const UTF8_TYPE* pubszPosition, const UTF8_TYPE* pubszEnd, CHARACTER Character ) { // find
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             uint32_t uCharacter;
             if constexpr( sizeof(Character) == sizeof(uint8_t) ) uCharacter = static_cast<uint8_t>(Character);       // 1 byte
