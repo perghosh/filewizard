@@ -14,7 +14,7 @@ namespace application { namespace file {
 		CSection() {}
 		CSection( CFile* pFile, gd::utf8::string&& stringGroup, gd::utf8::string&& stringCode ): m_pFile(pFile) {}
 		CSection( const CSection& o ): m_pFile( o.m_pFile ), m_stringGroup( o.m_stringGroup ), m_stringCode( o.m_stringCode ) { };
-		CSection( CSection&& o ): m_pFile( o.m_pFile ), m_stringGroup( std::move( o.m_stringGroup ) ), m_stringCode( std::move( o.m_stringCode ) ) { 
+		CSection( CSection&& o ) noexcept : m_pFile( o.m_pFile ), m_stringGroup( std::move( o.m_stringGroup ) ), m_stringCode( std::move( o.m_stringCode ) ) { 
 			o.m_pFile = nullptr; 
 		};
 		~CSection() {};
@@ -44,6 +44,32 @@ namespace application { namespace file {
 		std::vector<CSection> m_vectorSection;
 
 	};
+
+	/**
+	 * @brief Hold folder information
+	*/
+	class CFolder
+	{
+	public:
+		CFolder() {}
+		CFolder( std::string_view stringAlias, std::string_view stringFolder): m_stringAlias( stringAlias ), m_stringFolder( stringFolder ) {}
+		CFolder(const CFolder& o): m_stringAlias(o.m_stringAlias), m_stringFolder(o.m_stringFolder) {}
+		~CFolder() {}
+
+	public:
+		const std::string& alias() const noexcept { return m_stringAlias; }
+		const std::string& folder() const noexcept { return m_stringFolder; }
+
+		/// Return if folder is empty or not
+		bool IsEmpty() const { return m_stringFolder.empty(); }
+
+	public:
+		std::string m_stringAlias;		///< Alias used to work with managed folder
+		std::string m_stringFolder;	///< Name to folder
+
+	};
+
+
 
 
 } }

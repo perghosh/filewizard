@@ -3,9 +3,11 @@
 #include <stdint.h>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 
-namespace gd { namespace utf8 {
+namespace gd { 
+   namespace utf8 {
 
       constexpr uint32_t SIZE8_MAX_UTF_SIZE = 2;
       constexpr uint32_t SIZE16_MAX_UTF_SIZE = 3;
@@ -20,7 +22,6 @@ namespace gd { namespace utf8 {
          static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
          return character(reinterpret_cast<const uint8_t*>(pbszText));
       };
-      uint32_t character(const uint16_t* pubszText); // ------------------------------------------- character
       ///@}
 
 
@@ -45,6 +46,7 @@ namespace gd { namespace utf8 {
 
       /// calculate needed size to store character as utf8 value
       uint32_t size( uint8_t ch ); // ------------------------------------------------------------- size
+      uint32_t size( uint16_t ch ); // ------------------------------------------------------------ size
       /// count needed size to store char string as utf8 string
       inline uint32_t size( const char* pbsz ) { // ----------------------------------------------- size
          uint32_t uSize = 0;
@@ -71,6 +73,21 @@ namespace gd { namespace utf8 {
       uint32_t convert(uint8_t uCharacter, uint8_t* pbszTo); // ----------------------------------- convert
       uint32_t convert(uint16_t uCharacter, uint8_t* pbszTo); // ---------------------------------- convert
       uint32_t convert(uint32_t uCharacter, uint8_t* pbszTo); // ---------------------------------- convert
+      inline uint32_t convert(uint32_t uCharacter, char8_t* pbszTo) { return convert(uCharacter, reinterpret_cast<uint8_t*>(pbszTo)); }
+
+      /// convert from utf16 to utf8. make sure that buffer is large enough to hold text
+      std::tuple<bool, const char16_t*, char8_t*> convert_utf16_to_uft8(const char16_t* pwszUtf16, char8_t* pbszUtf8 );// convert
+      template <typename UTF16_TYPE, typename UTF8_TYPE>
+      std::tuple<bool, const UTF16_TYPE*, UTF8_TYPE*> convert_utf16_to_uft8(const UTF16_TYPE* pwszUtf16, UTF8_TYPE* pbszUtf8) {
+         static_assert(sizeof(UTF16_TYPE) == 2, "Value isn't compatible with char16_t");
+         static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with char8_t");
+         auto _result = convert_utf16_to_uft8( reinterpret_cast<const char16_t*>(pwszUtf16), reinterpret_cast<char8_t*>(pbszUtf8) );
+         return std::tuple<bool, const UTF16_TYPE*, UTF8_TYPE*>(
+            std::get<0>(_result), 
+            reinterpret_cast<const UTF16_TYPE*>(std::get<1>(_result)), 
+            reinterpret_cast<UTF8_TYPE*>(std::get<2>(_result))
+         );
+      }
 
       std::pair<bool, const uint8_t*> convert_ascii(const uint8_t* pbszFrom, uint8_t* pbszTo);
       template <typename UTF8_TYPE, typename TYPE>
@@ -206,4 +223,19 @@ namespace gd { namespace utf8 {
          inline const uint8_t* find_character( const uint8_t* pubszPosition, const uint8_t* pubszCharacter ) { return find_character( pubszPosition, pubszCharacter, static_cast<uint32_t>(std::strlen( reinterpret_cast<const char*>(pubszCharacter)) ) ); }
       }
 
-} }
+} 
+
+   namespace utf16 {
+
+      uint32_t character(const uint16_t* pubszText); // ------------------------------------------- character
+      template <typename UTF16_TYPE>
+      uint32_t character(const UTF16_TYPE* pbszText) { // ------------------------------------------ character
+         static_assert(sizeof(UTF16_TYPE) == 2, "Value isn't compatible with uint8_t");
+         return character(reinterpret_cast<const uint16_t*>(pbszText));
+      };
+
+      uint32_t size(uint16_t ch);
+
+   }
+
+}

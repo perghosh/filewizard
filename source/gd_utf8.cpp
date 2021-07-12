@@ -58,17 +58,6 @@ namespace gd {
          return 0;
       }
 
-      uint32_t character(const uint16_t* pubszCharacter)
-      {
-         if( *pubszCharacter < 0x80 ) return static_cast<uint32_t>(*pubszCharacter);
-         else if( *pubszCharacter < 0x800 ) return static_cast<uint32_t>( ((0x1f & pubszCharacter[0]) << 6) | (0x3f & pubszCharacter[1]) );
-         else if( *pubszCharacter < 0x10000 ) return static_cast<uint32_t>( ((0x0f & pubszCharacter[0]) << 12) | ((0x3f & pubszCharacter[1]) << 6) | (0x3f & pubszCharacter[2]) );
-         else if( *pubszCharacter < 0x200000 ) return static_cast<uint32_t>( ((0x07 & pubszCharacter[0]) << 18) | ((0x3f & pubszCharacter[1]) << 12) | ((0x3f & pubszCharacter[2]) << 6) | (0x3f & pubszCharacter[3]) );
-         else throw std::runtime_error("invalid UTF-8  (operation = character)");
-         return 0;
-      }
-
-
       /**
        * @brief count utf8 characters in buffer
        * @param pubszText pointer to buffer with text where characters are counted
@@ -96,11 +85,25 @@ namespace gd {
          return std::pair<uint32_t, const uint8_t*>(uCount, pubszPosition);
       }
 
+      /**
+       * @brief get number of bytes needed in buffer to store utf8 for character
+       * @param uCharacter character  size is calculated for
+       * @return 
+      */
       uint32_t size( uint8_t uCharacter ) 
       {
          if( uCharacter < 0x80 ) return 1;  
          return 2;
       }
+
+      uint32_t size(uint16_t uCharacter)
+      {
+         if(uCharacter < 0x80) return 1;
+         else if(uCharacter < 0x800) return 2;
+         else if(uCharacter < 0x10000) return 3;
+         return 4;
+      }
+
 
       uint32_t size( const char* pbszText, uint32_t uLength )
       {
@@ -132,6 +135,12 @@ namespace gd {
 
 
 
+      /**
+       * @brief Convert character to utf8
+       * @param uCharacter character that is converted
+       * @param pbszTo pointer to buffer that gets character information formated as utf8
+       * @return buffer size used to store character in utf8
+       */
       uint32_t convert( uint16_t uCharacter, uint8_t* pbszTo )
       {
          if( uCharacter < 0x80 )
@@ -149,6 +158,12 @@ namespace gd {
       }
 
 
+      /**
+       * @brief Convert character to utf8
+       * @param uCharacter character that is converted
+       * @param pbszTo pointer to buffer that gets character information formated as utf8
+       * @return buffer size used to store character in utf8
+       */
       uint32_t convert( uint32_t uCharacter, uint8_t* pbszTo )
       {
          if( uCharacter < 0x80 )
@@ -178,6 +193,29 @@ namespace gd {
             return 4;
          }
          return 0;
+      }
+
+      /**
+       * @brief convert utf16 to utf8
+       * @param pwszUtf16 pointer to utf16 string
+       * @param pbszUtf8 pointer to buffer where converted characters are stored
+       * @return std::tuple<bool, const char16_t*, char8_t*> true if succeded, false if not. also returns positions where converted pointers ended
+      */
+      std::tuple<bool, const char16_t*, char8_t*> convert_utf16_to_uft8(const char16_t* pwszUtf16, char8_t* pbszUtf8)
+      {
+         const char16_t* pwszPosition = pwszUtf16;
+         while(*pwszPosition)
+         {
+            uint32_t uCharacter = gd::utf16::character(pwszPosition);
+            uint32_t uSize = size( static_cast<uint16_t>( *pwszPosition ) );
+            pwszPosition += uSize;
+            uSize = convert(uCharacter, pbszUtf8);
+            pbszUtf8 += uSize;
+         }
+
+         *pbszUtf8 = '0';
+
+         return { true, pwszPosition, pbszUtf8 };
       }
 
 
@@ -469,6 +507,28 @@ namespace gd {
          
       } // move
    } // utf8
+
+
+   namespace utf16 {
+      uint32_t character(const uint16_t* pubszCharacter)
+      {
+         if(*pubszCharacter < 0x80) return static_cast<uint32_t>(*pubszCharacter);
+         else if(*pubszCharacter < 0x800) return static_cast<uint32_t>(((0x1f & pubszCharacter[0]) << 6) | (0x3f & pubszCharacter[1]));
+         else if(*pubszCharacter < 0x10000) return static_cast<uint32_t>(((0x0f & pubszCharacter[0]) << 12) | ((0x3f & pubszCharacter[1]) << 6) | (0x3f & pubszCharacter[2]));
+         else if(*pubszCharacter < 0x200000) return static_cast<uint32_t>(((0x07 & pubszCharacter[0]) << 18) | ((0x3f & pubszCharacter[1]) << 12) | ((0x3f & pubszCharacter[2]) << 6) | (0x3f & pubszCharacter[3]));
+         else throw std::runtime_error("invalid UTF-8  (operation = character)");
+         return 0;
+      }
+
+      uint32_t size(uint16_t uCharacter)
+      {
+         if(uCharacter < 0x80) return 1;
+         else if(uCharacter < 0x800) return 2;
+         else if(uCharacter < 0x10000) return 3;
+         return 4;
+      }
+
+   }
 } // gd
 
 

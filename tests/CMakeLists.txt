@@ -15,6 +15,7 @@ set( source_cpp
    "../source/gd_utf8.cpp"
    "../source/gd_utf8_string.cpp"
    "../source/app_file.cpp"
+   "../source/application.cpp"
 )
 
 #  ${CMAKE_CURRENT_SOURCE_DIR}/../libraries/catch2/catch_amalgamated.cpp
@@ -24,6 +25,7 @@ set( catch_test
    "catch.h"
    "catch_text.cpp"
    "catch_file.cpp"
+   "catch_application.cpp"
 )
 
 message( ${CMAKE_PREFIX_PATH} )
