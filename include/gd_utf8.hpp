@@ -36,6 +36,12 @@ namespace gd {
          static_assert( sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
          return count( reinterpret_cast<const uint8_t*>(pbszText) ); 
       };
+      std::pair<uint32_t, const uint8_t*> count( const uint8_t* pubszText¨, const uint8_t* pubszEnd );
+      template <typename UTF8_TYPE>
+      std::pair<uint32_t, const uint8_t*> count(const UTF8_TYPE* pbszText, const UTF8_TYPE* pbszEnd) { // count utf8 characters
+         static_assert( sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
+         return count( reinterpret_cast<const uint8_t*>(pbszText), reinterpret_cast<const uint8_t*>(pbszEnd) ); 
+      };
       inline uint32_t strlen(const uint8_t* pubszText) { return count(pubszText).first; };         // count utf8 characters
       inline uint32_t strlen(const std::string_view stringText) { return count( reinterpret_cast<const uint8_t*>(stringText.data()) ).first; };
       template <typename UTF8_TYPE>
@@ -221,6 +227,10 @@ namespace gd {
          const uint8_t* find_character( const uint8_t* pubszPosition, const uint8_t* pubszCharacter, uint32_t ulength );
          const uint8_t* find_character( const uint8_t* pubszPosition, const uint8_t* pubszEnd, const uint8_t* pubszCharacter, uint32_t ulength );
          inline const uint8_t* find_character( const uint8_t* pubszPosition, const uint8_t* pubszCharacter ) { return find_character( pubszPosition, pubszCharacter, static_cast<uint32_t>(std::strlen( reinterpret_cast<const char*>(pubszCharacter)) ) ); }
+
+         const uint8_t* find( const uint8_t* pubszPosition, const uint8_t* pubszEnd, const uint8_t* pubszFind, uint32_t uSize ); // find
+         inline const uint8_t* find( const uint8_t* pubszText, const uint8_t* pubszFind ) { return find( pubszText, pubszText +  std::strlen( reinterpret_cast<const char*>(pubszText) ), pubszFind, std::strlen( reinterpret_cast<const char*>(pubszFind) ) ); }
+         inline const uint8_t* find( const uint8_t* pubszText, const uint8_t* pubszEnd, const uint8_t* pubszFind ) { return find( pubszText, pubszEnd, pubszFind, std::strlen( reinterpret_cast<const char*>(pubszFind) ) ); }
       }
 
 } 

@@ -59,6 +59,7 @@ string& string::assign( const value_type* pbszText, uint32_t uSize, uint32_t uCo
    if( uSize > m_pbuffer->capacity() ) allocate_exact( uSize );
 
    memcpy( c_buffer(), pbszText, uSize );
+   m_pbuffer->size( uSize );
    m_pbuffer->count( uCount );
 
    return *this;
@@ -152,6 +153,14 @@ string::const_iterator string::find( value_type ch, const_iterator itFrom ) cons
    return end();
 }
 
+string::const_iterator string::find( const_pointer pbszText, uint32_t uLength ) const
+{
+   auto p = gd::utf8::move::find( c_str(), c_end(), pbszText, uLength );
+   if( p != nullptr ) return const_iterator( p );
+
+   return end();
+}
+
 
 /**
  * @brief allocate new buffer for string if needed
@@ -197,7 +206,7 @@ void string::allocate_exact(uint32_t uSize)
    uint8_t* puNew = new uint8_t[_size + 1];                                     // exact size + zero ending
    m_pbuffer = reinterpret_cast<string::buffer*>( puNew );
 
-   if( string::is_empty( m_pbuffer ) == false )                                 // if old buffer has a valid string, copy
+   if( string::is_empty( pbufferOld ) == false )                               // if old buffer has a valid string, copy
    {
       m_pbuffer->capacity( uSize );
       if( pbufferOld->size() > 0 )
@@ -221,8 +230,6 @@ void string::allocate_exact(uint32_t uSize)
          m_pbuffer->c_buffer()[uSize] = '\0';
          string::release( pbufferOld );
       }
-
-      pbufferOld->release();
    }
    else
    {

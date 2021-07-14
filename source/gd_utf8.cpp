@@ -61,7 +61,7 @@ namespace gd {
       /**
        * @brief count utf8 characters in buffer
        * @param pubszText pointer to buffer with text where characters are counted
-       * @return 
+       * @return number of utf8 characters in buffer
       */
       std::pair<uint32_t, const uint8_t*> count( const uint8_t* pubszText )
       {
@@ -72,18 +72,31 @@ namespace gd {
             pubszPosition += pNeededByteCount[*pubszPosition];
             uCount++;
 
-            /*
-            if((*pubszPosition & 0x80) == 0)          pubszPosition += 1;
-            else if((*pubszPosition & 0xc0) == 0xc0)  pubszPosition += 2;
-            else if((*pubszPosition & 0xf0) == 0xe0)  pubszPosition += 3;
-            else if((*pubszPosition & 0xf8) == 0xf0)  pubszPosition += 4;
-            else throw std::runtime_error("invalid UTF-8  (operation = count)");
-            */
+         }
+
+         return std::pair<uint32_t, const uint8_t*>(uCount, pubszPosition);
+      }
+
+      /**
+       * @brief count utf8 characters in buffer
+       * @param pubszText pointer to buffer with text where characters are counted
+       * @param pubszEnd pointer to end of buffer
+       * @return number of utf8 characters in buffer
+      */
+      std::pair<uint32_t, const uint8_t*> count( const uint8_t* pubszText, const uint8_t* pubszEnd )
+      {
+         uint32_t uCount = 0; // counted characters in buffer
+         const uint8_t* pubszPosition = pubszText;
+         while( pubszPosition < pubszEnd )
+         {
+            pubszPosition += pNeededByteCount[*pubszPosition];
+            uCount++;
 
          }
 
          return std::pair<uint32_t, const uint8_t*>(uCount, pubszPosition);
       }
+
 
       /**
        * @brief get number of bytes needed in buffer to store utf8 for character
@@ -213,7 +226,7 @@ namespace gd {
             pbszUtf8 += uSize;
          }
 
-         *pbszUtf8 = '0';
+         *pbszUtf8 = '\0';
 
          return { true, pwszPosition, pbszUtf8 };
       }
@@ -467,6 +480,32 @@ namespace gd {
 
             return nullptr;
          }
+
+         /**
+          * @brief find string in text
+          * @param pubszPosition text that string is searched for
+          * @param pubszEnd end of text
+          * @param pubszFind string to find
+          * @param uSize length of string to find
+          * @return 
+         */
+         const uint8_t* find( const uint8_t* pubszPosition, const uint8_t* pubszEnd, const uint8_t* pubszFind, uint32_t uSize )
+         {
+            pubszEnd -= uSize;
+            uSize--;
+            while( pubszPosition < pubszEnd )
+            {
+               if( *pubszPosition == *pubszFind )
+               {
+                  if( memcmp( pubszPosition + 1, pubszFind + 1, uSize ) == 0  ) return pubszPosition;
+               }
+
+               pubszPosition++;
+            }
+
+            return nullptr;
+         }
+
 
          /**
           * @brief Find utf8 character sequence in buffer

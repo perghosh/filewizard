@@ -7,6 +7,8 @@
 		
 #include "gd_utf8.hpp"
 
+// LOOK: https://github.com/Maultasche/UtfString/blob/master/src/Utf8String.cpp
+
 namespace gd::utf8 { 
 
    /**
@@ -176,7 +178,7 @@ public:
    string& assign( std::string_view stringText ) { return assign( stringText.data(), static_cast<uint32_t>(stringText.length()) ); }
    string& assign( const char* pbszText, uint32_t uLength );
    string& assign( const value_type* pbszText, uint32_t uSize, uint32_t uCount );
-   string& assign( const value_type* pbszText, uint32_t uSize ) { return assign( pbszText, uSize, gd::utf8::count( pbszText ).first ); }
+   string& assign( const value_type* pbszText, uint32_t uSize ) { return assign( pbszText, uSize, gd::utf8::count( pbszText, pbszText + uSize ).first ); }
    string& assign( const string& stringFrom );
    template<typename CHAR>
    string& assign( std::initializer_list<CHAR> listString ) { // _Ilist.begin(), _Convert_size<size_type>(_Ilist.size()));
@@ -213,6 +215,10 @@ public:
 
    [[nodiscard]] const_iterator find( value_type ch ) const;
    [[nodiscard]] const_iterator find( value_type ch, const_iterator itFrom ) const;
+
+   [[nodiscard]] const_iterator find( const_pointer pbszText, uint32_t uLength ) const;
+   [[nodiscard]] const_iterator find( const_pointer pbszFind ) const { return find( pbszFind, std::strlen( reinterpret_cast<const char *>(pbszFind) ) );  }
+
 
    [[nodiscard]] iterator begin() { return iterator( m_pbuffer->c_buffer() ); }
    [[nodiscard]] iterator end() { return iterator( m_pbuffer->c_buffer_end() ); }
