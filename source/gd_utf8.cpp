@@ -84,7 +84,7 @@ namespace gd {
        * @return number of utf8 characters in buffer
       */
       std::pair<uint32_t, const uint8_t*> count( const uint8_t* pubszText, const uint8_t* pubszEnd )
-      {
+      {                                                                        assert( pubszText < pubszEnd ); assert( pubszEnd - pubszText < 0x00100000 );
          uint32_t uCount = 0; // counted characters in buffer
          const uint8_t* pubszPosition = pubszText;
          while( pubszPosition < pubszEnd )

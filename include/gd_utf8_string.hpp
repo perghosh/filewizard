@@ -73,6 +73,8 @@ public:
 
 
 public:
+   struct const_iterator;
+
    struct iterator
    {
       typedef iterator           self;
@@ -96,6 +98,12 @@ public:
 
       bool operator==(const self& r) { return m_pPosition == r.m_pPosition; }
       bool operator!=(const self& r) { return m_pPosition != r.m_pPosition; }
+
+      bool operator==(const const_iterator& r) { return m_pPosition == r.m_pPosition; }
+      bool operator!=(const const_iterator& r) { return m_pPosition != r.m_pPosition; }
+
+      pointer get() { return m_pPosition; }
+
 
       pointer m_pPosition;      /// position in string   
    };
@@ -179,6 +187,7 @@ public:
    string& assign( const char* pbszText, uint32_t uLength );
    string& assign( const value_type* pbszText, uint32_t uSize, uint32_t uCount );
    string& assign( const value_type* pbszText, uint32_t uSize ) { return assign( pbszText, uSize, gd::utf8::count( pbszText, pbszText + uSize ).first ); }
+   string& assign( const value_type* pbszText, std::size_t uSize ) { return assign( pbszText, static_cast<uint32_t>( uSize ), gd::utf8::count( pbszText, pbszText + uSize ).first ); }
    string& assign( const string& stringFrom );
    template<typename CHAR>
    string& assign( std::initializer_list<CHAR> listString ) { // _Ilist.begin(), _Convert_size<size_type>(_Ilist.size()));
@@ -188,7 +197,7 @@ public:
 
 
 /** @name APPEND
- *  Append text 
+ *  Append text 3
 *///@{
    void push_back( uint8_t ch );
    void push_back( uint16_t ch );
@@ -217,13 +226,18 @@ public:
    [[nodiscard]] const_iterator find( value_type ch, const_iterator itFrom ) const;
 
    [[nodiscard]] const_iterator find( const_pointer pbszText, uint32_t uLength ) const;
+   [[nodiscard]] const_iterator find( const_pointer pbszFind, std::size_t uLength ) const { return find( pbszFind, static_cast<uint32_t>( uLength ) ); }
    [[nodiscard]] const_iterator find( const_pointer pbszFind ) const { return find( pbszFind, std::strlen( reinterpret_cast<const char *>(pbszFind) ) );  }
+
+   iterator erase( iterator itFirst, iterator itLast );
 
 
    [[nodiscard]] iterator begin() { return iterator( m_pbuffer->c_buffer() ); }
    [[nodiscard]] iterator end() { return iterator( m_pbuffer->c_buffer_end() ); }
    [[nodiscard]] const_iterator begin() const { return const_iterator( m_pbuffer->c_buffer() ); }
    [[nodiscard]] const_iterator end() const { return const_iterator( m_pbuffer->c_buffer_end() ); }
+   [[nodiscard]] const_iterator cbegin() const { return const_iterator( m_pbuffer->c_buffer() ); }
+   [[nodiscard]] const_iterator cend() const { return const_iterator( m_pbuffer->c_buffer_end() ); }
 
    /// Get last position in buffer
    [[nodiscard]] const value_type* c_end() const { return m_pbuffer->c_buffer_end(); }
@@ -289,6 +303,15 @@ public:
          }
       }
    };
+
+#  ifdef DEBUG
+   const char* m_psz = nullptr;
+   std::pair<const char*, uint32_t> dump() {
+      uint32_t uSize = 0;
+      if( m_psz != nullptr ) uSize = (uint32_t)std::strlen( m_psz );
+      return { m_psz, uSize };
+   }
+#  endif
 
    buffer* m_pbuffer = string::m_pbuffer_empty;
 

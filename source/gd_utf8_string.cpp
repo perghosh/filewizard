@@ -51,6 +51,13 @@ string& string::assign( const char* pbszText, uint32_t uLength )
    return *this;
 }
 
+/**
+ * @brief assign text to string
+ * @param pbszText pointer to utf8 formated text assigned to string
+ * @param uSize size in bytes
+ * @param uCount number of utf8 characters
+ * @return string reference
+*/
 string& string::assign( const value_type* pbszText, uint32_t uSize, uint32_t uCount )
 {
    string::release( m_pbuffer );
@@ -61,6 +68,7 @@ string& string::assign( const value_type* pbszText, uint32_t uSize, uint32_t uCo
    memcpy( c_buffer(), pbszText, uSize );
    m_pbuffer->size( uSize );
    m_pbuffer->count( uCount );
+   m_pbuffer->c_buffer_end()[0] = '\0';
 
    return *this;
 }
@@ -161,6 +169,17 @@ string::const_iterator string::find( const_pointer pbszText, uint32_t uLength ) 
    return end();
 }
 
+string::iterator string::erase( iterator itFirst, iterator itLast )
+{
+   uint32_t uRemoveSize = itLast.get() - itFirst.get();
+   if( itLast != end() )
+   {
+      uint32_t uMoveSize = end().get() - itLast.get();
+   }
+
+   return itFirst;
+}
+
 
 /**
  * @brief allocate new buffer for string if needed
@@ -190,6 +209,10 @@ void string::allocate(uint32_t uSize)
       m_pbuffer = reinterpret_cast<string::buffer*>( puNew );
       m_pbuffer->set_reference( 1 );
       m_pbuffer->capacity( _size - sizeof(string::buffer) );
+#  ifdef DEBUG
+      m_psz = reinterpret_cast<const char*>( m_pbuffer->c_buffer() );
+#  endif
+
    }
 }
 
@@ -228,12 +251,18 @@ void string::allocate_exact(uint32_t uSize)
 
          memcpy( m_pbuffer->c_buffer(), pbufferOld->c_buffer(), uSize );
          m_pbuffer->c_buffer()[uSize] = '\0';
+#        ifdef DEBUG
+         m_psz = reinterpret_cast<const char*>( m_pbuffer->c_buffer() );
+#        endif
          string::release( pbufferOld );
       }
    }
    else
    {
       m_pbuffer->reset( uSize );
+#     ifdef DEBUG
+      m_psz = reinterpret_cast<const char*>( m_pbuffer->c_buffer() );
+#     endif
    }
 }
 

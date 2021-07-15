@@ -229,8 +229,8 @@ namespace gd {
          inline const uint8_t* find_character( const uint8_t* pubszPosition, const uint8_t* pubszCharacter ) { return find_character( pubszPosition, pubszCharacter, static_cast<uint32_t>(std::strlen( reinterpret_cast<const char*>(pubszCharacter)) ) ); }
 
          const uint8_t* find( const uint8_t* pubszPosition, const uint8_t* pubszEnd, const uint8_t* pubszFind, uint32_t uSize ); // find
-         inline const uint8_t* find( const uint8_t* pubszText, const uint8_t* pubszFind ) { return find( pubszText, pubszText +  std::strlen( reinterpret_cast<const char*>(pubszText) ), pubszFind, std::strlen( reinterpret_cast<const char*>(pubszFind) ) ); }
-         inline const uint8_t* find( const uint8_t* pubszText, const uint8_t* pubszEnd, const uint8_t* pubszFind ) { return find( pubszText, pubszEnd, pubszFind, std::strlen( reinterpret_cast<const char*>(pubszFind) ) ); }
+         inline const uint8_t* find( const uint8_t* pubszText, const uint8_t* pubszFind ) { return find( pubszText, pubszText + std::strlen( reinterpret_cast<const char*>(pubszText) ), pubszFind, static_cast<uint32_t>( std::strlen( reinterpret_cast<const char*>(pubszFind) ) ) ); }
+         inline const uint8_t* find( const uint8_t* pubszText, const uint8_t* pubszEnd, const uint8_t* pubszFind ) { return find( pubszText, pubszEnd, pubszFind, static_cast<uint32_t>( std::strlen( reinterpret_cast<const char*>(pubszFind) ) ) ); }
       }
 
 } 

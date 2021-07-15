@@ -39,32 +39,56 @@ TEST_CASE("Test folder methods", "[folder]") {
    std::string stringFile = GetExePath();
    auto uCount = application.FOLDER_Append(file::CFolder("test", stringFile)); REQUIRE(uCount == 1);
 
-   stringFile += "\\test_remove_space.lua";
+   stringFile += "\\100.txt";
 
    std::ifstream fstreamText;
    fstreamText.open( stringFile, std::ios::in );
-   if( !fstreamText ) {}
-   else
+   if( fstreamText )
    {
       std::vector<uint8_t> vectorBuffer;
       char uValue;
-      while( fstreamText.get( uValue ) )
-      {
-         vectorBuffer.push_back( uValue );
-      }
+      while( fstreamText.get( uValue ) ) { vectorBuffer.push_back( uValue ); }
+      fstreamText.close();
 
       if( vectorBuffer.empty() == false )
       {
+         auto _size = vectorBuffer.size();
          auto pbBOM = vectorBuffer.data();
          if( pbBOM[ 0 ] == 0xEF && pbBOM[ 1 ] == 0xBB && pbBOM[ 2 ] == 0xBF )
          {
             gd::utf8::string stringFile;
             stringFile.assign( reinterpret_cast<const uint8_t*>(pbBOM + 3), vectorBuffer.size() - 3 );
 
+#ifdef DEBUG
+            auto [ debug_p, debug_u ] = stringFile.dump(); REQUIRE(debug_u == stringFile.size()); REQUIRE((debug_p + debug_u - (const char*)stringFile.c_end()) == 0);
+#endif 
+            _size = stringFile.c_end() - stringFile.c_str();
+            const char* p = (const char*)stringFile.c_str() + _size - 1000; 
+
             auto itPosition = stringFile.find( (const uint8_t*)"application = nil;" );
          }
+      }
+   }
 
-
+   stringFile = GetExePath();
+   stringFile += "\\test_remove_space.lua";
+   fstreamText.open( stringFile, std::ios::in );
+   if( fstreamText )
+   {
+      std::vector<uint8_t> vectorBuffer;
+      char uValue;
+      while( fstreamText.get( uValue ) ) { vectorBuffer.push_back( uValue ); }
+      fstreamText.close();
+      if( vectorBuffer.empty() == false )
+      {
+         auto _size = vectorBuffer.size();
+         auto pbBOM = vectorBuffer.data();
+         if( pbBOM[ 0 ] == 0xEF && pbBOM[ 1 ] == 0xBB && pbBOM[ 2 ] == 0xBF )
+         {
+            gd::utf8::string stringFile;
+            stringFile.assign( reinterpret_cast<const uint8_t*>(pbBOM + 3), vectorBuffer.size() - 3 );
+            auto itPosition = stringFile.find( (const uint8_t*)"application = nil;" );CHECK( stringFile.cend() != itPosition );
+         }
       }
    }
 
@@ -74,3 +98,34 @@ TEST_CASE("Test folder methods", "[folder]") {
 
    
 }
+
+
+/*
+TEST_CASE("test", "[vanderbilt]") {
+   uint8_t puArray[] = { 0x0A, 0x51, 0xB1A, 0x0A, 0x0A, 0x0A, 0x0A, 0x00, 0x0E };
+
+   std::string stringText;
+
+   std::cout << "test" << std::endl;
+
+
+
+   for( auto i = 0; i < 9; i++ )
+   {
+      std::cout << std::hex << (int)puArray[i];
+   }
+
+   std::cout << std::endl;
+
+
+
+   for( auto i = 0; i < 9; i++ )
+   {
+
+      auto ch = puArray[i];
+      stringText += (char)((ch >> 4) + '0');
+      stringText += (char)((ch & 0x07) + '0');
+   }
+
+}
+*/

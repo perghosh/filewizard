@@ -37,6 +37,8 @@ message( ${CMAKE_PREFIX_PATH} )
 add_executable ("fw_test" "fw_test.cpp" "fw_test.h" "${source_cpp}" "${catch_test}" )
 find_package(Catch2 CONFIG REQUIRED)
 
+target_compile_definitions( "fw_test" PUBLIC DEBUG )
+
 
 target_link_libraries("fw_test" PRIVATE Catch2::Catch2)
 
