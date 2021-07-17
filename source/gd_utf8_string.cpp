@@ -169,13 +169,47 @@ string::const_iterator string::find( const_pointer pbszText, uint32_t uLength ) 
    return end();
 }
 
-string::iterator string::erase( iterator itFirst, iterator itLast )
-{
-   uint32_t uRemoveSize = itLast.get() - itFirst.get();
-   if( itLast != end() )
+/**
+ * @brief Find text in string
+ * @param itFrom start position in string (offset)
+ * @param pbszFind text to find
+ * @param uLength length of text
+ * @return iterator to position in string where text is found, if iterator is equal to end then no character is found
+*/
+string::const_iterator string::find( const_iterator itFrom, const_pointer pbszFind, uint32_t uLength ) const
+{                                                                             assert( string::verify_iterator( *this, itFrom ) == true );
+   auto p = gd::utf8::move::find( itFrom.get(), c_end(), pbszFind, uLength );
+   if( p != nullptr ) return const_iterator( p );
+
+   return end();
+}
+
+/**
+ * @brief Erase characters from string
+ * @param itFirst position from characters are to be erased
+ * @param itLast last position for characters that is to be removed
+ * @param bCount if count in string is to be updated (this will increase time and may not be needed if you are doing multiple erase and just want to update count in the end)
+ * @return 
+*/
+string::iterator string::erase( iterator itFirst, iterator itLast, bool bCount )
+{                                                                             assert( itLast.get() > itFirst.get() ); assert( itLast.get() <= end().get() );
+
+   if( bCount == true ) m_pbuffer->count( gd::utf8::count( m_pbuffer->c_str() ).first );
+
+   uint32_t uMoveSize{0};
+   uint32_t uRemoveSize = static_cast<uint32_t>(itLast.get() - itFirst.get());
+
+   if( itLast != end() ) { uMoveSize = static_cast<uint32_t>(end().get() - itLast.get()); }
+
+   if( uMoveSize > 0 )
    {
-      uint32_t uMoveSize = end().get() - itLast.get();
+      std::memcpy( itFirst.get(), itLast.get(), uMoveSize );                   // close gap
    }
+   
+   m_pbuffer->size( m_pbuffer->size() - uRemoveSize );
+   m_pbuffer->c_buffer_end()[0] = '\0';
+
+   if( bCount == true ) m_pbuffer->count( gd::utf8::count( m_pbuffer->c_str() ).first );
 
    return itFirst;
 }

@@ -65,7 +65,29 @@ TEST_CASE("Test folder methods", "[folder]") {
             _size = stringFile.c_end() - stringFile.c_str();
             const char* p = (const char*)stringFile.c_str() + _size - 1000; 
 
-            auto itPosition = stringFile.find( (const uint8_t*)"application = nil;" );
+            auto itPosition = stringFile.find( (const uint8_t*)"--" );
+            while( itPosition != stringFile.cend() )
+            {
+               auto itSpace = itPosition;
+               if( (itSpace - 1).value32() == ' ' )
+               {
+                  itSpace--;
+                  while( itSpace.value32() == ' ' && itSpace != stringFile.cbegin() ) itSpace--;
+                  if( itSpace.value32() == '\n' && itSpace != itPosition )
+                  {
+                     itSpace++;
+                     itPosition = stringFile.erase( itSpace, itPosition, true );
+                  }
+               }
+               itPosition++;
+               itPosition = stringFile.find( itPosition, (const uint8_t*)"--" );
+            }
+            /*
+            gd::utf8::string::iterator it = itPosition;
+            auto _size1 = stringFile.size();
+            stringFile.erase( it, it + 3, true );
+            auto _size2 = stringFile.size();
+            */
          }
       }
    }
@@ -87,7 +109,10 @@ TEST_CASE("Test folder methods", "[folder]") {
          {
             gd::utf8::string stringFile;
             stringFile.assign( reinterpret_cast<const uint8_t*>(pbBOM + 3), vectorBuffer.size() - 3 );
-            auto itPosition = stringFile.find( (const uint8_t*)"application = nil;" );CHECK( stringFile.cend() != itPosition );
+            auto itPosition = stringFile.find( (const uint8_t*)"application = nil;" );
+
+            gd::utf8::string::iterator it = itPosition;
+            stringFile.erase( it, it + strlen("application = nil;"), true );
          }
       }
    }

@@ -68,7 +68,7 @@ namespace gd {
          uint32_t uCount = 0; // counted characters in buffer
          const uint8_t* pubszPosition = pubszText;
          while( *pubszPosition != '\0' )
-         {
+         {                                                                    assert( pNeededByteCount[*pubszPosition] != 0 );
             pubszPosition += pNeededByteCount[*pubszPosition];
             uCount++;
 

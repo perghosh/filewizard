@@ -38,6 +38,7 @@ namespace gd::utf8 {
       value32& operator=( const value32& o ) { *reinterpret_cast<uint32_t*>( m_pValue ) = *reinterpret_cast<uint32_t*>( const_cast<value32*>(&o)->m_pValue); return *this; }
 */
 
+/*
       operator char() const { assert( m_uValue < 0x100 ); return static_cast<char>(m_uValue); }
       operator char8_t() const { assert( m_uValue < 0x100 ); 
          const uint8_t* p = reinterpret_cast<const uint8_t*>(&m_uValue) + (m_uValue >= 0x80 ? 2 : 3);
@@ -45,6 +46,7 @@ namespace gd::utf8 {
          return static_cast<char8_t>(ch); 
       }
       operator wchar_t() const { assert( m_uValue < 0x10000 ); return static_cast<wchar_t>(m_uValue); }
+      */
       operator uint32_t() const { return m_uValue; }
 
       uint32_t m_uValue;
@@ -86,15 +88,20 @@ public:
       typedef std::bidirectional_iterator_tag  iterator_category;
 
       iterator( pointer p ): m_pPosition(p) { }
+      iterator( const_iterator& o ): m_pPosition(const_cast<pointer>( o.m_pPosition )) { }
+
+      self& operator=( const_iterator& o ) { m_pPosition = const_cast<pointer>( o.m_pPosition ); return *this; }
 
       reference operator*() const { return *m_pPosition; }
       pointer operator->() { return m_pPosition; }
 
+      operator const value_type*() { return m_pPosition; }
+
       self& operator++() { m_pPosition = gd::utf8::move::next( m_pPosition ); return *this; }  
-      self& operator++( int ) { self it = *this; ++(*this); return it; }  
+      self operator++( int ) { self it = *this; ++(*this); return it; }  
 
       self& operator--() { m_pPosition = gd::utf8::move::previous( m_pPosition ); return *this; }  
-      self& operator--( int ) { self it = *this; --(*this); return it; }  
+      self operator--( int ) { self it = *this; --(*this); return it; }  
 
       bool operator==(const self& r) { return m_pPosition == r.m_pPosition; }
       bool operator!=(const self& r) { return m_pPosition != r.m_pPosition; }
@@ -102,7 +109,12 @@ public:
       bool operator==(const const_iterator& r) { return m_pPosition == r.m_pPosition; }
       bool operator!=(const const_iterator& r) { return m_pPosition != r.m_pPosition; }
 
+      iterator operator+(std::size_t uMove) { auto p = m_pPosition; p = gd::utf8::move::next(p, static_cast<uint32_t>(uMove)); return self( p ); }
+      iterator operator-(std::size_t uMove) { auto p = m_pPosition; p = gd::utf8::move::previous(p, static_cast<uint32_t>(uMove)); return self( p ); }
+
+
       pointer get() { return m_pPosition; }
+      gd::utf8::value32 value32() const { return gd::utf8::value32( m_pPosition ); }
 
 
       pointer m_pPosition;      /// position in string   
@@ -120,30 +132,38 @@ public:
       typedef std::ptrdiff_t     difference_type;
       typedef std::bidirectional_iterator_tag  iterator_category;
 
-      const_iterator( const_pointer p ): m_pPosition(p) { }
+      const_iterator( const_pointer p ): m_pPosition(p) {}
+      const_iterator( iterator it ): m_pPosition(it.get()) {}
+
+      const_iterator& operator=( iterator& o ) { m_pPosition = o.m_pPosition; return *this; }
 
       const_reference operator*() const { return *m_pPosition; }
       const_pointer operator->() const { return m_pPosition; }
 
       operator const value_type*() { return m_pPosition; }
-      operator char() const { return value32(m_pPosition); }
-      operator wchar_t() const { return value32(m_pPosition); }
-      operator uint32_t() const { return value32(m_pPosition); }
 
       self& operator++() { m_pPosition = gd::utf8::move::next(m_pPosition); return *this; }
-      self& operator++( int ) { const_iterator it = *this; ++(*this); return it; }  
+      self operator++( int ) { const_iterator it = *this; ++(*this); return it; }  
 
       self& operator--() { m_pPosition = gd::utf8::move::previous( m_pPosition ); return *this; }  
-      self& operator--( int ) { const_iterator it = *this; --(*this); return it; }  
+      self operator--( int ) { const_iterator it = *this; --(*this); return *this; }  
 
       bool operator==(const const_iterator& r) { return m_pPosition == r.m_pPosition; }
       bool operator!=(const const_iterator& r) { return m_pPosition != r.m_pPosition; }
+
+      const_iterator operator+(std::size_t uMove) { auto p = m_pPosition; p = gd::utf8::move::next(p, static_cast<uint32_t>(uMove)); return self( p ); }
+      const_iterator operator-(std::size_t uMove) { auto p = m_pPosition; p = gd::utf8::move::previous(p, static_cast<uint32_t>(uMove)); return self( p ); }
+
+      const_pointer get() { return m_pPosition; }
+      gd::utf8::value32 value32() const { return gd::utf8::value32( m_pPosition ); }
 
       const_pointer m_pPosition;      /// position in string   
    };
 
 
 public:
+   /** @name Construct
+   *///@{
    string() {}
    explicit string( gd::utf8::buffer bufferStack );
    explicit string( const char* pbszText ) { assign( pbszText ); }
@@ -159,6 +179,7 @@ public:
    string(string& o) { copy(o); }
    string(const string& o) { clone(o); }
    ~string() {string::release( m_pbuffer ); }
+   //@}
 
    string& operator=(string& o) { copy(o); return *this; }
    string& operator=(const string& o) { clone(o); return *this; }
@@ -196,9 +217,8 @@ public:
    }
 
 
-/** @name APPEND
- *  Append text 3
-*///@{
+   /** @name APPEND
+    *///@{
    void push_back( uint8_t ch );
    void push_back( uint16_t ch );
    void push_back( uint32_t ch );
@@ -213,7 +233,7 @@ public:
    string& append( const char* pbszText ) { return append( pbszText, static_cast<uint32_t>( std::strlen( pbszText ) ) ); }
    string& append( std::string_view stringText ) { return append( stringText.data(), static_cast<uint32_t>(stringText.length()) ); }
    string& append( const char* pbszText, uint32_t uLength );
-//@}
+   //@}
 
    [[nodiscard]] gd::utf8::value32 at( size_type uIndex ) const { 
       auto it = begin();
@@ -229,7 +249,10 @@ public:
    [[nodiscard]] const_iterator find( const_pointer pbszFind, std::size_t uLength ) const { return find( pbszFind, static_cast<uint32_t>( uLength ) ); }
    [[nodiscard]] const_iterator find( const_pointer pbszFind ) const { return find( pbszFind, std::strlen( reinterpret_cast<const char *>(pbszFind) ) );  }
 
-   iterator erase( iterator itFirst, iterator itLast );
+   [[nodiscard]] const_iterator find( const_iterator itFrom, const_pointer pbszFind ) const { return find( itFrom, pbszFind, static_cast<uint32_t>( std::strlen( reinterpret_cast<const char *>(pbszFind) ) ) ); }
+   [[nodiscard]] const_iterator find( const_iterator itFrom, const_pointer pbszFind, uint32_t uLength ) const;
+
+   iterator erase( iterator itFirst, iterator itLast, bool bCount );
 
 
    [[nodiscard]] iterator begin() { return iterator( m_pbuffer->c_buffer() ); }
