@@ -1,6 +1,7 @@
 ﻿#include <iostream>
 #include <iterator>
 #include <array>
+#include <regex>
 
 #include "catch.hpp"
 
@@ -21,7 +22,7 @@ TEST_CASE("utf8 count, move and find operations", "[utf8]") {
 
    const char* pAscii = (const char*)u8"AAA. Xåäö.XÅÄÖ.X ©¢¥¹ X";
    uCount = gd::utf8::count( pAscii ).first;REQUIRE(uCount == 23);
-   uCount = reinterpret_cast<const char*>(gd::utf8::count( pAscii ).second) - pAscii;REQUIRE(uCount == 33);
+   uCount = static_cast<uint32_t>( reinterpret_cast<const char*>(gd::utf8::count( pAscii ).second) - pAscii ); REQUIRE(uCount == 33);
    uCount = gd::utf8::size("AAA. Xåäö.XÅÄÖ.X ©¢¥¹ X");REQUIRE(uCount == 33);
    uCount = gd::utf8::size({'A','A','A','.',' ','X','å','ä','ö','.','X','Å','Ä','Ö','.','X',' ','©','¢','¥','¹',' ','X'});REQUIRE(uCount == 33);
    std::vector<char> v({'A','A','A','.',' ','X','å','ä','ö','.','X','Å','Ä','Ö','.','X',' ','©','¢','¥','¹',' ','X'});
@@ -119,7 +120,7 @@ TEST_CASE("utf8 add to string", "[utf8]") {
 
 
 
-TEST_CASE("Test stack based string", "[utf8]") {
+TEST_CASE("Test stack based string, no heap allocation", "[utf8]") {
    uint8_t pBuffer[100];
 
    gd::utf8::string stringText( gd::utf8::buffer{ pBuffer, 100 } );
@@ -157,6 +158,55 @@ TEST_CASE("Test stack based string", "[utf8]") {
    if(ch == (char8_t)'ä') {
       REQUIRE(stringText.size() == 26);  
    };
+   */
+}
+
+TEST_CASE("find text using regex", "[utf8]") {
+
+   const char* pbszText = "0123456789 XXX 0123456789";
+   gd::utf8::string stringText(pbszText);
+
+   const std::regex regexSearch("([X]+)");
+   std::cmatch smatchFound;
+
+   auto itTest = stringText.cbegin();
+   std::advance( itTest, 10 );
+
+   auto itBegin = std::regex_iterator( stringText.cbegin_char(), stringText.cend_char(), regexSearch);
+   auto itEnd = std::regex_iterator<gd::utf8::string::char_const_iterator>();
+   auto itEnd01 = std::sregex_iterator();
+
+   for( std::regex_iterator<gd::utf8::string::char_const_iterator> it = itBegin; it != itEnd; itBegin++ )
+   {
+
+   }
+
+/*
+Severity	Code	Description	Project	File	Line	Suppression State
+Error	C2440	'initializing': cannot convert from 'std::regex_iterator<gd::utf8::string::const_iterator,char,std::regex_traits<char>>' to 'std::regex_iterator<gd::utf8::string::const_iterator,unsigned char,std::regex_traits<unsigned char>>'	C:\_dev\c\cmake\filewizard\out\build\x64-Debug\filewizard	C:\_dev\c\cmake\filewizard\tests\catch_text.cpp	178	
+
+std::regex_iterator<gd::utf8::string::const_iterator,char,std::regex_traits<char>>
+std::regex_iterator<gd::utf8::string::const_iterator,unsigned char,std::regex_traits<unsigned char>>
+*/
+
+
+
+/*
+   https://devblogs.microsoft.com/cppblog/the-filterator/
+   https://stackoverflow.com/questions/17069327/issues-with-using-custom-iterators-for-regex-iterator
+
+
+   const char* pbszText = "0123456789 XXX 0123456789";
+   gd::utf8::string stringText("0123456789 XXX 0123456789");
+   const std::regex regexSearch("([X]+)");
+   std::cmatch smatchFound;
+
+   //bool bMatch1 = std::regex_match( stringText.cbegin(), stringText.cend(), regexSearch );
+
+   auto itBegin = std::regex_iterator(stringText.cbegin(), stringText.cend(), regexSearch);
+   auto itEnd = std::sregex_iterator();
+
+   bool bMatch2 = std::regex_match( pbszText, pbszText + strlen(pbszText), smatchFound, regexSearch );
    */
 }
 

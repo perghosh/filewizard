@@ -32,7 +32,7 @@ std::string GetExePath()
 }
 
 
-TEST_CASE("Test folder methods", "[folder]") {
+TEST_CASE("Read and write files after conversion", "[folder]") {
    using namespace application;
    CApplication application;
 
@@ -41,14 +41,14 @@ TEST_CASE("Test folder methods", "[folder]") {
 
    stringFile += "\\100.txt";
 
-   std::ifstream fstreamText;
-   fstreamText.open( stringFile, std::ios::in );
-   if( fstreamText )
+   std::ifstream ifstreamText;
+   ifstreamText.open( stringFile, std::ios::in );
+   if( ifstreamText )
    {
       std::vector<uint8_t> vectorBuffer;
       char uValue;
-      while( fstreamText.get( uValue ) ) { vectorBuffer.push_back( uValue ); }
-      fstreamText.close();
+      while( ifstreamText.get( uValue ) ) { vectorBuffer.push_back( uValue ); }
+      ifstreamText.close();
 
       if( vectorBuffer.empty() == false )
       {
@@ -56,51 +56,54 @@ TEST_CASE("Test folder methods", "[folder]") {
          auto pbBOM = vectorBuffer.data();
          if( pbBOM[ 0 ] == 0xEF && pbBOM[ 1 ] == 0xBB && pbBOM[ 2 ] == 0xBF )
          {
-            gd::utf8::string stringFile;
-            stringFile.assign( reinterpret_cast<const uint8_t*>(pbBOM + 3), vectorBuffer.size() - 3 );
+            gd::utf8::string stringData;
+            stringData.assign( reinterpret_cast<const uint8_t*>(pbBOM + 3), vectorBuffer.size() - 3 );
 
 #ifdef DEBUG
-            auto [ debug_p, debug_u ] = stringFile.dump(); REQUIRE(debug_u == stringFile.size()); REQUIRE((debug_p + debug_u - (const char*)stringFile.c_end()) == 0);
+            auto [ debug_p, debug_u ] = stringData.dump(); REQUIRE(debug_u == stringData.size()); REQUIRE((debug_p + debug_u - (const char*)stringData.c_end()) == 0);
 #endif 
-            _size = stringFile.c_end() - stringFile.c_str();
-            const char* p = (const char*)stringFile.c_str() + _size - 1000; 
+            _size = stringData.c_end() - stringData.c_buffer();
+            const char* p = (const char*)stringData.c_buffer() + _size - 1000; 
 
-            auto itPosition = stringFile.find( (const uint8_t*)"--" );
-            while( itPosition != stringFile.cend() )
+            auto itPosition = stringData.find( (const uint8_t*)"--" );
+            while( itPosition != stringData.cend() )
             {
                auto itSpace = itPosition;
                if( (itSpace - 1).value32() == ' ' )
                {
                   itSpace--;
-                  while( itSpace.value32() == ' ' && itSpace != stringFile.cbegin() ) itSpace--;
+                  while( itSpace.value32() == ' ' && itSpace != stringData.cbegin() ) itSpace--;
                   if( itSpace.value32() == '\n' && itSpace != itPosition )
                   {
                      itSpace++;
-                     itPosition = stringFile.erase( itSpace, itPosition, true );
+                     itPosition = stringData.erase( itSpace, itPosition, true );
                   }
                }
                itPosition++;
-               itPosition = stringFile.find( itPosition, (const uint8_t*)"--" );
+               itPosition = stringData.find( itPosition, (const uint8_t*)"--" );
             }
-            /*
-            gd::utf8::string::iterator it = itPosition;
-            auto _size1 = stringFile.size();
-            stringFile.erase( it, it + 3, true );
-            auto _size2 = stringFile.size();
-            */
+
+            stringFile = GetExePath();
+            stringFile += "\\100_new.txt";
+            std::ofstream ofstreamNewFile( stringFile );
+            ofstreamNewFile.put( (char)0xEF );
+            ofstreamNewFile.put( (char)0xBB );
+            ofstreamNewFile.put( (char)0xBF );
+            ofstreamNewFile.write( stringData.c_str(), stringData.size() );
          }
       }
    }
 
+   /*
    stringFile = GetExePath();
    stringFile += "\\test_remove_space.lua";
-   fstreamText.open( stringFile, std::ios::in );
-   if( fstreamText )
+   ifstreamText.open( stringFile, std::ios::in );
+   if( ifstreamText )
    {
       std::vector<uint8_t> vectorBuffer;
       char uValue;
-      while( fstreamText.get( uValue ) ) { vectorBuffer.push_back( uValue ); }
-      fstreamText.close();
+      while( ifstreamText.get( uValue ) ) { vectorBuffer.push_back( uValue ); }
+      ifstreamText.close();
       if( vectorBuffer.empty() == false )
       {
          auto _size = vectorBuffer.size();
@@ -116,6 +119,7 @@ TEST_CASE("Test folder methods", "[folder]") {
          }
       }
    }
+   */
 
 
 

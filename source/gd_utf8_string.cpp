@@ -141,7 +141,7 @@ string& string::append( const char* pbszText, uint32_t uLength )
 */
 string::const_iterator string::find( value_type ch ) const
 {
-   auto p = gd::utf8::move::find( c_str(), ch );
+   auto p = gd::utf8::move::find( c_buffer(), ch );
    if( p != nullptr ) return const_iterator( p );
 
    return end();
@@ -163,7 +163,7 @@ string::const_iterator string::find( value_type ch, const_iterator itFrom ) cons
 
 string::const_iterator string::find( const_pointer pbszText, uint32_t uLength ) const
 {
-   auto p = gd::utf8::move::find( c_str(), c_end(), pbszText, uLength );
+   auto p = gd::utf8::move::find( c_buffer(), c_end(), pbszText, uLength );
    if( p != nullptr ) return const_iterator( p );
 
    return end();
@@ -194,7 +194,7 @@ string::const_iterator string::find( const_iterator itFrom, const_pointer pbszFi
 string::iterator string::erase( iterator itFirst, iterator itLast, bool bCount )
 {                                                                             assert( itLast.get() > itFirst.get() ); assert( itLast.get() <= end().get() );
 
-   if( bCount == true ) m_pbuffer->count( gd::utf8::count( m_pbuffer->c_str() ).first );
+   if( bCount == true ) m_pbuffer->count( gd::utf8::count( m_pbuffer->c_buffer() ).first );
 
    uint32_t uMoveSize{0};
    uint32_t uRemoveSize = static_cast<uint32_t>(itLast.get() - itFirst.get());
@@ -209,7 +209,7 @@ string::iterator string::erase( iterator itFirst, iterator itLast, bool bCount )
    m_pbuffer->size( m_pbuffer->size() - uRemoveSize );
    m_pbuffer->c_buffer_end()[0] = '\0';
 
-   if( bCount == true ) m_pbuffer->count( gd::utf8::count( m_pbuffer->c_str() ).first );
+   if( bCount == true ) m_pbuffer->count( gd::utf8::count( m_pbuffer->c_buffer() ).first );
 
    return itFirst;
 }
@@ -326,7 +326,7 @@ void string::_clone(const string& o)
       m_pbuffer->size(o.size());
       m_pbuffer->count(o.count());
       m_pbuffer->set_reference(1);
-      memcpy(c_buffer(), o.c_str(), size());
+      memcpy(c_buffer(), o.c_buffer(), size());
    }
 }
 
