@@ -53,6 +53,7 @@ namespace gd {
       /// calculate needed size to store character as utf8 value
       uint32_t size( uint8_t ch ); // ------------------------------------------------------------- size
       uint32_t size( uint16_t ch ); // ------------------------------------------------------------ size
+      uint32_t size( uint32_t ch ); // ------------------------------------------------------------ size
       /// count needed size to store char string as utf8 string
       inline uint32_t size( const char* pbsz ) { // ----------------------------------------------- size
          uint32_t uSize = 0;

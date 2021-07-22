@@ -161,35 +161,83 @@ TEST_CASE("Test stack based string, no heap allocation", "[utf8]") {
    */
 }
 
-TEST_CASE("find text using regex", "[utf8]") {
+TEST_CASE("insert and remove text in string", "[utf8]") {
 
-   const char* pbszText = "0123456789 XXX 0123456789";
-   gd::utf8::string stringText(pbszText);
-
-   const std::regex regexSearch("([X]+)");
-   std::cmatch smatchFound;
-
-   auto itTest = stringText.cbegin();
-   std::advance( itTest, 10 );
-
-   auto itBegin = std::regex_iterator( stringText.cbegin_char(), stringText.cend_char(), regexSearch);
-   auto itEnd = std::regex_iterator<gd::utf8::string::char_const_iterator>();
-   auto itEnd01 = std::sregex_iterator();
-
-   for( std::regex_iterator<gd::utf8::string::char_const_iterator> it = itBegin; it != itEnd; itBegin++ )
    {
+      auto uCount = 0u;
 
+      gd::utf8::string s1("000111222");
+      s1.insert( s1.begin() + 3, s1.begin() + 6, 3, '9');
+      std::for_each( std::begin(s1), std::end(s1), [&uCount](auto it) { 
+         if( it == 'A' ) uCount++; 
+      });                                                                      REQUIRE( uCount == 0 );
+
+      s1.insert( s1.begin() + 3, s1.begin() + 6, 20, 'A');
+
+      std::for_each( std::begin(s1), std::end(s1), [&uCount](auto it) { 
+         if( it == 'A' ) uCount++; 
+      });                                                                      REQUIRE( uCount == 20 );
    }
 
-/*
-Severity	Code	Description	Project	File	Line	Suppression State
-Error	C2440	'initializing': cannot convert from 'std::regex_iterator<gd::utf8::string::const_iterator,char,std::regex_traits<char>>' to 'std::regex_iterator<gd::utf8::string::const_iterator,unsigned char,std::regex_traits<unsigned char>>'	C:\_dev\c\cmake\filewizard\out\build\x64-Debug\filewizard	C:\_dev\c\cmake\filewizard\tests\catch_text.cpp	178	
+   {
+      auto uCount = 0u;
 
-std::regex_iterator<gd::utf8::string::const_iterator,char,std::regex_traits<char>>
-std::regex_iterator<gd::utf8::string::const_iterator,unsigned char,std::regex_traits<unsigned char>>
-*/
+      gd::utf8::string s1("000111222");
+      s1.insert( s1.begin() + 3, s1.begin() + 6, 3, '9');
+
+      s1.insert( s1.begin() + 3, s1.begin() + 6, 30, 'Ö');
+      for( auto it = std::begin( s1 ); it != std::end( s1 ); it++ )
+      {
+         if( it.value32() == U'Ö' ) uCount++; 
+      }                                                                        REQUIRE( uCount == 30) ;
+   }
+
+}
+
+TEST_CASE("find text using regex", "[utf8]") {
+
+   {
+      const char* pbszText = "0123456789 XXX 0123456789";
+      gd::utf8::string stringText(pbszText);
+
+      const std::regex regexSearch("([X]+)");
+      std::cmatch smatchFound;
+
+      auto itTest = stringText.cbegin();
+      std::advance( itTest, 10 );
+
+      auto itBegin = std::regex_iterator( stringText.cbegin_char(), stringText.cend_char(), regexSearch);
+      auto itEnd = std::regex_iterator<gd::utf8::string::char_const_iterator>();
+      auto itEnd01 = std::sregex_iterator();
+
+      for( std::regex_iterator<gd::utf8::string::char_const_iterator> it = itBegin; it != itEnd; ++it )
+      {
+         auto pairPrefix = it->prefix();
+         auto pairSuffix = it->suffix();
+
+         auto uPrefixOffset = pairPrefix.second - stringText.c_str();
+         auto uSuffixOffset = pairSuffix.first - stringText.c_str();
+
+         std::cout << "Match: " << it->str() << '\n';
+         std::cout << "Distance to start of match: " << uPrefixOffset << '\n';
+         std::cout << "Distance to end of match: " << uSuffixOffset << '\n';
+      }
+   }
 
 
+   /*
+   {
+      const char* pbszText = "0123456789 XXX 0123456789";
+      std::regex_iterator<const char*>::value_type match("X");
+      std::regex_iterator<const char*> move( pbszText, pbszText + strlen(pbszText), match );
+      std::regex_iterator<const char*> end;
+
+      for(; match != end; ++match)
+      {
+         std::cout << "match == " << match->str() << std::endl;
+      }
+   }
+   */
 
 /*
    https://devblogs.microsoft.com/cppblog/the-filterator/

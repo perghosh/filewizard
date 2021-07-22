@@ -117,6 +117,16 @@ namespace gd {
          return 4;
       }
 
+      uint32_t size(uint32_t uCharacter)
+      {
+         if(uCharacter < 0x80) return 1;
+         else if(uCharacter < 0x800) return 2;
+         else if(uCharacter < 0x10000) return 3;
+         else if(uCharacter < 0x200000) return 4;
+         return 5;
+      }
+
+
 
       uint32_t size( const char* pbszText, uint32_t uLength )
       {

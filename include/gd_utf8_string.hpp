@@ -4,6 +4,7 @@
 #include <iterator>
 #include <string_view>
 #include <initializer_list>
+#include <iostream>
 		
 #include "gd_utf8.hpp"
 
@@ -236,6 +237,8 @@ public:
 
    gd::utf8::value32 operator [](size_type uIndex ) const { return at( uIndex ); }
 
+   friend std::ostream& operator<<( std::ostream& ostreamTo, const string& s );
+
    [[nodiscard]] uint32_t size() const { return m_pbuffer->size(); }
    [[nodiscard]] uint32_t length() const { return m_pbuffer->size(); }
    [[nodiscard]] uint32_t count() const { return m_pbuffer->count(); }
@@ -281,6 +284,22 @@ public:
    string& append( const char* pbszText, uint32_t uLength );
    //@}
 
+
+   /** @name REPLACE
+    *///@{
+   string& insert( iterator itFrom, iterator itTo, uint32_t uSize, uint32_t uCharacter );
+   template<typename CHARACTER>
+   string& insert( iterator itFrom, iterator itTo, uint32_t uSize, CHARACTER Character ) {
+      uint32_t uCharacter;
+      if constexpr( sizeof(Character) == sizeof(uint8_t) ) uCharacter = static_cast<uint8_t>(Character);       // 1 byte
+      else if constexpr( sizeof(Character) == sizeof(uint16_t) ) uCharacter = static_cast<uint16_t>(Character);// 2 byte value
+      else uCharacter = static_cast<uint32_t>(Character);                                                      // 4 byte or over
+
+      return insert( itFrom, itTo, uSize, static_cast<uint32_t>( uCharacter )); 
+   }
+   //@}
+
+
    [[nodiscard]] gd::utf8::value32 at( size_type uIndex ) const { 
       auto it = begin();
       std::advance( it, uIndex );
@@ -318,6 +337,7 @@ public:
    void allocate( uint32_t uSize );
    void allocate_exact( uint32_t uSize );
 
+   pointer expand( value_type* pvPosition, uint32_t uSize );
    static bool verify_iterator( const string& stringObject, const_pointer p );
 
 public:
@@ -341,6 +361,8 @@ public:
       uint32_t capacity() const { return m_uSizeBuffer; }
       void capacity( uint32_t uCapacity ) { m_uSizeBuffer = uCapacity; }
       bool empty() const { return m_uSize == 0; }
+
+      void add_size( uint32_t uSize ) { m_uSize += uSize; }
 
       bool is_refcount() const { return (m_uFlags == 0); }
       bool is_stack() const { return (m_uFlags & eBufferStorageStack) ? true : false; }

@@ -3,6 +3,7 @@
 #include <array>
 #include <iostream>
 #include <fstream>
+#include <regex>
 
 #include <windows.h>
 
@@ -158,3 +159,54 @@ TEST_CASE("test", "[vanderbilt]") {
 
 }
 */
+
+
+TEST_CASE("convert lua file", "[folder]") {
+   std::string stringFile = GetExePath();
+   stringFile += "\\test_remove_space.lua";
+
+   std::ifstream ifstreamText;
+   ifstreamText.open( stringFile, std::ios::in );
+   if( ifstreamText )
+   {
+      std::vector<uint8_t> vectorBuffer;
+      char uValue;
+      while( ifstreamText.get( uValue ) ) 
+      { 
+         vectorBuffer.push_back( uValue ); 
+      }
+      ifstreamText.close();
+
+      if( vectorBuffer.empty() == false )
+      {
+         auto _size = vectorBuffer.size();
+         auto pbBOM = vectorBuffer.data();
+         if( pbBOM[ 0 ] == 0xEF && pbBOM[ 1 ] == 0xBB && pbBOM[ 2 ] == 0xBF )
+         {
+            gd::utf8::string stringLua;
+            stringLua.assign( reinterpret_cast<const uint8_t*>(pbBOM + 3), vectorBuffer.size() - 3 );
+
+            std::cmatch cmatchResult;
+            std::regex regexFind( R"(^\s\s+)" );
+            auto pbszPosition = stringLua.c_str();
+            while( std::regex_search( pbszPosition, cmatchResult, regexFind ) )
+            {
+               // std::cout << cmatchResult.str() << "\n";
+               pbszPosition = cmatchResult.suffix().first;
+            }
+
+            /*
+            std::cout << cmatchResult.size();
+
+            for( auto it = cmatchResult.begin(); it != cmatchResult.end(); it++ )
+            {
+               std::cout << it->str();
+
+            }
+            */
+         }
+      }
+
+   }
+
+}

@@ -1,3 +1,4 @@
+#include <stdexcept>
 
 #include "gd_utf8_string.hpp"
 #include "..\include\gd_utf8_string.hpp"
@@ -14,6 +15,13 @@ string::string( gd::utf8::buffer bufferStack ) {                              as
    m_pbuffer->count( 0 );
    m_pbuffer->set_reference( 1 );
 }
+
+std::ostream& operator<<( std::ostream& ostreamTo, const string& s)
+{
+   ostreamTo << s.c_str();
+   return ostreamTo;
+}
+
 
 /**
  * @brief copy string object
@@ -41,7 +49,8 @@ void string::copy(string& o)
 string& string::assign( const char* pbszText, uint32_t uLength )
 {
    uint32_t uSize = gd::utf8::size( pbszText, uLength );
-   if( uSize > m_pbuffer->capacity() ) allocate( uSize - m_pbuffer->capacity() );
+   if( string::is_empty( m_pbuffer ) == true ) allocate_exact( uSize );
+   else if( uSize > m_pbuffer->capacity() ) allocate( uSize - m_pbuffer->capacity() );
 
    convert_ascii( pbszText, m_pbuffer->c_buffer() );
 
@@ -133,6 +142,50 @@ string& string::append( const char* pbszText, uint32_t uLength )
    return *this;
 }
 
+/**
+ * @brief insert character X number of times in section between iterators
+ * @param itFrom where to insert
+ * @param itTo end of section that is replaced
+ * @param uSize number of characters inserted
+ * @param uCharacter character to insert
+ * @return reference to string
+*/
+string& string::insert( iterator itFrom, iterator itTo, uint32_t uSize, uint32_t uCharacter )
+{                                                                             assert( uCharacter < 0x01000000 ); // realistic
+                                                                              assert( string::verify_iterator( *this, itFrom ) == true );
+                                                                              assert( string::verify_iterator( *this, itTo ) == true );
+   value_type pChar[4];                            // buffer storing character
+   auto uCharLength = gd::utf8::convert( uCharacter, pChar );// number of character values needed for character
+   std::size_t uSizeNeeded = uCharLength * uSize;  // size needed in string to store character
+   std::size_t uSizeInString = itTo.get() - itFrom.get();// size in string that is replaced
+   pointer pInsert = itFrom.get(); // reinterpret_cast<pointer>( itFrom.get() );
+
+   if( uSizeNeeded > uSizeInString )
+   {                                                                          assert( uSizeNeeded - uSizeInString < 0x01000000 ); // realistic
+      pInsert = expand( pInsert, static_cast<uint32_t>(uSizeNeeded - uSizeInString) );
+   }
+   else if( uSizeNeeded < uSizeInString )
+   {
+
+   }
+
+   while( uSize-- )
+   {
+      switch( uCharLength )
+      {
+         case 0: throw std::runtime_error("invalid UTF-8 (operation = next)");
+         case 1: *pInsert = *pChar; break;
+         case 2: pInsert[0] = pChar[0]; pInsert[1] = pChar[1]; break;
+         case 3: pInsert[0] = pChar[0]; pInsert[1] = pChar[1]; pInsert[2] = pChar[2]; break;
+         case 4: pInsert[0] = pChar[0]; pInsert[1] = pChar[1]; pInsert[2] = pChar[2]; pInsert[3] = pChar[3]; break;
+      }
+      
+      pInsert += uCharLength;                                                 assert( verify_iterator( *this, pInsert ) );
+   }
+
+   return *this;
+}
+
 
 /**
  * @brief find character in string
@@ -150,7 +203,7 @@ string::const_iterator string::find( value_type ch ) const
 /**
  * @brief find character in string
  * @param ch character to find
- * @param itFrom positoin to start search from
+ * @param itFrom position to start search from
  * @return iterator to position in string where character is found, if iterator is equal to end then no character is found
 */
 string::const_iterator string::find( value_type ch, const_iterator itFrom ) const
@@ -214,6 +267,25 @@ string::iterator string::erase( iterator itFirst, iterator itLast, bool bCount )
    return itFirst;
 }
 
+/**
+ * @brief Expand string and make space at position
+ * @param pPosition pointer to position in string where we need to make space
+ * @param uSize 
+ * @return 
+*/
+string::pointer string::expand( pointer pPosition, uint32_t uSize )
+{
+   auto uOffset = pPosition - c_buffer();
+
+   allocate( uSize );
+   pPosition = c_buffer() + uOffset;                                          // reposition position if allocation was done
+   auto uMoveSize = size() - uOffset;                                         // calculate size to move
+   std::memmove( pPosition + uSize, pPosition, uMoveSize + 1 );               // move data to make gap, add one will add the ending \0 character.
+
+   m_pbuffer->size( m_pbuffer->size() + uSize );
+   return c_buffer() + uOffset;
+}
+
 
 /**
  * @brief allocate new buffer for string if needed
@@ -221,32 +293,32 @@ string::iterator string::erase( iterator itFirst, iterator itLast, bool bCount )
 */
 void string::allocate(uint32_t uSize)
 {
-   uSize += sizeof(string::buffer);
-   //if( uSize + m_uSize >= m_uSizeBuffer )
+   //uSize += sizeof(string::buffer);
    if( uSize + m_pbuffer->size() >= m_pbuffer->capacity() )
    {
-      auto _size = uSize + m_pbuffer->size();
+      auto _size_old = m_pbuffer->size(); // + sizeof(string::buffer);
+      uint32_t uSizeAll = uSize + m_pbuffer->size() + sizeof(string::buffer);
 
-      if( _size < 64 ) _size = 64;
-      else if( _size < 1024 ) _size = 1024;
+      if( uSizeAll < 64 ) uSizeAll = 64;
+      else if( uSizeAll < 1024 ) uSizeAll = 1024;
       else
       {
-         uint32_t uAdd = _size % 4096;
-         _size += uAdd;
+         uint32_t uAdd = uSizeAll % 4096;
+         uSizeAll += uAdd;
 
-         if( uAdd < 64 ) _size += 4096;
+         if( uAdd < 64 ) uSizeAll += 4096;
       }
 
-      uint8_t* puNew = new uint8_t[_size];
-      memcpy( puNew, m_pbuffer, _size );
+      uint8_t* puNew = new uint8_t[uSizeAll];
+      memcpy( puNew, m_pbuffer, _size_old + sizeof(string::buffer) );          assert( _size_old == 0 || m_pbuffer->c_buffer_end()[0] == '\0' );
       if( m_pbuffer != string::m_pbuffer_empty ) string::release( m_pbuffer );
       m_pbuffer = reinterpret_cast<string::buffer*>( puNew );
       m_pbuffer->set_reference( 1 );
-      m_pbuffer->capacity( _size - sizeof(string::buffer) );
+      m_pbuffer->capacity( uSizeAll - sizeof(string::buffer) );              // new capacity after increased size
+      m_pbuffer->c_buffer_end()[0] = '\0';
 #  ifdef DEBUG
       m_psz = reinterpret_cast<const char*>( m_pbuffer->c_buffer() );
 #  endif
-
    }
 }
 
@@ -282,8 +354,8 @@ void string::allocate_exact(uint32_t uSize)
             m_pbuffer->count( uCount );
             m_pbuffer->size( uSize );
          }
-
-         memcpy( m_pbuffer->c_buffer(), pbufferOld->c_buffer(), uSize );
+                                                                               assert( pbufferOld->c_buffer_end()[0] == '\0' );
+         memcpy( m_pbuffer->c_buffer(), pbufferOld->c_buffer(), uSize );      
          m_pbuffer->c_buffer()[uSize] = '\0';
 #        ifdef DEBUG
          m_psz = reinterpret_cast<const char*>( m_pbuffer->c_buffer() );
