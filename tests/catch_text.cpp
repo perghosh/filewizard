@@ -172,6 +172,11 @@ TEST_CASE("insert and remove text in string", "[utf8]") {
          if( it == 'A' ) uCount++; 
       });                                                                      REQUIRE( uCount == 0 );
 
+      s1.insert( s1.begin() + 3, s1.begin() + 6, 3, '\0');
+      s1.squeeze();
+      s1.insert( s1.begin() + 6, s1.begin() + 9, 3, '3');
+      
+
       s1.insert( s1.begin() + 3, s1.begin() + 6, 20, 'A');
 
       std::for_each( std::begin(s1), std::end(s1), [&uCount](auto it) { 

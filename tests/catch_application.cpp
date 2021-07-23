@@ -77,7 +77,7 @@ TEST_CASE("Read and write files after conversion", "[folder]") {
                   if( itSpace.value32() == '\n' && itSpace != itPosition )
                   {
                      itSpace++;
-                     itPosition = stringData.erase( itSpace, itPosition, true );
+                     itPosition = stringData.erase( gd::utf8::string::iterator( itSpace ), gd::utf8::string::iterator( itPosition ), true );
                   }
                }
                itPosition++;
@@ -192,8 +192,16 @@ TEST_CASE("convert lua file", "[folder]") {
             while( std::regex_search( pbszPosition, cmatchResult, regexFind ) )
             {
                // std::cout << cmatchResult.str() << "\n";
-               pbszPosition = cmatchResult.suffix().first;
+               auto pbszBegin = cmatchResult.prefix().second;
+               auto pbszEnd = cmatchResult.suffix().first;
+               auto _count = pbszEnd - pbszBegin;
+               uint8_t* p = stringLua.c_buffer() + ((uint8_t*)pbszBegin - (uint8_t*)stringLua.c_buffer());
+
+               stringLua.insert( p, p + _count, _count, 0 );                  // set character that are remove to 0
+               pbszPosition = pbszEnd;
             }
+
+            stringLua.squeeze();
 
             /*
             std::cout << cmatchResult.size();

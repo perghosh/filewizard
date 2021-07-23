@@ -6,6 +6,20 @@
 #include <tuple>
 #include <type_traits>
 
+/*
+| method | description |
+| - | - |
+| character | return character number |
+| convert | convert character value and store it in pointer to utf8 buffer |
+| copy | copy utf8 character from source buffer to target buffer |
+| size | calculate number of bytes needed to store character in utf8 format |
+|  |  |
+|  |  |
+
+
+
+*/
+
 namespace gd { 
    namespace utf8 {
 
@@ -96,7 +110,7 @@ namespace gd {
          );
       }
 
-      std::pair<bool, const uint8_t*> convert_ascii(const uint8_t* pbszFrom, uint8_t* pbszTo);
+      std::pair<bool, const uint8_t*> convert_ascii(const uint8_t* pbszFrom, uint8_t* pbszTo); // - convert_ascii
       template <typename UTF8_TYPE, typename TYPE>
       std::pair<bool, const uint8_t*> convert_ascii(const UTF8_TYPE* pbszFrom, TYPE* pbszTo) {
          return convert_ascii(reinterpret_cast<const uint8_t*>(pbszFrom), reinterpret_cast<uint8_t*>(pbszTo));
@@ -108,6 +122,11 @@ namespace gd {
       }
 
       std::pair<bool, const uint16_t*> convert_unicode(const uint16_t* pbszFrom, uint8_t* pbszTo, const uint8_t* pbszEnd);
+      ///@}
+
+
+      ///@{
+      uint8_t* copy_character( uint8_t* puCopyTo, const uint8_t* puCopyFrom );
       ///@}
 
 
@@ -240,7 +259,7 @@ namespace gd {
 
       uint32_t character(const uint16_t* pubszText); // ------------------------------------------- character
       template <typename UTF16_TYPE>
-      uint32_t character(const UTF16_TYPE* pbszText) { // ------------------------------------------ character
+      uint32_t character(const UTF16_TYPE* pbszText) { // ----------------------------------------- character
          static_assert(sizeof(UTF16_TYPE) == 2, "Value isn't compatible with uint8_t");
          return character(reinterpret_cast<const uint16_t*>(pbszText));
       };

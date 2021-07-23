@@ -341,6 +341,20 @@ namespace gd {
          return std::make_pair(true, pwszPosition);
       }
 
+      uint8_t* copy_character( uint8_t* puCopyTo, const uint8_t* puCopyFrom )
+      {                                                                       assert( pNeededByteCount[*puCopyFrom] != 0 );
+         auto uCount = pNeededByteCount[*puCopyFrom];
+         while( uCount-- )
+         {
+            *puCopyTo = *puCopyFrom;
+            puCopyTo++;
+            puCopyFrom++;
+         }
+         return puCopyTo;
+      }
+
+
+
    }  
 }
 

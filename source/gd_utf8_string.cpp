@@ -165,8 +165,8 @@ string& string::insert( iterator itFrom, iterator itTo, uint32_t uSize, uint32_t
       pInsert = expand( pInsert, static_cast<uint32_t>(uSizeNeeded - uSizeInString) );
    }
    else if( uSizeNeeded < uSizeInString )
-   {
-
+   { 
+      contract( itTo.get(), static_cast<uint32_t>( uSizeInString - uSizeNeeded) );
    }
 
    while( uSize-- )
@@ -184,6 +184,37 @@ string& string::insert( iterator itFrom, iterator itTo, uint32_t uSize, uint32_t
    }
 
    return *this;
+}
+
+
+std::size_t string::squeeze( iterator itFrom, iterator itEnd, uint32_t ch )
+{
+   uint8_t pCharacter[4];
+   auto uCharSize = convert( ch, pCharacter );
+
+   iterator itInsert = itFrom;
+
+   auto it = itFrom;
+   for( ; it != itEnd; it.next() )
+   {
+      if( it.value32() == ch ) continue;
+
+      if( itInsert != it ) copy_character( itInsert.get(), it.get() );
+
+      itInsert++;
+   }
+
+   if( itEnd != cend() )
+   {
+      auto uSize = cend().get() - itEnd.get();
+      memmove( itInsert.get(), itEnd.get(), uSize );
+   }
+   
+   *itInsert = '\0';
+   m_pbuffer->size( itInsert.get() - begin().get() );
+   m_pbuffer->count( gd::utf8::count( m_pbuffer->c_buffer() ).first );
+
+   return 0;
 }
 
 
@@ -241,7 +272,7 @@ string::const_iterator string::find( const_iterator itFrom, const_pointer pbszFi
  * @brief Erase characters from string
  * @param itFirst position from characters are to be erased
  * @param itLast last position for characters that is to be removed
- * @param bCount if count in string is to be updated (this will increase time and may not be needed if you are doing multiple erase and just want to update count in the end)
+ * @param bCount if cousqueezent in string is to be updated (this will increase time and may not be needed if you are doing multiple erase and just want to update count in the end)
  * @return 
 */
 string::iterator string::erase( iterator itFirst, iterator itLast, bool bCount )
@@ -271,19 +302,35 @@ string::iterator string::erase( iterator itFirst, iterator itLast, bool bCount )
  * @brief Expand string and make space at position
  * @param pPosition pointer to position in string where we need to make space
  * @param uSize 
- * @return 
+ * @return pointer to same position in string, if new buffer pointer is placed at same position in new buffer
 */
 string::pointer string::expand( pointer pPosition, uint32_t uSize )
 {
-   auto uOffset = pPosition - c_buffer();
+   auto uOffset = pPosition - c_buffer();                                     // offset to position in string that is expanded
 
-   allocate( uSize );
+   allocate( uSize );                                                         // allocate if needed
    pPosition = c_buffer() + uOffset;                                          // reposition position if allocation was done
    auto uMoveSize = size() - uOffset;                                         // calculate size to move
+   // move data from position to end to new position and make a uSize gap
    std::memmove( pPosition + uSize, pPosition, uMoveSize + 1 );               // move data to make gap, add one will add the ending \0 character.
 
    m_pbuffer->size( m_pbuffer->size() + uSize );
    return c_buffer() + uOffset;
+}
+
+/**
+ * @brief Contracts string. Moves section between position forward in string uSize bytes
+ * @param pvPosition moves all characters forward after this position in string 
+ * @param uSize number of bytes to move character
+ * @return new position in string where the previous position was
+*/
+string::pointer string::contract( value_type* pvPosition, uint32_t uSize )
+{
+   auto uMoveSize = pvPosition - c_buffer_end();
+   std::memmove( pvPosition - uSize, pvPosition, uMoveSize );
+   m_pbuffer->size( m_pbuffer->size() - uSize );
+   m_pbuffer->c_buffer_end()[0] = '\0';
+   return pvPosition - uSize;
 }
 
 
@@ -311,7 +358,7 @@ void string::allocate(uint32_t uSize)
 
       uint8_t* puNew = new uint8_t[uSizeAll];
       memcpy( puNew, m_pbuffer, _size_old + sizeof(string::buffer) );          assert( _size_old == 0 || m_pbuffer->c_buffer_end()[0] == '\0' );
-      if( m_pbuffer != string::m_pbuffer_empty ) string::release( m_pbuffer );
+      string::release( m_pbuffer );
       m_pbuffer = reinterpret_cast<string::buffer*>( puNew );
       m_pbuffer->set_reference( 1 );
       m_pbuffer->capacity( uSizeAll - sizeof(string::buffer) );              // new capacity after increased size
