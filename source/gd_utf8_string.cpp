@@ -3,6 +3,8 @@
 #include "gd_utf8_string.hpp"
 #include "..\include\gd_utf8_string.hpp"
 
+#pragma warning( disable : 4244 4267 )
+
 namespace gd { namespace utf8 { 
 
 string::buffer string::m_pbuffer_empty[] = {0,0,0,0,-1, 0};
@@ -14,6 +16,11 @@ string::string( gd::utf8::buffer bufferStack ) {                              as
    m_pbuffer->size( 0 );
    m_pbuffer->count( 0 );
    m_pbuffer->set_reference( 1 );
+}
+
+string::string( std::string_view stringText ) 
+{ 
+   assign( stringText.data(), stringText.length() ); 
 }
 
 std::ostream& operator<<( std::ostream& ostreamTo, const string& s)

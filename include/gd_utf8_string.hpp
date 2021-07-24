@@ -225,7 +225,7 @@ public:
    string() {}
    explicit string( gd::utf8::buffer bufferStack );
    explicit string( const char* pbszText ) { assign( pbszText ); }
-   explicit string( std::string_view stringText ) { assign( stringText.data(), static_cast<uint32_t>(stringText.length()) ); }
+   string( std::string_view stringText );
    explicit string( const char* pbszText, uint32_t uLength ) { assign( pbszText, uLength ); }
    template<typename CHAR>
    string( std::initializer_list<CHAR> listString ) { assign( listString ); }

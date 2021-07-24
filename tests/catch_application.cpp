@@ -203,6 +203,14 @@ TEST_CASE("convert lua file", "[folder]") {
 
             stringLua.squeeze();
 
+            std::string stringFile = GetExePath();
+            stringFile += "\\test_removed_spaces.lua";
+            std::ofstream ofstreamText(stringFile,std::ofstream::binary);
+
+            uint8_t pbBOM[] = { 0xEF, 0xBB, 0xBF };
+            ofstreamText.write( (const char*)pbBOM, 3 );
+            ofstreamText.write( stringLua.c_str(), stringLua.size() );
+
             /*
             std::cout << cmatchResult.size();
 

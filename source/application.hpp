@@ -5,9 +5,30 @@
 #include <vector>
 #include <variant>
 
-#include "app_file.hpp"
+
+#include "application_file.hpp"
 
 namespace application {
+
+   extern std::pair<bool, std::string> FILE_Load( std::string_view stringFile, gd::utf8::string& stringLoadText );
+
+
+   class CDocument
+   {
+   public:
+      CDocument() {}
+      CDocument( std::string_view stringName ) : m_stringName(stringName) {}
+      ~CDocument() {}
+
+
+      std::pair<bool, std::string> FILE_Load( std::string_view stringFile, std::string_view stringName );
+
+   public:
+      std::string m_stringName;     // document name
+      std::vector<file::CFile> m_vectorFile;  // vector holding active files
+
+   };
+
 
    class CApplication
    {
@@ -25,6 +46,13 @@ namespace application {
       // std::pair<bool, std::string> FILE_Load(std::string_view stringAlias, std::string_view stringName);
       ///@}
 
+      /**
+       * document operations
+       */
+      ///@{
+      std::size_t DOCUMENT_Append(std::string_view stringName) { m_vectorDocument.push_back( std::make_unique<CDocument>(stringName) ); return m_vectorDocument.size(); }
+      ///@}
+
 
       /**
        * folder operations
@@ -36,7 +64,8 @@ namespace application {
 
 
    public:
-      std::vector<file::CFile> m_vectorFile;  // vector holding active folders
+      std::vector<std::unique_ptr<CDocument>> m_vectorDocument;
+
       std::vector<file::CFolder> m_vectorFolder;  // vector holding active folders
 
    };

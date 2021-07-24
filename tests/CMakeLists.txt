@@ -14,7 +14,7 @@ include( "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CompilerOptions.cmake" )
 set( source_cpp 
    "../source/gd_utf8.cpp"
    "../source/gd_utf8_string.cpp"
-   "../source/app_file.cpp"
+   "../source/application_file.cpp"
    "../source/application.cpp"
 )
 
