@@ -11,6 +11,11 @@
 
 namespace application { namespace file {
 
+
+/**
+ * ## Free functions ==========================================================
+ */
+
 std::pair<bool, std::string> Erase( gd::utf8::string& stringText, const std::regex& regexMatch )
 {
    auto pbszPosition = stringText.c_str();
@@ -30,6 +35,10 @@ std::pair<bool, std::string> Erase( gd::utf8::string& stringText, const std::reg
 
    return std::pair<bool, std::string>();
 }
+
+/**
+ * ## CFile ===================================================================
+ */
 
 std::pair<bool, std::string> CFile::SECTION_Erase( const std::regex& regexMatch, std::string_view stringGroup )
 {

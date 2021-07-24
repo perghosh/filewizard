@@ -49,6 +49,12 @@ namespace application { namespace file {
 		~CFile() {};
 
 	public:
+      const std::string& name() const { return m_stringName; }
+      std::string name() { return m_stringName; }
+      void name( std::string_view stringName ) { m_stringName = stringName; }
+
+
+	public:
 		std::pair<bool, std::string> FILE_Load( std::string stringFileName, std::string_view stringName );
 
 		void SECTION_Append( gd::utf8::string stringGroup, gd::utf8::string stringText ) { m_vectorSection.push_back( CSection( this, stringGroup, stringText ) ); }
@@ -56,6 +62,7 @@ namespace application { namespace file {
 		//void SECTION_Append( STRING stringGroup, STRING stringText ) { SECTION_Append( gd::utf8::string( stringGroup ), gd::utf8::string( stringText ) ); }
 
 		std::pair<bool, std::string> SECTION_Erase( const std::regex& regexMatch, std::string_view stringGroup );
+		std::pair<bool, std::string> SECTION_Erase( const std::regex& regexMatch ) { return SECTION_Erase( regexMatch, std::string_view() ); }
 
 	public:
 		std::string m_stringName;					///< file name

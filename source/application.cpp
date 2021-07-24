@@ -64,9 +64,9 @@ namespace application {
       auto [bOk, stringError] = application::FILE_Load( stringFile, stringText );
       if( bOk == true )
       {
-         application::file::CFile file( stringFile );                          // file object used to store file data
-         file.SECTION_Append( stringName, stringText );                        // add section with file data
-         m_vectorFile.push_back( std::move( file ) );
+         auto pFile = std::make_unique<application::file::CFile>( stringFile );
+         pFile->SECTION_Append( stringName, stringText );                      // add section with file data
+         m_vectorFile.push_back( std::move( pFile ) );
       }
       else return { bOk, stringError };
 

@@ -162,8 +162,23 @@ TEST_CASE("test", "[vanderbilt]") {
 
 
 TEST_CASE("convert lua file", "[folder]") {
+   using namespace application;
+   CApplication application;
+
+   application.DOCUMENT_Append();
+   CDocument* pDocument = application;
+
+
    std::string stringFile = GetExePath();
    stringFile += "\\test_remove_space.lua";
+
+   pDocument->FILE_Load( stringFile, "test_remove_space" );
+
+   auto pFile = pDocument->FILE_Get( "test_remove_space" );                    REQUIRE( pFile != nullptr );
+   std::regex regexMatch( R"(^\s\s+)" );
+   pFile->SECTION_Erase( regexMatch );
+
+
 
    std::ifstream ifstreamText;
    ifstreamText.open( stringFile, std::ios::in );

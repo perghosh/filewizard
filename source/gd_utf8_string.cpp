@@ -3,6 +3,7 @@
 #include "gd_utf8_string.hpp"
 #include "..\include\gd_utf8_string.hpp"
 
+#pragma warning( push )
 #pragma warning( disable : 4244 4267 )
 
 namespace gd { namespace utf8 { 
@@ -44,6 +45,10 @@ void string::copy(string& o)
       if(o.m_pbuffer->is_refcount() == true)
       {
          m_pbuffer->add_reference();
+#        ifdef DEBUG
+         m_psz = reinterpret_cast<const char*>( m_pbuffer->c_buffer() );
+#        endif
+
       }
       else
       {
@@ -454,7 +459,13 @@ void string::_clone(const string& o)
       m_pbuffer->set_reference(1);
       memcpy(c_buffer(), o.c_buffer(), size());
    }
+
+#  ifdef DEBUG
+   m_psz = reinterpret_cast<const char*>( m_pbuffer->c_buffer() );
+#  endif
 }
 
 
 } }
+
+#pragma warning( pop )
