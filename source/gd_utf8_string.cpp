@@ -24,6 +24,24 @@ string::string( std::string_view stringText )
    assign( stringText.data(), stringText.length() ); 
 }
 
+/**
+ * @brief == operator comparing utf8 string with string_view
+ * @param stringEqualWith string to compare with
+ * @param stringEqualTo string to compare to
+ * @return 
+*/
+bool operator==( const string& stringEqualWith, std::string_view stringEqualTo )
+{
+   auto uCount = count( stringEqualTo ).first;
+   if( uCount == stringEqualTo.length() )
+   {
+      return stringEqualWith.compare( reinterpret_cast<const string::value_type*>(stringEqualTo.data()) );
+   }
+
+   string stringCompare( stringEqualTo );
+   return stringEqualWith == stringEqualTo;
+}
+
 std::ostream& operator<<( std::ostream& ostreamTo, const string& s)
 {
    ostreamTo << s.c_str();
@@ -154,6 +172,27 @@ string& string::append( const char* pbszText, uint32_t uLength )
    return *this;
 }
 
+string& string::append( const value_type* puText, uint32_t uSize )
+{
+   return append( puText, uSize, gd::utf8::count( puText ).first );
+}
+
+string& string::append( const value_type* puText, uint32_t uSize, uint32_t uCount )
+{
+   allocate( uSize );
+
+   auto puEnd = c_buffer_end();
+   memcpy( puEnd, puText, uSize );
+
+   m_pbuffer->size( m_pbuffer->size() + uSize );
+   m_pbuffer->count( m_pbuffer->count() + uCount );
+   m_pbuffer->c_buffer_end()[0] = '\0';
+
+   return *this;
+}
+
+
+
 /**
  * @brief insert character X number of times in section between iterators
  * @param itFrom where to insert
@@ -241,6 +280,21 @@ string::const_iterator string::find( value_type ch ) const
    if( p != nullptr ) return const_iterator( p );
 
    return end();
+}
+
+string::const_iterator string::find( std::string_view stringFind ) const
+{
+   if( stringFind.length() > size() ) return cend();
+
+   auto uCount = gd::utf8::count( stringFind.data() ).first;
+   if( uCount == stringFind.length() )
+   {                                                                          // no need to allocate
+      return find( reinterpret_cast<const_pointer>(stringFind.data()), stringFind.length() );
+   }
+
+   string stringFindCopy( stringFind );
+
+   return find( stringFind );
 }
 
 /**

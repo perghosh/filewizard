@@ -246,9 +246,13 @@ public:
       return *this;
    }
    string& operator=( const char* pbszText ) { return assign( pbszText ); }
+   string& operator+=( const string& o ) { return append( o ); }
+   string& operator+=( std::string_view stringText ) { return append( stringText ); }
+
 
    gd::utf8::value32 operator [](size_type uIndex ) const { return at( uIndex ); }
 
+   friend bool operator==( const string& stringEqualWith, std::string_view stringEqualTo );
    friend std::ostream& operator<<( std::ostream& ostreamTo, const string& s );
 
    [[nodiscard]] uint32_t size() const { return m_pbuffer->size(); }
@@ -263,6 +267,12 @@ public:
 public:
    void copy(string& o);
    void clone(const string& o) { string::release(m_pbuffer); _clone(o); }
+
+   /** @name APPEND
+    *///@{
+   bool compare( const value_type* pbszText ) const noexcept { return strcmp( c_str(), decltype(c_str())(pbszText) ) == 0; }
+   //@}
+
 
    string& assign( const char* pbszText ) { return assign( pbszText, static_cast<uint32_t>( std::strlen( pbszText ) ) ); }
    string& assign( std::string_view stringText ) { return assign( stringText.data(), static_cast<uint32_t>(stringText.length()) ); }
@@ -294,6 +304,9 @@ public:
    string& append( const char* pbszText ) { return append( pbszText, static_cast<uint32_t>( std::strlen( pbszText ) ) ); }
    string& append( std::string_view stringText ) { return append( stringText.data(), static_cast<uint32_t>(stringText.length()) ); }
    string& append( const char* pbszText, uint32_t uLength );
+   string& append( const value_type* puText, uint32_t uLength );
+   string& append( const value_type* puText, uint32_t uLength, uint32_t uCount );
+   string& append( const string& o ) { return append( o.c_buffer(), o.size(), o.count() ); }
    //@}
 
 
@@ -331,6 +344,8 @@ public:
    [[nodiscard]] const_iterator find( const_pointer pbszText, uint32_t uLength ) const;
    [[nodiscard]] const_iterator find( const_pointer pbszFind, std::size_t uLength ) const { return find( pbszFind, static_cast<uint32_t>( uLength ) ); }
    [[nodiscard]] const_iterator find( const_pointer pbszFind ) const { return find( pbszFind, std::strlen( reinterpret_cast<const char *>(pbszFind) ) );  }
+
+   [[nodiscard]] const_iterator find( std::string_view stringFind ) const;
 
    [[nodiscard]] const_iterator find( const_iterator itFrom, const_pointer pbszFind ) const { return find( itFrom, pbszFind, static_cast<uint32_t>( std::strlen( reinterpret_cast<const char *>(pbszFind) ) ) ); }
    [[nodiscard]] const_iterator find( const_iterator itFrom, const_pointer pbszFind, uint32_t uLength ) const;

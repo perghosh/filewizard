@@ -37,6 +37,21 @@ std::pair<bool, std::string> Erase( gd::utf8::string& stringText, const std::reg
 }
 
 /**
+ * @brief check if tag is found
+ * @param stringTag 
+ * @return 
+*/
+bool CSection::HasGroup( std::string_view stringTag ) const noexcept 
+{ 
+   if( m_stringTag == stringTag ) return true;
+
+   if( m_stringTag.find( std::format( "[{}]", stringTag ) ) != m_stringTag.cend() ) return true;
+
+   return false;
+}
+
+
+/**
  * ## CFile ===================================================================
  */
 
@@ -53,6 +68,23 @@ std::pair<bool, std::string> CFile::SECTION_Erase( const std::regex& regexMatch,
    return { true, std::string() };
 }
 
+/**
+ * @brief Set name for file from the full path
+ * Tries to extract file name from full path and set it as the name
+*/
+void CFile::SetNameFromPath()
+{
+   auto iPosition = m_stringPath.rfind( '\\' );
+   if( iPosition == std::string::npos ) iPosition = m_stringPath.rfind( '/' );
+
+   if( iPosition == std::string::npos ) m_stringName = m_stringPath;
+   else
+   {
+      m_stringName = m_stringPath.substr( iPosition + 1 );
+      iPosition = m_stringName.rfind( '.' );
+      if( iPosition != std::string::npos ) m_stringName = m_stringName.substr( 0, iPosition );
+   }
+}
 
 
 std::pair<bool, std::string> CFile::FILE_Load( std::string stringFileName, std::string_view stringName )
@@ -72,6 +104,7 @@ std::pair<bool, std::string> CFile::FILE_Load( std::string stringFileName, std::
 
    return { true, std::string() };
 }
+
 
 
 } }

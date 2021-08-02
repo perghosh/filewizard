@@ -51,6 +51,17 @@ namespace application {
       return { true, std::string() };
    }
 
+   std::pair<bool, std::string> FILE_Save( std::string_view stringFile, gd::utf8::string& stringSaveText )
+   {
+      std::ofstream ofstreamText( stringFile.data(), std::ofstream::binary );
+      if( ofstreamText )
+      {
+         ofstreamText.write( stringSaveText.c_str(), stringSaveText.size() );
+         ofstreamText.close();
+      }
+
+      return { true, std::string() };
+   }
 
    /**
     * @brief Load file and create section that store file data
@@ -72,6 +83,31 @@ namespace application {
 
       return { true, std::string() };
    }
+
+   /**
+    * @brief Save utf8 sections  with specified file name
+    * @param stringFile name of file sections are save to
+    * @param stringName file name in document
+    * @return true if ok, otherwise false and string message with error information
+   */
+   std::pair<bool, std::string> CDocument::FILE_Save( std::string_view stringFile, std::string_view stringName )
+   {
+      // collect information from attached sections
+      const file::CFile* pFile = FILE_Get( stringName );
+      if( pFile != nullptr )
+      {
+         gd::utf8::string stringCode;
+         for( auto it = pFile->SECTION_Begin(); it != pFile->SECTION_End(); it++ )
+         {
+            stringCode += it->code();
+         }
+
+         return application::FILE_Save( stringFile, stringCode );
+      }
+
+      return { true, std::string() };
+   }
+
 
 
    /**

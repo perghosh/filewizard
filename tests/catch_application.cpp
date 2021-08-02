@@ -178,6 +178,10 @@ TEST_CASE("convert lua file", "[folder]") {
    std::regex regexMatch( R"(^\s\s+)" );
    pFile->SECTION_Erase( regexMatch );
 
+   stringFile = GetExePath();
+   stringFile += "\\test_remove_space_01.lua";
+   pDocument->FILE_Save( stringFile, "test_remove_space" );
+
 
 
    std::ifstream ifstreamText;

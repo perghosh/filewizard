@@ -36,6 +36,7 @@ namespace application {
          return nullptr;
       }
       std::pair<bool, std::string> FILE_Load( std::string_view stringFile, std::string_view stringName );
+      std::pair<bool, std::string> FILE_Save( std::string_view stringFile, std::string_view stringName );
 
    public:
       std::string m_stringName;     ///< document name
