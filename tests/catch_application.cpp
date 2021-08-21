@@ -94,39 +94,43 @@ TEST_CASE("Read and write files after conversion", "[folder]") {
          }
       }
    }
+}
+
+TEST_CASE( "Split string", "[split]" ) {
 
    /*
-   stringFile = GetExePath();
-   stringFile += "\\test_remove_space.lua";
-   ifstreamText.open( stringFile, std::ios::in );
-   if( ifstreamText )
-   {
-      std::vector<uint8_t> vectorBuffer;
-      char uValue;
-      while( ifstreamText.get( uValue ) ) { vectorBuffer.push_back( uValue ); }
-      ifstreamText.close();
-      if( vectorBuffer.empty() == false )
-      {
-         auto _size = vectorBuffer.size();
-         auto pbBOM = vectorBuffer.data();
-         if( pbBOM[ 0 ] == 0xEF && pbBOM[ 1 ] == 0xBB && pbBOM[ 2 ] == 0xBF )
-         {
-            gd::utf8::string stringFile;
-            stringFile.assign( reinterpret_cast<const uint8_t*>(pbBOM + 3), vectorBuffer.size() - 3 );
-            auto itPosition = stringFile.find( (const uint8_t*)"application = nil;" );
+   _CrtMemState MS1, MS2, MS3;
+   _CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
+   _CrtMemCheckpoint( &MS1 ); // memory check
 
-            gd::utf8::string::iterator it = itPosition;
-            stringFile.erase( it, it + strlen("application = nil;"), true );
-         }
-      }
-   }
-   */
-
-
-
-   // remove spaces from - "test_remove_space.lua"
-
+   using namespace application::file;
    
+   {
+      gd::utf8::string stringText( "11111111112222222222" );
+      //auto s = stringText;
+      //auto s2 = s;
+      std::vector<gd::utf8::string> v{ stringText , stringText, stringText };
+
+      int i = 0;
+   _CrtMemCheckpoint( &MS2 ); // memory check
+   _CrtMemDifference( &MS3, &MS1, &MS2 );
+   std::cout << "Blocks allocated = " << MS3.lCounts[ _NORMAL_BLOCK ] << "\n";
+
+   }
+
+   _CrtMemCheckpoint( &MS2 ); // memory check
+   _CrtMemDifference( &MS3, &MS1, &MS2 );
+
+   std::cout << "Blocks allocated = " << MS3.lCounts[ _NORMAL_BLOCK ] << "\n";
+   */
+   using namespace application::file;
+   gd::utf8::string stringText( "11111111112222222222" );
+   CFile fileTest;
+   fileTest.SECTION_Append( stringText );
+
+   auto section = fileTest.SECTION_At( 0 );
+   section.Split( 10 );                                                        REQUIRE( section.SECTION_Size() == 2 );
+                                                                               REQUIRE( stringText == section.Join() );
 }
 
 
@@ -241,7 +245,5 @@ TEST_CASE("convert lua file", "[folder]") {
             */
          }
       }
-
    }
-
 }

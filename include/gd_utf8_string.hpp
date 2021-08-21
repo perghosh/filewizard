@@ -10,6 +10,12 @@
 
 // LOOK: https://github.com/Maultasche/UtfString/blob/master/src/Utf8String.cpp
 
+#ifdef DEBUG
+#define DEBUG_ONLY(x) x
+#else
+   DEBUG_ONLY(x) (void)0
+#endif
+
 namespace gd::utf8 { 
 
    /**
@@ -78,6 +84,10 @@ public:
 public:
    struct const_iterator;
 
+   /**
+    * @brief iterate utf8 string
+    * @note Can be used to any utf8 formated uint8_t* string
+    */
    struct iterator
    {
       typedef iterator           self;
@@ -131,6 +141,10 @@ public:
       pointer m_pPosition;      /// position in string   
    };
 
+   /**
+    * @brief iterate utf8 string
+    * @note Can be used to any utf8 formated const uint8_t* string
+    */
    struct const_iterator
    {
       typedef const_iterator     self;
@@ -176,6 +190,10 @@ public:
       const_pointer m_pPosition;      /// position in string   
    };
 
+   /**
+    * @brief iterate utf8 string
+    * @note This is special for use with std regular expression objects
+    */
    struct char_const_iterator
    {
       typedef char_const_iterator self;
@@ -227,20 +245,25 @@ public:
    explicit string( const char* pbszText ) { assign( pbszText ); }
    string( std::string_view stringText );
    explicit string( const char* pbszText, uint32_t uLength ) { assign( pbszText, uLength ); }
+   explicit string( const_iterator itFrom, const_iterator itTo ) { assign( itFrom.get(), itTo.get() - itFrom.get() ); }
    template<typename CHAR>
    string( std::initializer_list<CHAR> listString ) { assign( listString ); }
 
-   string(string&& o) noexcept {
-      m_pbuffer = o.m_pbuffer; o.m_pbuffer = string::m_pbuffer_empty;
+   string(string&& o) noexcept : m_pbuffer( o.m_pbuffer ) {
+      o.m_pbuffer = string::m_pbuffer_empty;
+      //m_pbuffer->add_reference();
+      DEBUG_ONLY( m_psz = m_pbuffer->c_str() );
    }
 
-   string(string& o) { copy(o); }
-   string(const string& o) { clone(o); }
-   ~string() {string::release( m_pbuffer ); }
+   string(const string& o) { copy(o); }
+   //string(const string& o): m_pbuffer( string::m_pbuffer_empty ) { clone(o); }
+   ~string() {                                                                assert( m_pbuffer->get_reference() != 0 );
+      string::release( m_pbuffer ); 
+   }
    //@}
 
-   string& operator=(string& o) { copy(o); return *this; }
-   string& operator=(const string& o) { clone(o); return *this; }
+   string& operator=(const string& o) { copy(o); return *this; }
+   //string& operator=(const string& o) { clone(o); return *this; }
    string& operator=(string&& o) noexcept { 
       m_pbuffer = o.m_pbuffer; o.m_pbuffer = string::m_pbuffer_empty;
       return *this;
@@ -252,6 +275,7 @@ public:
 
    gd::utf8::value32 operator [](size_type uIndex ) const { return at( uIndex ); }
 
+   bool operator==( const string& o ) const { return compare( o ); }
    friend bool operator==( const string& stringEqualWith, std::string_view stringEqualTo );
    friend std::ostream& operator<<( std::ostream& ostreamTo, const string& s );
 
@@ -265,12 +289,13 @@ public:
    
 
 public:
-   void copy(string& o);
+   void copy(const string& o);
    void clone(const string& o) { string::release(m_pbuffer); _clone(o); }
 
-   /** @name APPEND
+   /** @name COMPARE
     *///@{
    bool compare( const value_type* pbszText ) const noexcept { return strcmp( c_str(), decltype(c_str())(pbszText) ) == 0; }
+   bool compare( const string& o ) const noexcept { return count() == o.count() ? memcmp( c_str(), o.c_str(), size() ) == 0 : false; }
    //@}
 
 
@@ -278,7 +303,7 @@ public:
    string& assign( std::string_view stringText ) { return assign( stringText.data(), static_cast<uint32_t>(stringText.length()) ); }
    string& assign( const char* pbszText, uint32_t uLength );
    string& assign( const value_type* pbszText, uint32_t uSize, uint32_t uCount );
-   string& assign( const value_type* pbszText, uint32_t uSize ) { return assign( pbszText, uSize, gd::utf8::count( pbszText, pbszText + uSize ).first ); }
+   //string& assign( const value_type* pbszText, uint32_t uSize ) { return assign( pbszText, uSize, gd::utf8::count( pbszText, pbszText + uSize ).first ); }
    string& assign( const value_type* pbszText, std::size_t uSize ) { return assign( pbszText, static_cast<uint32_t>( uSize ), gd::utf8::count( pbszText, pbszText + uSize ).first ); }
    string& assign( const string& stringFrom );
    template<typename CHAR>
@@ -349,6 +374,11 @@ public:
 
    [[nodiscard]] const_iterator find( const_iterator itFrom, const_pointer pbszFind ) const { return find( itFrom, pbszFind, static_cast<uint32_t>( std::strlen( reinterpret_cast<const char *>(pbszFind) ) ) ); }
    [[nodiscard]] const_iterator find( const_iterator itFrom, const_pointer pbszFind, uint32_t uLength ) const;
+
+
+   [[nodiscard]] string substr( const_iterator itFrom ) { return substr( itFrom, cend() ); };
+   // Returns a newly constructed string object with its value initialized to a copy of a substring of this object
+   [[nodiscard]] string substr( const_iterator itFrom, const_iterator itTo );
 
    iterator erase( iterator itFirst, iterator itLast, bool bCount );
 
@@ -424,6 +454,7 @@ public:
 
       void set_reference( int32_t iCount ) { m_iReferenceCount = iCount; }
       void add_reference() { if( is_single() == false ) m_iReferenceCount++;  }
+      int32_t get_reference() const { return m_iReferenceCount; }
 
       void release()
       {                                                                        assert( m_iReferenceCount > 0 );

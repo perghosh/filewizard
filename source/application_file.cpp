@@ -38,16 +38,60 @@ std::pair<bool, std::string> Erase( gd::utf8::string& stringText, const std::reg
 
 /**
  * @brief check if tag is found
- * @param stringTag 
- * @return 
+ * @param stringTag tag name, if empty then true is returned
+ * @return if group is found return true, otherwise false
 */
 bool CSection::HasGroup( std::string_view stringTag ) const noexcept 
 { 
+   if( stringTag.empty() == true ) return true;                               // empty group name will always return true
+
    if( m_stringTag == stringTag ) return true;
 
    if( m_stringTag.find( std::format( "[{}]", stringTag ) ) != m_stringTag.cend() ) return true;
 
    return false;
+}
+
+/**
+ * @brief Split section code into one or more sections
+ * @param vectorPosition positions where string is split into subsections and added as sections 
+*/
+void CSection::Split( std::vector<std::size_t> vectorPosition )
+{
+   auto itFrom = m_stringCode.cbegin();
+   for( auto itCount = std::begin( vectorPosition ); itCount != std::end( vectorPosition ) && *itCount < m_stringCode.count(); itCount++ )
+   {
+      auto itTo = itFrom + *itCount;
+      auto stringSection = m_stringCode.substr( itFrom, itTo );
+      itFrom = itTo;
+      m_vectorSection.push_back( CSection( m_pFile, m_stringTag, stringSection ) );
+   }
+
+   if( itFrom < m_stringCode.cend() )
+   {
+      auto stringSection = code().substr( itFrom, m_stringCode.cend() );
+      m_vectorSection.push_back( CSection( m_pFile, m_stringTag, stringSection ) );
+   }
+}
+
+
+/**
+ * @brief Join sections into one utf8 string and return
+ * @param stringTag tags if
+ * @return 
+*/
+gd::utf8::string CSection::Join( std::string_view stringGroup )
+{
+   gd::utf8::string stringResult;
+   for( auto it = std::begin( m_vectorSection ); it != std::end( m_vectorSection ); it++ )
+   {
+      if( stringGroup.empty() == false || it->HasGroup( stringGroup ) )
+      {
+         stringResult += it->code();
+      }
+   }
+
+   return stringResult;
 }
 
 

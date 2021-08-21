@@ -33,13 +33,12 @@ string::string( std::string_view stringText )
 bool operator==( const string& stringEqualWith, std::string_view stringEqualTo )
 {
    auto uCount = count( stringEqualTo ).first;
-   if( uCount == stringEqualTo.length() )
+   if( stringEqualWith.count() == uCount && uCount )
    {
       return stringEqualWith.compare( reinterpret_cast<const string::value_type*>(stringEqualTo.data()) );
    }
 
-   string stringCompare( stringEqualTo );
-   return stringEqualWith == stringEqualTo;
+   return stringEqualWith.count() == uCount; // returns true if 0 length
 }
 
 std::ostream& operator<<( std::ostream& ostreamTo, const string& s)
@@ -53,7 +52,7 @@ std::ostream& operator<<( std::ostream& ostreamTo, const string& s)
  * @brief copy string object
  * @param o string object that is copied
 */
-void string::copy(string& o)
+void string::copy(const string& o)
 {
    string::release(m_pbuffer);
    m_pbuffer = o.m_pbuffer;
@@ -335,6 +334,18 @@ string::const_iterator string::find( const_iterator itFrom, const_pointer pbszFi
 }
 
 /**
+ * @brief Return string object with text between iterators
+ * @param itFrom start position
+ * @param itTo end position
+ * @return string
+*/
+string string::substr( const_iterator itFrom, const_iterator itTo )
+{
+   string stringCopy( itFrom, itTo );
+   return stringCopy;
+}
+
+/**
  * @brief Erase characters from string
  * @param itFirst position from characters are to be erased
  * @param itLast last position for characters that is to be removed
@@ -505,7 +516,7 @@ void string::_clone(const string& o)
    m_pbuffer = o.m_pbuffer;
 
    if(m_pbuffer != string::m_pbuffer_empty)
-   {
+   {                                                                           assert( o.m_pbuffer->is_refcount() == false || o.m_pbuffer->get_reference() > 0 );
       allocate_exact(o.size());
       m_pbuffer->flags(0);
       m_pbuffer->size(o.size());

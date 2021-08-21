@@ -44,7 +44,10 @@ namespace gd {
        */
       ///@{ 
       std::pair<uint32_t, const uint8_t*> count(const uint8_t* pubszText);                         // count utf8 characters
-      inline std::pair<uint32_t, const uint8_t*> count(const std::string_view stringText) { return count( reinterpret_cast<const uint8_t*>(stringText.data()) ); };
+      inline std::pair<uint32_t, const uint8_t*> count(const std::string_view stringText) { 
+         if( stringText.empty() == false ) return count( reinterpret_cast<const uint8_t*>(stringText.data()) );
+         return { 0, nullptr };
+      };
       template <typename UTF8_TYPE>
       std::pair<uint32_t, const uint8_t*> count(const UTF8_TYPE* pbszText) {                       // count utf8 characters
          static_assert( sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");

@@ -42,14 +42,30 @@ namespace application { namespace file {
 		/// Add group to section, if multiple groups then enclose each group in between square brackets "[groupname]"
 		void AddGroup( std::string_view stringTag ) { m_stringTag.append( std::format( "[{}]", stringTag ) ); }
 
+		/// Split section into two sections and add them as child's. 
+		void Split( std::size_t uPosition ) { Split( std::vector< std::size_t >( { uPosition } ) ); }
+		void Split( std::vector<std::size_t> vectorPosition );
+		gd::utf8::string Join() { return Join( std::string_view() ); }
+		gd::utf8::string Join( std::string_view stringTag );
+
+		/// Erase all matched text parts from regular expression in string
 		std::pair<bool, std::string>  Erase( const std::regex& regexMatch ) { return application::file::Erase( m_stringCode, regexMatch ); }
 
+		void SECTION_Append( gd::utf8::string m_stringTag, gd::utf8::string stringText ) { m_vectorSection.push_back( CSection( m_pFile, m_stringTag, stringText ) ); }
+		auto SECTION_At( std::size_t uIndex ) const { return m_vectorSection[ uIndex ]; }
+		auto SECTION_Begin() { return m_vectorSection.begin(); }
+		auto SECTION_Begin() const { return m_vectorSection.cbegin(); }
+		auto SECTION_End() { return m_vectorSection.end(); }
+		auto SECTION_End() const { return m_vectorSection.cend(); }
+		auto SECTION_CEnd() const { return m_vectorSection.cend(); }
+		auto SECTION_Size() const { return m_vectorSection.size(); }
+		auto SECTION_Empty() const { return m_vectorSection.empty(); }
 
 	public:
 		CFile* m_pFile = nullptr;		/// Parent - each section is connected to the owning file object
 		gd::utf8::string m_stringTag;/// Code group, this is used to filter section parts when working with code
 		gd::utf8::string m_stringCode;/// Section code different file operations are working on
-
+		std::vector<CSection> m_vectorSection;	///< file sections, file can be split in one or more sections
 	};
 
 /**
@@ -76,11 +92,16 @@ namespace application { namespace file {
 
 		void SetNameFromPath();
 
-		void SECTION_Append( gd::utf8::string m_stringTag, gd::utf8::string stringText ) { m_vectorSection.push_back( CSection( this, m_stringTag, stringText ) ); }
+		void SECTION_Append( gd::utf8::string stringText ) { SECTION_Append( gd::utf8::string(), stringText ); }
+		void SECTION_Append( gd::utf8::string stringTag, gd::utf8::string stringText ) { m_vectorSection.push_back( CSection( this, stringTag, stringText ) ); }
+		auto SECTION_At( std::size_t uPosition ) const { return m_vectorSection[ uPosition ]; }
 		auto SECTION_Begin() { return m_vectorSection.begin(); }
 		auto SECTION_Begin() const { return m_vectorSection.cbegin(); }
 		auto SECTION_End() { return m_vectorSection.end(); }
 		auto SECTION_End() const { return m_vectorSection.cend(); }
+		auto SECTION_CEnd() const { return m_vectorSection.cend(); }
+		auto SECTION_Size() const { return m_vectorSection.size(); }
+		auto SECTION_Empty() const { return m_vectorSection.empty(); }
 		//template<typename STRING>
 		//void SECTION_Append( STRING m_stringTag, STRING stringText ) { SECTION_Append( gd::utf8::string( m_stringTag ), gd::utf8::string( stringText ) ); }
 
