@@ -44,7 +44,8 @@ namespace application { namespace file {
 
 		/// Split section into two sections and add them as child's. 
 		void Split( std::size_t uPosition ) { Split( std::vector< std::size_t >( { uPosition } ) ); }
-		void Split( std::vector<std::size_t> vectorPosition );
+		void Split( std::vector<std::size_t> vectorPosition ) { Split( vectorPosition, false ); }
+		void Split( std::vector<std::size_t> vectorPosition, bool bKeep );
 		gd::utf8::string Join() { return Join( std::string_view() ); }
 		gd::utf8::string Join( std::string_view stringTag );
 

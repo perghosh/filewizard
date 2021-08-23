@@ -56,7 +56,7 @@ bool CSection::HasGroup( std::string_view stringTag ) const noexcept
  * @brief Split section code into one or more sections
  * @param vectorPosition positions where string is split into subsections and added as sections 
 */
-void CSection::Split( std::vector<std::size_t> vectorPosition )
+void CSection::Split( std::vector<std::size_t> vectorPosition, bool bKeep )
 {
    auto itFrom = m_stringCode.cbegin();
    for( auto itCount = std::begin( vectorPosition ); itCount != std::end( vectorPosition ) && *itCount < m_stringCode.count(); itCount++ )
@@ -69,9 +69,11 @@ void CSection::Split( std::vector<std::size_t> vectorPosition )
 
    if( itFrom < m_stringCode.cend() )
    {
-      auto stringSection = code().substr( itFrom, m_stringCode.cend() );
+      auto stringSection = m_stringCode.substr( itFrom, m_stringCode.cend() );
       m_vectorSection.push_back( CSection( m_pFile, m_stringTag, stringSection ) );
    }
+
+   if( bKeep == false ) m_stringCode.clear();
 }
 
 

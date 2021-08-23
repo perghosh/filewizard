@@ -11,6 +11,13 @@ project ("fw_test")
 # print compiler options for visual studio
 include( "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CompilerOptions.cmake" )
 
+# find_package(Boost 1.75.0 REQUIRED)
+# if( Boost_FOUND )
+#    message(" [INFO] Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
+#    message(" [INFO] Boost_LIBRARY_DIRS = ${Boost_LIBRARY_DIRS}")
+# endif()
+
+
 set( source_cpp 
    "../source/gd_utf8.cpp"
    "../source/gd_utf8_string.cpp"

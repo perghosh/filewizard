@@ -66,10 +66,17 @@ class string
 {
 public:
    enum enumBufferStorage : std::uint32_t {
-      eBufferStorageReferenceCount   = 0x00,
-      eBufferStorageStack            = 0x01,   // string data is on stack, do not delete
-      eBufferStorageSingle           = 0x02,   // string data is not reference counted
+      eBufferStorageReferenceCount   = 0x01,
+      eBufferStorageStack            = 0x02,   // string data is on stack, do not delete
+      eBufferStorageSingle           = 0x04,   // string data is not reference counted
+      eBufferStorageEmptyReference   = 0x0100,
+      eBufferStorageEmptySingle      = 0x0200,
+      eBufferMaskType                = 0x00000000ff,// mask type part in flags member
+      eBufferMaskMemory              = 0x000000ff00,// mask memory logic type
    };
+
+   // constant to set storage type
+   enum storage : std::uint32_t { reference_counter, unique };
 
 public:
    typedef string                self;
@@ -240,22 +247,24 @@ public:
 public:
    /** @name Construct
    *///@{
-   string() {}
+   string(): m_pbuffer(string::m_pbuffer_empty_reference) {}
+   // construct string with specific storage type
+   string(storage _1) { m_pbuffer = _1 == reference_counter ? string::m_pbuffer_empty_reference : string::m_pbuffer_empty_unique; }
    explicit string( gd::utf8::buffer bufferStack );
-   explicit string( const char* pbszText ) { assign( pbszText ); }
+   explicit string( const char* pbszText ): m_pbuffer(string::m_pbuffer_empty_reference) { assign( pbszText ); }
    string( std::string_view stringText );
-   explicit string( const char* pbszText, uint32_t uLength ) { assign( pbszText, uLength ); }
-   explicit string( const_iterator itFrom, const_iterator itTo ) { assign( itFrom.get(), itTo.get() - itFrom.get() ); }
+   explicit string( const char* pbszText, uint32_t uLength ): m_pbuffer(string::m_pbuffer_empty_reference) { assign( pbszText, uLength ); }
+   explicit string( const_iterator itFrom, const_iterator itTo ): m_pbuffer(string::m_pbuffer_empty_reference) { assign( itFrom.get(), itTo.get() - itFrom.get() ); }
    template<typename CHAR>
-   string( std::initializer_list<CHAR> listString ) { assign( listString ); }
+   string( std::initializer_list<CHAR> listString ) : m_pbuffer(string::m_pbuffer_empty_reference) { assign( listString ); }
 
    string(string&& o) noexcept : m_pbuffer( o.m_pbuffer ) {
-      o.m_pbuffer = string::m_pbuffer_empty;
-      //m_pbuffer->add_reference();
+      string::add_reference(m_pbuffer);
+      m_pbuffer->set_null_buffer( o.m_pbuffer );
       DEBUG_ONLY( m_psz = m_pbuffer->c_str() );
    }
 
-   string(const string& o) { copy(o); }
+   string(const string& o): m_pbuffer(string::m_pbuffer_empty_reference) { copy(o); }
    //string(const string& o): m_pbuffer( string::m_pbuffer_empty ) { clone(o); }
    ~string() {                                                                assert( m_pbuffer->get_reference() != 0 );
       string::release( m_pbuffer ); 
@@ -265,7 +274,8 @@ public:
    string& operator=(const string& o) { copy(o); return *this; }
    //string& operator=(const string& o) { clone(o); return *this; }
    string& operator=(string&& o) noexcept { 
-      m_pbuffer = o.m_pbuffer; o.m_pbuffer = string::m_pbuffer_empty;
+      m_pbuffer = o.m_pbuffer; 
+      m_pbuffer->set_null_buffer(o.m_pbuffer);
       return *this;
    }
    string& operator=( const char* pbszText ) { return assign( pbszText ); }
@@ -285,7 +295,7 @@ public:
    [[nodiscard]] uint32_t capacity() const { return m_pbuffer->capacity(); }
    [[nodiscard]] bool empty() const { return m_pbuffer->empty(); }
    //[[nodiscard]] const value_type* c_buffer() const { assert(m_pbuffer != string::m_pbuffer_empty); return m_pbuffer->c_buffer(); }
-   [[nodiscard]] const char* c_str() const { assert(m_pbuffer != string::m_pbuffer_empty); return m_pbuffer->c_str(); }
+   [[nodiscard]] const char* c_str() const { return m_pbuffer->c_str(); }
    
 
 public:
@@ -381,6 +391,15 @@ public:
    [[nodiscard]] string substr( const_iterator itFrom, const_iterator itTo );
 
    iterator erase( iterator itFirst, iterator itLast, bool bCount );
+   void clear() {
+      if( m_pbuffer->is_refcount() && m_pbuffer->get_reference() > 1 ) {
+         string::release( m_pbuffer );
+         m_pbuffer = string::m_pbuffer_empty_reference;
+      }
+      else if( m_pbuffer->is_common_empty() == false  ) {
+         m_pbuffer->count( 0 ); m_pbuffer->size( 0 ); m_pbuffer->null_terminate();
+      }
+   }
 
 
    [[nodiscard]] iterator begin() { return iterator( m_pbuffer->c_buffer() ); }
@@ -399,9 +418,11 @@ public:
 
    void allocate( uint32_t uSize );
    void allocate_exact( uint32_t uSize );
+   static void allocate_exact(string& stringObject, uint32_t uSize);
 
-   /** @name SUPPORT methods
+   /** @name SUPPORT methods ( miscellaneous methods working with utf8 string )
     *///@{
+   void create_single_if_referenced() { if( m_pbuffer->is_used_by_many() ) { _clone( *this ); } }
    pointer expand( value_type* pvPosition, uint32_t uSize );
    pointer contract( value_type* pvPosition, uint32_t uSize );
    static bool verify_iterator( const string& stringObject, const_pointer p );
@@ -411,11 +432,11 @@ public:
 
    struct buffer
    {
-      uint32_t m_uSize;               /// string length in bytes
-      uint32_t m_uSizeBuffer;         /// string length in bytes
+      uint32_t m_uSize;             /// string length in bytes
+      uint32_t m_uSizeBuffer;       /// string length in bytes
       uint32_t m_uCount;            /// Number of utf8 characters in text
-      uint32_t m_uFlags;            /// Internal flags how string logic works
-      int32_t  m_iReferenceCount;
+      uint32_t m_uFlags;            /// Internal flags how string logic works ( see: enumBufferStorage )
+      int32_t  m_iReferenceCount;   /// reference counter
 
       uint32_t flags() const { return m_uFlags; }
       void flags( uint32_t uFlags ) { m_uFlags = uFlags; }
@@ -428,12 +449,23 @@ public:
       uint32_t capacity() const { return m_uSizeBuffer; }
       void capacity( uint32_t uCapacity ) { m_uSizeBuffer = uCapacity; }
       bool empty() const { return m_uSize == 0; }
+      void null_terminate() { c_buffer_end()[ 0 ] = '\0'; }
+      bool check_flags() const {
+         if(m_uFlags == 0) return false;
+         return true;
+      }
 
       void add_size( uint32_t uSize ) { m_uSize += uSize; }
 
-      bool is_refcount() const { return (m_uFlags == 0); }
-      bool is_stack() const { return (m_uFlags & eBufferStorageStack) ? true : false; }
-      bool is_single() const { return (m_uFlags & eBufferStorageSingle) ? true : false; }
+      bool is_refcount() const { assert(check_flags()); return (m_uFlags & eBufferMaskType) == eBufferStorageReferenceCount ? true : false; }  // string is reference counted (don't use this if string is accessed from multiple threads)
+      bool is_stack() const { return (m_uFlags & eBufferMaskType) == eBufferStorageStack ? true : false; }              // string is allocated on stack
+      bool is_single() const { return (m_uFlags & eBufferMaskType) == eBufferStorageSingle ? true : false; }            // string owns it space, used this for threads
+      bool is_common_empty() const { return (m_uFlags & eBufferMaskMemory) != 0 ? true : false;  }                      // empty buffer
+      bool is_used_by_many() const { return m_iReferenceCount > 1; }
+      bool is_type_reference() const { return (m_uFlags & (eBufferStorageReferenceCount | eBufferStorageEmptyReference)) == 0 ? false : true; }
+      bool is_type_single() const {  return (m_uFlags & (eBufferStorageSingle | eBufferStorageEmptySingle)) == 0 ? false : true; }
+
+      buffer* clone();
       
       void reset( uint32_t uBufferSize ) { 
          m_uSize = 0; 
@@ -456,12 +488,20 @@ public:
       void add_reference() { if( is_single() == false ) m_iReferenceCount++;  }
       int32_t get_reference() const { return m_iReferenceCount; }
 
+      void set_null_buffer(buffer* pbuffer)
+      {
+         if(is_type_reference()) pbuffer = string::m_pbuffer_empty_reference;
+         else                    pbuffer = string::m_pbuffer_empty_unique;
+      }
+
       void release()
       {                                                                        assert( m_iReferenceCount > 0 );
          if( is_stack() == false )
          {
             m_iReferenceCount--;
-            if(m_iReferenceCount == 0) delete[] reinterpret_cast<buffer*>(this);
+            if( m_iReferenceCount == 0 ) {
+               delete[] reinterpret_cast<buffer*>(this);
+            }
          }
       }
    };
@@ -475,23 +515,35 @@ public:
    }
 #  endif
 
-   buffer* m_pbuffer = string::m_pbuffer_empty;
+   //buffer* m_pbuffer = string::m_pbuffer_empty_reference;
+   buffer* m_pbuffer;// = string::m_pbuffer_empty_memory;
 
 private:
    void _clone(const string& o);
 
-   static bool is_empty( const buffer* p ) { return p == string::m_pbuffer_empty; }
-   static void release( buffer* p ) {
-      if( p != string::m_pbuffer_empty ) p->release(); 
+   static bool is_empty( const buffer* pbuffer ) { return pbuffer->is_common_empty(); }
+   static void add_reference(buffer* pbuffer) {
+      if(pbuffer->is_refcount()) pbuffer->add_reference();
    }
-   static buffer* clone( buffer* p ) { 
-      if( p != string::m_pbuffer_empty ) {
-         if( p->is_single() == false ) { p->add_reference(); return p; }
+   static void release( buffer* pbuffer ) {
+      if( pbuffer->is_refcount() ) pbuffer->release(); 
+   }
+   static void safe_to_modify(buffer* pbuffer) {
+      if(pbuffer->is_refcount() && pbuffer->get_reference() > 1) {
+         pbuffer->release();
+         pbuffer = pbuffer->clone();
       }
-      return string::m_pbuffer_empty;
    }
 
-   static buffer m_pbuffer_empty[];
+   static buffer* clone( buffer* p ) { 
+      if( p->is_common_empty() == false ) {
+         if( p->is_single() == false ) { p->add_reference(); return p; }
+      }
+      return p;
+   }
+
+   static buffer m_pbuffer_empty_reference[];
+   static buffer m_pbuffer_empty_unique[];
 };
 
 /**

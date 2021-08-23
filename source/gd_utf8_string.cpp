@@ -8,7 +8,24 @@
 
 namespace gd { namespace utf8 { 
 
-string::buffer string::m_pbuffer_empty[] = {0,0,0,0,-1, 0};
+string::buffer string::m_pbuffer_empty_reference[] = {
+   0, // size ( m_uSize )
+   0, // total buffer size ( m_uSizeBuffer )
+   0, // number of utf8 characters ( m_uCount )
+   0x00000100, // flags ( m_uFlags ) last byte has type and 0x0100 is marked as empty reference buffer
+   -1,// size ( m_iReferenceCount )
+   0  // last character is zero to mimic null terminator 
+};
+
+string::buffer string::m_pbuffer_empty_unique[] = {
+   0, // size ( m_uSize )
+   0, // total buffer size ( m_uSizeBuffer )
+   0, // number of utf8 characters ( m_uCount )
+   0x00000200, // flags ( m_uFlags ) last byte has type and 0x0100 is marked as empty reference buffer
+   -1,// size ( m_iReferenceCount )
+   0  // last character is zero to mimic null terminator 
+};
+
 
 string::string( gd::utf8::buffer bufferStack ) {                              assert( bufferStack.m_uSize > sizeof( string::buffer ) );
    m_pbuffer = reinterpret_cast<string::buffer*>( bufferStack.m_pBuffer );
@@ -19,7 +36,8 @@ string::string( gd::utf8::buffer bufferStack ) {                              as
    m_pbuffer->set_reference( 1 );
 }
 
-string::string( std::string_view stringText ) 
+string::string( std::string_view stringText )
+   : m_pbuffer(string::m_pbuffer_empty_reference)
 { 
    assign( stringText.data(), stringText.length() ); 
 }
@@ -54,10 +72,9 @@ std::ostream& operator<<( std::ostream& ostreamTo, const string& s)
 */
 void string::copy(const string& o)
 {
-   string::release(m_pbuffer);
    m_pbuffer = o.m_pbuffer;
 
-   if(m_pbuffer != string::m_pbuffer_empty)
+   if( o.m_pbuffer->is_common_empty() == false )
    {
       if(o.m_pbuffer->is_refcount() == true)
       {
@@ -98,8 +115,7 @@ string& string::assign( const char* pbszText, uint32_t uLength )
 */
 string& string::assign( const value_type* pbszText, uint32_t uSize, uint32_t uCount )
 {
-   string::release( m_pbuffer );
-   m_pbuffer = string::m_pbuffer_empty;
+   string::safe_to_modify(m_pbuffer);
 
    if( uSize > m_pbuffer->capacity() ) allocate_exact( uSize );
 
@@ -237,6 +253,13 @@ string& string::insert( iterator itFrom, iterator itTo, uint32_t uSize, uint32_t
 }
 
 
+/**
+ * @brief squeezes string (compress) where ch parameter defines what character that will striped in the squeeze process
+ * @param itFrom position from where to squeeze
+ * @param itEnd position to end squeezing
+ * @param ch character to identify what parts to remove
+ * @return new size
+*/
 std::size_t string::squeeze( iterator itFrom, iterator itEnd, uint32_t ch )
 {
    uint8_t pCharacter[4];
@@ -341,8 +364,9 @@ string::const_iterator string::find( const_iterator itFrom, const_pointer pbszFi
 */
 string string::substr( const_iterator itFrom, const_iterator itTo )
 {
-   string stringCopy( itFrom, itTo );
-   return stringCopy;
+   string s(itFrom, itTo);
+   return std::move( s );
+   //return string( itFrom, itTo );
 }
 
 /**
@@ -406,7 +430,7 @@ string::pointer string::contract( value_type* pvPosition, uint32_t uSize )
    auto uMoveSize = pvPosition - c_buffer_end();
    std::memmove( pvPosition - uSize, pvPosition, uMoveSize );
    m_pbuffer->size( m_pbuffer->size() - uSize );
-   m_pbuffer->c_buffer_end()[0] = '\0';
+   m_pbuffer->null_terminate();
    return pvPosition - uSize;
 }
 
@@ -416,10 +440,11 @@ string::pointer string::contract( value_type* pvPosition, uint32_t uSize )
  * @param uSize added size string needs to have
 */
 void string::allocate(uint32_t uSize)
-{
+{                                                                              assert( m_pbuffer->check_flags() );
    //uSize += sizeof(string::buffer);
    if( uSize + m_pbuffer->size() >= m_pbuffer->capacity() )
    {
+      uint32_t uFlags = m_pbuffer->is_type_reference() ? eBufferStorageReferenceCount : eBufferStorageSingle;
       auto _size_old = m_pbuffer->size(); // + sizeof(string::buffer);
       uint32_t uSizeAll = uSize + m_pbuffer->size() + sizeof(string::buffer);
 
@@ -438,8 +463,9 @@ void string::allocate(uint32_t uSize)
       string::release( m_pbuffer );
       m_pbuffer = reinterpret_cast<string::buffer*>( puNew );
       m_pbuffer->set_reference( 1 );
+      m_pbuffer->flags(uFlags);
       m_pbuffer->capacity( uSizeAll - sizeof(string::buffer) );              // new capacity after increased size
-      m_pbuffer->c_buffer_end()[0] = '\0';
+      m_pbuffer->null_terminate();
 #  ifdef DEBUG
       m_psz = reinterpret_cast<const char*>( m_pbuffer->c_buffer() );
 #  endif
@@ -452,6 +478,9 @@ void string::allocate(uint32_t uSize)
 */
 void string::allocate_exact(uint32_t uSize)
 {                                                                               assert( uSize < 0x01000000 ); // realistic !!
+                                                                                assert( m_pbuffer->check_flags() );
+
+/*
    buffer* pbufferOld = m_pbuffer;
 
    // ## allocate buffer
@@ -494,7 +523,60 @@ void string::allocate_exact(uint32_t uSize)
       m_psz = reinterpret_cast<const char*>( m_pbuffer->c_buffer() );
 #     endif
    }
+   */
+
+   allocate_exact(*this, uSize);
+#  ifdef DEBUG
+   m_psz = reinterpret_cast<const char*>(m_pbuffer->c_buffer());
+#  endif
+
 }
+
+void string::allocate_exact(string& stringObject, uint32_t uSize)
+{                                                                                assert(uSize < 0x01000000); // realistic !!
+   buffer* pbufferOld = stringObject.m_pbuffer;
+   auto pbuffer = stringObject.m_pbuffer;
+
+   // ## allocate buffer
+   auto _size = uSize + sizeof(string::buffer);
+   uint8_t* puNew = new uint8_t[_size + 1];                                     // exact size + zero ending
+   pbuffer = reinterpret_cast<string::buffer*>(puNew);
+   uint32_t uFlags = pbufferOld->is_type_reference() ? eBufferStorageReferenceCount : eBufferStorageSingle;
+
+   if(string::is_empty(pbufferOld) == false)                                    // if old buffer has a valid string, copy
+   {
+      pbuffer->capacity(uSize);                                                 // set buffer size
+      if(pbufferOld->size() > 0)
+      {
+         if(pbufferOld->size() > uSize)                                         // if string is larger then we need to walk backwards to find where to cut, utf8 remember... a character may be stored in multiple bytes
+         {
+            auto uCount = pbufferOld->count();
+            auto pubszEnd = pbufferOld->c_buffer_end();
+            while(uCount > 0 && pubszEnd - pbufferOld->c_buffer() > uSize)
+            {
+               pubszEnd = move::previous(pubszEnd);
+               uCount--;
+            }
+
+            uSize = static_cast<uint32_t>(pubszEnd - pbufferOld->c_buffer());
+            pbuffer->count(uCount);
+            pbuffer->size(uSize);
+         }
+         assert(pbufferOld->c_buffer_end()[0] == '\0');
+         memcpy(pbuffer->c_buffer(), pbufferOld->c_buffer(), uSize);
+         pbuffer->c_buffer()[uSize] = '\0';
+         string::release(pbufferOld);
+      }
+   }
+   else
+   {
+      pbuffer->reset(uSize);
+   }
+   pbuffer->flags(uFlags);                                                       // set flags
+
+   stringObject.m_pbuffer = pbuffer;
+}
+
 
 bool string::verify_iterator( const string& stringObject, const_pointer p )
 {
@@ -513,21 +595,49 @@ bool string::verify_iterator( const string& stringObject, const_pointer p )
 */
 void string::_clone(const string& o)
 {
-   m_pbuffer = o.m_pbuffer;
-
-   if(m_pbuffer != string::m_pbuffer_empty)
-   {                                                                           assert( o.m_pbuffer->is_refcount() == false || o.m_pbuffer->get_reference() > 0 );
+   if( o.m_pbuffer->is_refcount() )
+   {
+      m_pbuffer = o.m_pbuffer;
+      m_pbuffer->add_reference();
+   }
+   else if( o.m_pbuffer->is_common_empty() == false )
+   {
       allocate_exact(o.size());
-      m_pbuffer->flags(0);
+      m_pbuffer->flags( eBufferStorageSingle );                               // string type is referenced counted
       m_pbuffer->size(o.size());
       m_pbuffer->count(o.count());
       m_pbuffer->set_reference(1);
       memcpy(c_buffer(), o.c_buffer(), size());
    }
 
+   /*
+   if(m_pbuffer != string::m_pbuffer_empty)
+   {                                                                           assert( o.m_pbuffer->is_refcount() == false ); // only clone ref counted
+                                                                               assert( o.m_pbuffer->get_reference() > 1 );    // no need to clone if single
+      m_pbuffer->release();                                                   // release referenced string before create new copy
+      allocate_exact(o.size());
+      m_pbuffer->flags( eBufferStorageReferenceCount );                       // string type is referenced counted
+      m_pbuffer->size(o.size());
+      m_pbuffer->count(o.count());
+      m_pbuffer->set_reference(1);
+      memcpy(c_buffer(), o.c_buffer(), size());
+   }
+   */
+
 #  ifdef DEBUG
    m_psz = reinterpret_cast<const char*>( m_pbuffer->c_buffer() );
 #  endif
+}
+
+string::buffer* string::buffer::clone()
+{
+   auto _size = size() + sizeof(string::buffer);
+   uint8_t* puNew = new uint8_t[_size + 1];                                     // exact size + zero ending
+   auto pbuffer = reinterpret_cast<string::buffer*>(puNew);
+   memcpy(pbuffer->c_buffer(), c_buffer(), size());
+   uint32_t uFlags = is_type_reference() ? eBufferStorageReferenceCount : eBufferStorageSingle;
+   pbuffer->flags(uFlags);                                                       // set flags
+   return pbuffer;
 }
 
 

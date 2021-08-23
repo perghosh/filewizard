@@ -118,7 +118,15 @@ TEST_CASE("utf8 add to string", "[utf8]") {
 }
 
 
+TEST_CASE( "String operation to check stack, single or referenced", "[utf8]" ) {
+   uint8_t pBuffer[100];
+   using namespace gd::utf8;
 
+   string stringText( gd::utf8::buffer{ pBuffer, 100 } );
+   stringText = "0123456789";
+   auto s1 = stringText;
+   //string s1
+}
 
 TEST_CASE("Test stack based string, no heap allocation", "[utf8]") {
    uint8_t pBuffer[100];
