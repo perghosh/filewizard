@@ -165,13 +165,57 @@ TEST_CASE("test", "[vanderbilt]") {
 */
 
 
-TEST_CASE("convert lua file", "[folder]") {
+// *
+// ## regular expression to remove comments from SQL script
+// tabs, line breaks: [\t\r\n]
+// line comments: --.*\n (if . do not match newline) or --[^\r\n]*
+// multi line comments: \/\*[\w\W]*?(?=\*\/)\*\/
+// combine: (--[^\r\n]*)|(\/\*[\w\W]*?(?=\*\/)\*\/)
+// 
+// PRINT command:  PRINT\([^\)]*\);
+//
+TEST_CASE( "test boost regex", "[file]" ) {
    using namespace application;
    CApplication application;
-
    application.DOCUMENT_Append();
    CDocument* pDocument = application;
 
+   std::string stringFile = GetExePath();
+   stringFile += "\\changelog.sql";
+   pDocument->FILE_Load( stringFile, "changelog" );
+
+   auto pFile = pDocument->FILE_Get( "changelog" );                            REQUIRE( pFile != nullptr );
+
+   //boost::regex regexMatch( R"(--.*\n)" );
+   boost::regex regexMatch( R"((--[^\r\n]*)|(\/\*[\w\W]*?(?=\*\/)\*\/))" ); // regular expression to remove sql comments
+   // (--[^\r\n]*) = find line comments
+   // (\/\*[\w\W]*?(?=\*\/)\*\/) = find multi line comments
+   pFile->SECTION_Erase( regexMatch );
+
+   regexMatch = R"(PRINT\([^\)]*\);)"; pFile->SECTION_Erase( regexMatch );
+
+   regexMatch = R"( NONCLUSTERED)"; pFile->SECTION_Erase( regexMatch );
+
+   regexMatch = R"( DATETIME)"; pFile->SECTION_Replace( regexMatch, " TIMESTAMP" );
+
+   regexMatch = R"( NVARCHAR\()"; pFile->SECTION_Replace( regexMatch, " VARCHAR(" ); 
+   regexMatch = R"( VARCHAR\(\s*MAX[^\)]*\))"; pFile->SECTION_Replace( regexMatch, " TEXT" );
+
+   regexMatch = R"( BIGINT\s+IDENTITY\s*\([^\)]*\))";  pFile->SECTION_Replace( regexMatch, " BIGSERIAL" );
+   regexMatch = R"(CREATE\s+CLUSTERED\s+)";  pFile->SECTION_Replace( regexMatch, "CREATE " );
+
+
+   stringFile = GetExePath();
+   stringFile += "\\changelog_01.sql";
+   pDocument->FILE_Save( stringFile, "changelog" );
+}
+
+
+TEST_CASE("convert lua file", "[folder]") {
+   using namespace application;
+   CApplication application;
+   application.DOCUMENT_Append();
+   CDocument* pDocument = application;
 
    std::string stringFile = GetExePath();
    stringFile += "\\test_remove_space.lua";
@@ -233,17 +277,12 @@ TEST_CASE("convert lua file", "[folder]") {
             uint8_t pbBOM[] = { 0xEF, 0xBB, 0xBF };
             ofstreamText.write( (const char*)pbBOM, 3 );
             ofstreamText.write( stringLua.c_str(), stringLua.size() );
-
-            /*
-            std::cout << cmatchResult.size();
-
-            for( auto it = cmatchResult.begin(); it != cmatchResult.end(); it++ )
-            {
-               std::cout << it->str();
-
-            }
-            */
          }
       }
    }
+}
+
+TEST_CASE("query file", "[sql]") {
+
+   //changelog.sql
 }

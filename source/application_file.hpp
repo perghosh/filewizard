@@ -4,11 +4,18 @@
 #include <format>
 #include <regex>
 
+#include <boost/regex.hpp>
+
 #include "gd_utf8_string.hpp"
 
 namespace application { namespace file {
 
-	extern std::pair<bool, std::string> Erase( gd::utf8::string& stringText, const std::regex& regexMatch );
+#  ifdef BOOST_RE_REGEX_HPP
+	extern std::pair<bool, std::string> Replace( gd::utf8::string& stringText, const boost::regex& regexMatch, std::string_view stringInsert, uint32_t uFlags );
+	extern std::pair<bool, std::string> Erase( gd::utf8::string& stringText, const boost::regex& regexMatch, uint32_t uFlags );
+#  endif
+	extern std::pair<bool, std::string> Replace( gd::utf8::string& stringText, const std::regex& regexMatch, std::string_view stringInsert, uint32_t uFlags );
+	extern std::pair<bool, std::string> Erase( gd::utf8::string& stringText, const std::regex& regexMatch, uint32_t uFlags );
 
 	class CFile;
 
@@ -49,8 +56,22 @@ namespace application { namespace file {
 		gd::utf8::string Join() { return Join( std::string_view() ); }
 		gd::utf8::string Join( std::string_view stringTag );
 
-		/// Erase all matched text parts from regular expression in string
-		std::pair<bool, std::string>  Erase( const std::regex& regexMatch ) { return application::file::Erase( m_stringCode, regexMatch ); }
+		/// ## Replace all matched text parts from regular expression in string
+#     ifdef BOOST_RE_REGEX_HPP
+		std::pair<bool, std::string>  Replace( const boost::regex& regexMatch, std::string_view stringInsert, uint32_t uFlags ) { return application::file::Replace( m_stringCode, regexMatch, stringInsert, uFlags ); }
+		std::pair<bool, std::string>  Replace( const boost::regex& regexMatch, std::string_view stringInsert ) { return application::file::Replace( m_stringCode, regexMatch, stringInsert, boost::regex_constants::match_default ); }
+#		endif
+		std::pair<bool, std::string>  Replace( const std::regex& regexMatch, std::string_view stringInsert , uint32_t uFlags ) { return application::file::Replace( m_stringCode, regexMatch, stringInsert, uFlags ); }
+		std::pair<bool, std::string>  Replace( const std::regex& regexMatch, std::string_view stringInsert ) { return application::file::Replace( m_stringCode, regexMatch, stringInsert, std::regex_constants::match_default ); }
+
+
+		/// ## Erase all matched text parts from regular expression in string
+#     ifdef BOOST_RE_REGEX_HPP
+		std::pair<bool, std::string>  Erase( const boost::regex& regexMatch, uint32_t uFlags ) { return application::file::Erase( m_stringCode, regexMatch, uFlags ); }
+		std::pair<bool, std::string>  Erase( const boost::regex& regexMatch ) { return application::file::Erase( m_stringCode, regexMatch, boost::regex_constants::match_default ); }
+#		endif
+		std::pair<bool, std::string>  Erase( const std::regex& regexMatch, uint32_t uFlags ) { return application::file::Erase( m_stringCode, regexMatch, uFlags ); }
+		std::pair<bool, std::string>  Erase( const std::regex& regexMatch ) { return application::file::Erase( m_stringCode, regexMatch, std::regex_constants::match_default ); }
 
 		void SECTION_Append( gd::utf8::string m_stringTag, gd::utf8::string stringText ) { m_vectorSection.push_back( CSection( m_pFile, m_stringTag, stringText ) ); }
 		auto SECTION_At( std::size_t uIndex ) const { return m_vectorSection[ uIndex ]; }
@@ -106,11 +127,33 @@ namespace application { namespace file {
 		//template<typename STRING>
 		//void SECTION_Append( STRING m_stringTag, STRING stringText ) { SECTION_Append( gd::utf8::string( m_stringTag ), gd::utf8::string( stringText ) ); }
 
+
+      /**
+       * Replace parts in sections
+       */
+      ///@{
+#     ifdef BOOST_RE_REGEX_HPP
+		std::pair<bool, std::string> SECTION_Replace( const boost::regex& regexMatch, std::string_view stringInsert, std::string_view stringTag, uint32_t uFlags );
+		std::pair<bool, std::string> SECTION_Replace( const boost::regex& regexMatch, std::string_view stringInsert, std::string_view stringTag ) { return SECTION_Replace( regexMatch, stringInsert, stringTag, boost::regex_constants::match_default ); }
+		std::pair<bool, std::string> SECTION_Replace( const boost::regex& regexMatch, std::string_view stringInsert ) { return SECTION_Replace( regexMatch, stringInsert, std::string_view() ); }
+#		endif
+		std::pair<bool, std::string> SECTION_Replace( const std::regex& regexMatch, std::string_view stringInsert, std::string_view stringTag, uint32_t uFlags );
+		std::pair<bool, std::string> SECTION_Replace( const std::regex& regexMatch, std::string_view stringInsert, std::string_view stringTag ) { return SECTION_Replace( regexMatch, stringInsert, stringTag, std::regex_constants::match_default ); }
+		std::pair<bool, std::string> SECTION_Replace( const std::regex& regexMatch, std::string_view stringInsert ) { return SECTION_Replace( regexMatch, stringInsert, std::string_view() ); }
+      ///@}
+
+
       /**
        * Erase parts in sections
        */
       ///@{
-		std::pair<bool, std::string> SECTION_Erase( const std::regex& regexMatch, std::string_view m_stringTag );
+#     ifdef BOOST_RE_REGEX_HPP
+		std::pair<bool, std::string> SECTION_Erase( const boost::regex& regexMatch, std::string_view stringTag, uint32_t uFlags );
+		std::pair<bool, std::string> SECTION_Erase( const boost::regex& regexMatch, std::string_view stringTag ) { return SECTION_Erase( regexMatch, stringTag, boost::regex_constants::match_default ); }
+		std::pair<bool, std::string> SECTION_Erase( const boost::regex& regexMatch ) { return SECTION_Erase( regexMatch, std::string_view() ); }
+#		endif
+		std::pair<bool, std::string> SECTION_Erase( const std::regex& regexMatch, std::string_view stringTag, uint32_t uFlags );
+		std::pair<bool, std::string> SECTION_Erase( const std::regex& regexMatch, std::string_view stringTag ) { return SECTION_Erase( regexMatch, stringTag, std::regex_constants::match_default ); }
 		std::pair<bool, std::string> SECTION_Erase( const std::regex& regexMatch ) { return SECTION_Erase( regexMatch, std::string_view() ); }
       ///@}
 

@@ -32,7 +32,9 @@ namespace application {
       file::CFile* FILE_Get() const { return m_vectorFile.empty() == false ? m_vectorFile[ 0 ].get() : nullptr; }
       file::CFile* FILE_Get( std::size_t uIndex ) const { assert( uIndex < m_vectorFile.size() ); return m_vectorFile[ uIndex ].get(); }
       file::CFile* FILE_Get( std::string_view stringName ) const {
-         for( auto it = std::begin( m_vectorFile ); it != std::end( m_vectorFile ); it++ ) { if( (*it)->name() == stringName ) return it->get(); }
+         for( auto it = std::begin( m_vectorFile ); it != std::end( m_vectorFile ); it++ ) { 
+            if( (*it)->name() == stringName ) return it->get(); 
+         }
          return nullptr;
       }
       std::pair<bool, std::string> FILE_Load( std::string_view stringFile, std::string_view stringName );

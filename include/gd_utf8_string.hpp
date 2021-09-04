@@ -5,6 +5,7 @@
 #include <string_view>
 #include <initializer_list>
 #include <iostream>
+#include <functional>
 		
 #include "gd_utf8.hpp"
 
@@ -103,16 +104,17 @@ public:
       typedef uint8_t&           reference;
       typedef std::size_t        size_type;
       typedef std::ptrdiff_t     difference_type;
-      typedef std::bidirectional_iterator_tag  iterator_category;
+      typedef std::bidirectional_iterator_tag iterator_category;
 
       iterator(): m_pPosition(nullptr) { }
       //iterator( iterator& it ): m_pPosition(it.m_pPosition) { }
       iterator( pointer p ): m_pPosition(p) { }
       iterator( const_iterator& o ): m_pPosition(const_cast<pointer>( o.m_pPosition )) { }
 
+      //self& operator=( pointer p ) { m_pPosition = p; return *this; }
       self& operator=( const_iterator& o ) { m_pPosition = const_cast<pointer>( o.m_pPosition ); return *this; }
 
-      reference operator*() const { return *m_pPosition; }
+      gd::utf8::value32  operator*() const { return value32(); }
       pointer operator->() { return m_pPosition; }
 
       operator const value_type*() { return m_pPosition; }
@@ -131,11 +133,40 @@ public:
       bool operator!=(const const_iterator& r) const { return !(*this == r); }
       */
 
-      iterator operator+(std::size_t uMove) { auto p = m_pPosition; p = gd::utf8::move::next(p, static_cast<uint32_t>(uMove)); return self( p ); }
-      iterator operator-(std::size_t uMove) { auto p = m_pPosition; p = gd::utf8::move::previous(p, static_cast<uint32_t>(uMove)); return self( p ); }
+      iterator operator+(int iMove) { auto p = m_pPosition; p = gd::utf8::move::advance(p, iMove); return self( p ); }
+      iterator operator-(int iMove) { auto p = m_pPosition; p = gd::utf8::move::advance(p, -iMove); return self( p ); }
+
+      intptr_t operator+(iterator itOffset) {
+         return gd::utf8::distance(m_pPosition, itOffset.get());
+      }
+
+      intptr_t operator-(iterator itOffset) {
+         return gd::utf8::distance(itOffset.get(), m_pPosition);
+      }
+
+      self& operator+=(std::size_t uMove) {
+         m_pPosition = gd::utf8::move::advance(m_pPosition, static_cast<int>(uMove));
+         return *this;
+      }
+      self& operator-=(std::size_t uMove) {
+         m_pPosition = gd::utf8::move::advance(m_pPosition, -static_cast<int>(uMove));
+         return *this;
+      }
+      /*
+
+      friend iterator operator+(iterator const& itPosition, int32_t iOffset) {
+         auto p = gd::utf8::move::advance(itPosition.get(), iOffset);
+         return iterator(p);
+      }
+
+      friend iterator operator-(iterator const& itPosition, int32_t iOffset) {
+         auto p = gd::utf8::move::advance(itPosition.get(), -iOffset);
+         return iterator(p);
+      }
+      */
 
 
-      pointer get() { return m_pPosition; }
+      pointer get() const { return m_pPosition; }
       self& next() { 
          auto p = gd::utf8::move::next( m_pPosition );
          if( p != m_pPosition ) m_pPosition = p;
@@ -170,7 +201,7 @@ public:
 
       const_iterator& operator=( iterator& o ) { m_pPosition = o.m_pPosition; return *this; }
 
-      const_reference operator*() const { return *m_pPosition; }
+      gd::utf8::value32 operator*() const { return value32(); }
       const_pointer operator->() const { return m_pPosition; }
 
       operator const value_type*() { return m_pPosition; }
@@ -190,6 +221,25 @@ public:
 
       const_iterator operator+(std::size_t uMove) { auto p = m_pPosition; p = gd::utf8::move::next(p, static_cast<uint32_t>(uMove)); return self( p ); }
       const_iterator operator-(std::size_t uMove) { auto p = m_pPosition; p = gd::utf8::move::previous(p, static_cast<uint32_t>(uMove)); return self( p ); }
+
+      intptr_t operator+(iterator itOffset) {
+         return gd::utf8::distance(m_pPosition, itOffset.get());
+      }
+
+      intptr_t operator-(iterator itOffset) {
+         return gd::utf8::distance(itOffset.get(), m_pPosition);
+      }
+
+      self& operator+=(std::size_t uMove) {
+         m_pPosition = gd::utf8::move::advance(m_pPosition, static_cast<int>(uMove));
+         return *this;
+      }
+      self& operator-=(std::size_t uMove) {
+         m_pPosition = gd::utf8::move::advance(m_pPosition, -static_cast<int>(uMove));
+         return *this;
+      }
+
+
 
       const_pointer get() { return m_pPosition; }
       gd::utf8::value32 value32() const { return gd::utf8::value32( m_pPosition ); }
@@ -357,9 +407,12 @@ public:
 
       return insert( itFrom, itTo, uSize, static_cast<uint32_t>( uCharacter )); 
    }
+
+   string& replace( const_iterator itFrom, const_iterator itTo, const_pointer pbszText, uint32_t uLength );
+   string& replace( const_iterator itFrom, const_iterator itTo, std::string_view stringText ) { return replace( itFrom, itTo, reinterpret_cast<const_pointer>( stringText.data() ), static_cast<uint32_t>( stringText.length() ) ); }
    //@}
 
-   /** @name REPLACE
+   /** @name COMPRESS
     *///@{
    std::size_t squeeze() { return squeeze( begin(), end(), 0 ); }
    std::size_t squeeze( iterator itFrom, iterator itTo, uint32_t ch );
@@ -389,6 +442,19 @@ public:
    [[nodiscard]] string substr( const_iterator itFrom ) { return substr( itFrom, cend() ); };
    // Returns a newly constructed string object with its value initialized to a copy of a substring of this object
    [[nodiscard]] string substr( const_iterator itFrom, const_iterator itTo );
+
+   void swap( iterator it1, iterator it2 );
+
+
+/** @name SORT
+   *///@{
+   void sort( iterator itFirst, iterator itLast, std::function<bool( value_type v1, value_type v2 )> compare );
+   void sort() { sort( begin(), end(), std::less<value_type>() ); }
+   void sort( iterator itFirst ) { sort( itFirst, end(), std::less<value_type>() ); }
+   void sort( iterator itFirst, iterator itLast ) { sort( itFirst, itLast, std::less<value_type>() ); }
+   void sort( std::function<bool( value_type v1, value_type v2 )> compare ) { sort( begin(), end(), compare ); }
+   void sort( iterator itFirst, std::function<bool( value_type v1, value_type v2 )> compare ) { sort( itFirst, end(), compare ); }
+   //@}
 
    iterator erase( iterator itFirst, iterator itLast, bool bCount );
    void clear() {
@@ -423,8 +489,8 @@ public:
    /** @name SUPPORT methods ( miscellaneous methods working with utf8 string )
     *///@{
    void create_single_if_referenced() { if( m_pbuffer->is_used_by_many() ) { _clone( *this ); } }
-   pointer expand( value_type* pvPosition, uint32_t uSize );
-   pointer contract( value_type* pvPosition, uint32_t uSize );
+   const_pointer expand( const_pointer pvPosition, uint32_t uSize );
+   const_pointer contract( const_pointer pvPosition, uint32_t uSize );
    static bool verify_iterator( const string& stringObject, const_pointer p );
    //@}
 
@@ -465,6 +531,8 @@ public:
       bool is_type_reference() const { return (m_uFlags & (eBufferStorageReferenceCount | eBufferStorageEmptyReference)) == 0 ? false : true; }
       bool is_type_single() const {  return (m_uFlags & (eBufferStorageSingle | eBufferStorageEmptySingle)) == 0 ? false : true; }
 
+
+
       buffer* clone();
       
       void reset( uint32_t uBufferSize ) { 
@@ -475,14 +543,14 @@ public:
          m_iReferenceCount = 1;
          if( m_uSizeBuffer > 0 ) *c_buffer() = '\0';
       }
-
-
+      
       string::pointer c_buffer() { return reinterpret_cast<string::pointer>(this + 1); }
       string::pointer c_buffer_end() { return reinterpret_cast<string::pointer>(this + 1) + size(); }
       string::const_pointer c_buffer() const { return reinterpret_cast<string::const_pointer>(this + 1); }
       string::const_pointer c_buffer_end() const { return reinterpret_cast<string::const_pointer>(this + 1) + size(); }
       const char* c_str() const { return reinterpret_cast<const char*>(this + 1); }
       const char* c_str_end() const { return reinterpret_cast<const char*>(this + 1) + size(); }
+      string::pointer move_to( buffer* pbuffer, string::const_pointer p ) const { return pbuffer->c_buffer() + (p - c_buffer()); }
 
       void set_reference( int32_t iCount ) { m_iReferenceCount = iCount; }
       void add_reference() { if( is_single() == false ) m_iReferenceCount++;  }
@@ -528,11 +596,13 @@ private:
    static void release( buffer* pbuffer ) {
       if( pbuffer->is_refcount() ) pbuffer->release(); 
    }
-   static void safe_to_modify(buffer* pbuffer) {
+   static buffer* safe_to_modify(buffer* pbuffer) {
       if(pbuffer->is_refcount() && pbuffer->get_reference() > 1) {
          pbuffer->release();
          pbuffer = pbuffer->clone();
+         return pbuffer;
       }
+      return pbuffer;
    }
 
    static buffer* clone( buffer* p ) { 

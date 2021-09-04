@@ -126,8 +126,6 @@ namespace gd {
          return 5;
       }
 
-
-
       uint32_t size( const char* pbszText, uint32_t uLength )
       {
          uint32_t uSize = 0;
@@ -138,6 +136,15 @@ namespace gd {
             pbszText++;
          }
          return uSize;
+      }
+
+      /**
+       * @brief get needed size in bytes to store utf8 character
+       * @param puCharacter pointer to utf8 character
+       * @return byte count needed to store character
+      */
+      uint32_t get_character_size( const uint8_t* puCharacter ) {             assert( pNeededByteCount[ *puCharacter ] != 0 );
+         return pNeededByteCount[ *puCharacter ];
       }
 
       uint32_t convert( uint8_t uCharacter, uint8_t* pbszTo )
@@ -351,6 +358,26 @@ namespace gd {
             puCopyFrom++;
          }
          return puCopyTo;
+      }
+
+      /**
+       * @brief 
+       * @param p1 
+       * @param p2 
+       * @return 
+      */
+      std::intptr_t distance(const uint8_t* p1, const uint8_t* p2)
+      {
+         std::intptr_t iCount = 0;
+         auto pFrom = p1 < p2 ? p1 : p2;
+         auto pTo = p1 >= p2 ? p1 : p2;
+
+         while(pFrom != pTo) {
+            pFrom = move::next(pFrom);
+            iCount++;
+         }
+
+         return p1 < p2 ? iCount : -iCount;
       }
 
 

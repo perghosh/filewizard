@@ -103,7 +103,7 @@ TEST_CASE("utf8 add to string", "[utf8]") {
    //auto l = std::distance( it, stringText.end() );
    auto it = stringText.begin();
 
-   static_assert(std::is_same_v<gd::utf8::string::iterator::iterator_category, std::bidirectional_iterator_tag>);
+   //static_assert(std::is_same_v<gd::utf8::string::iterator::iterator_category, std::bidirectional_iterator_tag>);
 
    std::advance( it, 5 );           REQUIRE( *it == '4' );
    auto uDistance = std::distance( stringText.begin(), stringText.end() );     REQUIRE( uDistance == 12 );
@@ -175,17 +175,17 @@ TEST_CASE("insert and remove text in string", "[utf8]") {
       auto uCount = 0u;
 
       gd::utf8::string s1("000111222");
-      s1.insert( s1.begin() + 3, s1.begin() + 6, 3, '9');
+      s1.insert( s1.begin() + 3u, s1.begin() + 6u, 3, '9');
       std::for_each( std::begin(s1), std::end(s1), [&uCount](auto it) { 
          if( it == 'A' ) uCount++; 
       });                                                                      REQUIRE( uCount == 0 );
 
-      s1.insert( s1.begin() + 3, s1.begin() + 6, 3, '\0');
+      s1.insert( s1.begin() + 3u, s1.begin() + 6u, 3, '\0');
       s1.squeeze();
-      s1.insert( s1.begin() + 6, s1.begin() + 9, 3, '3');
+      s1.insert( s1.begin() + 6u, s1.begin() + 9u, 3, '3');
       
 
-      s1.insert( s1.begin() + 3, s1.begin() + 6, 20, 'A');
+      s1.insert( s1.begin() + 3u, s1.begin() + 6u, 20, 'A');
 
       std::for_each( std::begin(s1), std::end(s1), [&uCount](auto it) { 
          if( it == 'A' ) uCount++; 
@@ -196,13 +196,19 @@ TEST_CASE("insert and remove text in string", "[utf8]") {
       auto uCount = 0u;
 
       gd::utf8::string s1("000111222");
-      s1.insert( s1.begin() + 3, s1.begin() + 6, 3, '9');
+      s1.insert( s1.begin() + 3u, s1.begin() + 6u, 3, '9');
 
-      s1.insert( s1.begin() + 3, s1.begin() + 6, 30, 'Ö');
+      s1.insert( s1.begin() + 3u, s1.begin() + 6u, 30, 'Ö');
       for( auto it = std::begin( s1 ); it != std::end( s1 ); it++ )
       {
          if( it.value32() == U'Ö' ) uCount++; 
       }                                                                        REQUIRE( uCount == 30) ;
+   }
+
+   {
+      gd::utf8::string s1( "000111222" );
+      s1.replace( s1.cbegin() + 3u, s1.begin() + 6u, "999999999" );
+      s1.replace( s1.cbegin() + 3u, s1.begin() + 6u, "55" );
    }
 
 }
@@ -238,6 +244,7 @@ TEST_CASE("find text using regex", "[utf8]") {
    }
 
 
+
    /*
    {
       const char* pbszText = "0123456789 XXX 0123456789";
@@ -269,6 +276,73 @@ TEST_CASE("find text using regex", "[utf8]") {
 
    bool bMatch2 = std::regex_match( pbszText, pbszText + strlen(pbszText), smatchFound, regexSearch );
    */
+}
+
+TEST_CASE("sort", "[utf8]") {
+   const char* pbszText1 = "012345ÅÄÖ";
+
+   gd::utf8::string stringText(pbszText1);
+   gd::utf8::string stringTextA = stringText;
+   stringText.sort( std::greater<gd::utf8::string::value_type>() ); // std::greater<gd::utf8::string::value_type>() );
+   stringText.sort();
+   std::cout << stringText.c_str() << "\n";
+
+   pbszText1 = "100";
+   stringText = pbszText1;
+   stringText.sort();
+
+   std::string stringText1(pbszText1);
+   std::sort(stringText1.begin(), stringText1.end());
+
+
+   const char* pbszText = "0123456789 XXX 0123456789";
+   {
+      std::string stringText(pbszText);
+      std::sort(stringText.begin(), stringText.end());
+      auto x2 = std::distance(stringText.end(), stringText.begin());
+      auto x3 = std::distance(stringText.begin(), stringText.end());
+      /*
+      auto x5 = stringText.begin() + (stringText.begin() + 3);
+      auto x6 = stringText.begin() + (stringText.begin() + 3);
+      */
+   }
+   {
+      gd::utf8::string stringText(pbszText);
+      auto x = stringText.end() - stringText.begin();
+      auto x1 = stringText.end() + stringText.begin();
+      //auto x2 = std::distance(stringText.end(), stringText.begin());
+      //auto x3 = std::distance(stringText.begin(), stringText.end());
+
+      auto it1 = stringText.begin();
+      auto it2 = stringText.begin() + 2;
+      stringText.swap( it1, it2 );
+      /*
+      std::sort(stringText.begin(), stringText.end(), [](gd::utf8::string::iterator it1, gd::utf8::string::iterator it2) -> int {
+         //return gd::utf8::character(it1.get()) < gd::utf8::character(it2.get());
+         return gd::utf8::character(it1.get()) - gd::utf8::character(it2.get());
+      });
+      */
+   }
+
+   {
+      std::string stringText2( "01234" );
+      std::sort(stringText2.begin(), stringText2.end());
+      stringText2 = "1010";
+      std::sort(stringText2.begin(), stringText2.end());
+
+
+      std::u8string stringText( u8"1010" );
+      std::u8string stringText1( u8"1åö" );
+      std::sort(stringText.begin(), stringText.end());
+
+      std::string s( (char*)stringText.c_str() );
+      std::string s1( (char*)stringText1.c_str() );
+
+      auto bEqual = s == s1;
+
+      std::cout << s << (char*)stringText1.c_str() << "\n";
+   }
+   
 }
 
 

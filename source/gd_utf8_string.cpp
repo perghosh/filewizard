@@ -1,4 +1,6 @@
 #include <stdexcept>
+#include <vector>
+#include <algorithm>
 
 #include "gd_utf8_string.hpp"
 #include "..\include\gd_utf8_string.hpp"
@@ -115,7 +117,7 @@ string& string::assign( const char* pbszText, uint32_t uLength )
 */
 string& string::assign( const value_type* pbszText, uint32_t uSize, uint32_t uCount )
 {
-   string::safe_to_modify(m_pbuffer);
+   m_pbuffer = string::safe_to_modify(m_pbuffer);
 
    if( uSize > m_pbuffer->capacity() ) allocate_exact( uSize );
 
@@ -207,6 +209,33 @@ string& string::append( const value_type* puText, uint32_t uSize, uint32_t uCoun
 }
 
 
+string& string::replace( const_iterator itFrom, const_iterator itTo, const_pointer pbszText, uint32_t uLength )
+{                                                                             assert( uLength < 0x01000000 ); // realistic
+                                                                              assert( string::verify_iterator( *this, itFrom ) == true );
+                                                                              assert( string::verify_iterator( *this, itTo ) == true );
+
+   std::size_t uSizeInString = itTo.get() - itFrom.get();// size in string that is replaced
+   const_pointer pInsert = itFrom.get(); // reinterpret_cast<pointer>( itFrom.get() );
+
+   // count number of characters that is removed
+   auto uReplaceCount = gd::utf8::count( itFrom, itTo ).first;
+   auto uInsertCount = gd::utf8::count( pbszText, pbszText + uLength ).first;
+
+   if( uLength > uSizeInString )
+   {                                                                          assert( uLength - uSizeInString < 0x01000000 ); // realistic
+      pInsert = expand( pInsert, static_cast<uint32_t>(uLength - uSizeInString) );
+   }
+   else if( uLength < uSizeInString )
+   { 
+      contract( itTo.get(), static_cast<uint32_t>( uSizeInString - uLength) );
+   }
+
+   memcpy( (void*)pInsert, pbszText, uLength );
+   m_pbuffer->size( size() + (uLength - uSizeInString) );
+   m_pbuffer->count( count() + (uInsertCount - uReplaceCount) );
+
+   return *this;
+}
 
 /**
  * @brief insert character X number of times in section between iterators
@@ -228,7 +257,7 @@ string& string::insert( iterator itFrom, iterator itTo, uint32_t uSize, uint32_t
 
    if( uSizeNeeded > uSizeInString )
    {                                                                          assert( uSizeNeeded - uSizeInString < 0x01000000 ); // realistic
-      pInsert = expand( pInsert, static_cast<uint32_t>(uSizeNeeded - uSizeInString) );
+      pInsert = (pointer)expand( pInsert, static_cast<uint32_t>(uSizeNeeded - uSizeInString) );
    }
    else if( uSizeNeeded < uSizeInString )
    { 
@@ -283,7 +312,7 @@ std::size_t string::squeeze( iterator itFrom, iterator itEnd, uint32_t ch )
       memmove( itInsert.get(), itEnd.get(), uSize );
    }
    
-   *itInsert = '\0';
+   *itInsert.get() = '\0';
    m_pbuffer->size( itInsert.get() - begin().get() );
    m_pbuffer->count( gd::utf8::count( m_pbuffer->c_buffer() ).first );
 
@@ -370,10 +399,151 @@ string string::substr( const_iterator itFrom, const_iterator itTo )
 }
 
 /**
+ * @brief swap characters in internal buffer
+ * @param it1 iterator to first character that is to be swapped
+ * @param it2 iterator to second character that is to be swapped
+*/
+void string::swap( iterator it1, iterator it2 )
+{                                                                             assert( string::verify_iterator( *this, it1 ) == true );
+                                                                              assert( string::verify_iterator( *this, it2 ) == true );
+   auto itBegin = begin();
+   auto pbuffer = string::safe_to_modify( m_pbuffer );
+   if( pbuffer != m_pbuffer )
+   {
+      m_pbuffer = pbuffer;
+      auto it = begin();
+      it1 = it.get() + (it1.get() - itBegin.get());
+      it2 = it.get() + (it2.get() - itBegin.get());
+   }
+
+   auto uCharacterSize1 = gd::utf8::get_character_size( it1.get() );
+   auto uCharacterSize2 = gd::utf8::get_character_size( it2.get() );
+   if( uCharacterSize1 == uCharacterSize2 )
+   {
+      auto _temp = *it1;
+      gd::utf8::convert( *it2, it1.get() );
+      gd::utf8::convert( _temp, it2.get() );
+   }
+   else
+   {
+
+   }
+}
+
+
+
+/*
+void string::sort( std::function<bool( const value_type v1, const value_type v2 )> compare )
+{
+
+}
+*/
+
+/*
+template <class _BidIt, class _Pr>
+_CONSTEXPR20 _BidIt _Insertion_sort_unchecked(const _BidIt _First, const _BidIt _Last, _Pr _Pred) {
+    // insertion sort [_First, _Last)
+    if (_First != _Last) {
+        for (_BidIt _Mid = _First; ++_Mid != _Last;) { // order next element
+            _BidIt _Hole               = _Mid;
+            _Iter_value_t<_BidIt> _Val = _STD move(*_Mid);
+
+            if (_DEBUG_LT_PRED(_Pred, _Val, *_First)) { // found new earliest element, move to front
+                _Move_backward_unchecked(_First, _Mid, ++_Hole);
+                *_First = _STD move(_Val);
+            } else { // look for insertion point after first
+                for (_BidIt _Prev = _Hole; _DEBUG_LT_PRED(_Pred, _Val, *--_Prev); _Hole = _Prev) {
+                    *_Hole = _STD move(*_Prev); // move hole down
+                }
+
+                *_Hole = _STD move(_Val); // insert element in hole
+            }
+        }
+    }
+
+    return _Last;
+}
+*/
+
+void string::sort( iterator itFirst, iterator itLast, std::function<bool( value_type v1, value_type v2 )> compare )
+{                                                                              assert( itLast.get() - itFirst.get() < 0x00100000 );
+                                                                               assert( string::verify_iterator( *this, itFirst ) == true );
+                                                                               assert( string::verify_iterator( *this, itLast ) == true );
+   auto pbuffer = string::safe_to_modify(m_pbuffer);
+   if( pbuffer != m_pbuffer )
+   {
+      itFirst = m_pbuffer->move_to( pbuffer, itFirst.get() );
+      itLast = m_pbuffer->move_to( pbuffer, itLast.get() );
+      m_pbuffer = pbuffer;                                                     DEBUG_ONLY( m_psz = m_pbuffer->c_str() );
+   }
+   std::vector<uint32_t> vectorValue;
+   for( auto it = itFirst; it != itLast; it++ ) vectorValue.push_back( *it );
+   std::sort( vectorValue.begin(), vectorValue.end(), compare );
+   for( auto it : vectorValue )
+   {
+      gd::utf8::convert( it, itFirst.get() );
+      itFirst++;
+   }
+
+/*
+   TODO: sort without heap allocation is hard because of different sizes for each character.
+   if( itFirst < itLast )
+   {
+      for( auto itMiddle = itFirst; ++itMiddle != itLast;)
+      {                                                                        // order next element
+         auto itHole = itMiddle;                                               // position for value that is checked
+         auto uValue = *itMiddle;
+         if( compare( uValue, *itFirst ) == true )
+         {
+            auto it = itHole + 1;                                              // position after hole to get move section
+            auto uSize = itMiddle.get() - itFirst.get();                       // memory that is moved
+#ifdef DEBUG
+            intptr_t iFirst = (intptr_t)itFirst.get() % 1000;
+            intptr_t iMiddle = (intptr_t)itMiddle.get() % 1000;
+            intptr_t iDifference = iMiddle - iFirst;
+            intptr_t iIt = (intptr_t)it.get() % 1000;
+            intptr_t iDifferenceIt = iIt - iFirst;
+#endif // DEBUG
+
+            if( gd::utf8::get_character_size( itMiddle.get() ) != gd::utf8::get_character_size( itFirst.get() ) )
+            {
+               // reposition iterator in buffer because character sizes do not match for the moved
+               if( gd::utf8::get_character_size( itMiddle.get() ) < gd::utf8::get_character_size( itFirst.get() ) ) itMiddle = itMiddle.get() - 1;
+               else                                                                                                 itMiddle = itMiddle.get() + 1;
+            }
+
+
+            
+            //if( gd::utf8::get_character_size( itMiddle.get() ) == gd::utf8::get_character_size( itFirst.get() ) )
+            {                                                                  assert( it.get() <= (c_buffer() + size()) );
+               memmove( it.get() - uSize, itFirst.get(), uSize );              // move memory
+            }
+            else
+            {                                                                  assert( it.get() <= (c_buffer() + size()) );
+               memmove( it.get() - uSize, itFirst.get(), uSize );              // move memory
+            }
+            gd::utf8::convert( uValue, itFirst.get() );                        // insert value to first position
+         }
+         else
+         {
+            // ## check if value is to be inserted  after first
+            auto it = itHole;
+            for( ; compare( uValue, *--it ); itHole = it )
+            {
+               gd::utf8::convert( *it, itHole.get() );
+            }
+            if( itHole != itMiddle ) gd::utf8::convert(uValue, itHole.get());
+         }
+      }
+   }
+   */
+}
+
+/**
  * @brief Erase characters from string
  * @param itFirst position from characters are to be erased
  * @param itLast last position for characters that is to be removed
- * @param bCount if cousqueezent in string is to be updated (this will increase time and may not be needed if you are doing multiple erase and just want to update count in the end)
+ * @param bCount if count in string is to be updated (this will increase time and may not be needed if you are doing multiple erase and just want to update count in the end)
  * @return 
 */
 string::iterator string::erase( iterator itFirst, iterator itLast, bool bCount )
@@ -405,7 +575,7 @@ string::iterator string::erase( iterator itFirst, iterator itLast, bool bCount )
  * @param uSize 
  * @return pointer to same position in string, if new buffer pointer is placed at same position in new buffer
 */
-string::pointer string::expand( pointer pPosition, uint32_t uSize )
+string::const_pointer string::expand( const_pointer pPosition, uint32_t uSize )
 {
    auto uOffset = pPosition - c_buffer();                                     // offset to position in string that is expanded
 
@@ -413,7 +583,7 @@ string::pointer string::expand( pointer pPosition, uint32_t uSize )
    pPosition = c_buffer() + uOffset;                                          // reposition position if allocation was done
    auto uMoveSize = size() - uOffset;                                         // calculate size to move
    // move data from position to end to new position and make a uSize gap
-   std::memmove( pPosition + uSize, pPosition, uMoveSize + 1 );               // move data to make gap, add one will add the ending \0 character.
+   std::memmove( (uint8_t*)pPosition + uSize, pPosition, uMoveSize + 1 );               // move data to make gap, add one will add the ending \0 character.
 
    m_pbuffer->size( m_pbuffer->size() + uSize );
    return c_buffer() + uOffset;
@@ -425,10 +595,10 @@ string::pointer string::expand( pointer pPosition, uint32_t uSize )
  * @param uSize number of bytes to move character
  * @return new position in string where the previous position was
 */
-string::pointer string::contract( value_type* pvPosition, uint32_t uSize )
+string::const_pointer string::contract( const_pointer pvPosition, uint32_t uSize )
 {
-   auto uMoveSize = pvPosition - c_buffer_end();
-   std::memmove( pvPosition - uSize, pvPosition, uMoveSize );
+   auto uMoveSize = c_buffer_end() - pvPosition;
+   std::memmove( (uint8_t*)pvPosition - uSize, pvPosition, uMoveSize );
    m_pbuffer->size( m_pbuffer->size() - uSize );
    m_pbuffer->null_terminate();
    return pvPosition - uSize;
@@ -575,6 +745,11 @@ void string::allocate_exact(string& stringObject, uint32_t uSize)
    pbuffer->flags(uFlags);                                                       // set flags
 
    stringObject.m_pbuffer = pbuffer;
+
+#  ifdef DEBUG
+   stringObject.m_psz = reinterpret_cast<const char*>(pbuffer->c_buffer());
+#  endif
+
 }
 
 
@@ -632,11 +807,13 @@ void string::_clone(const string& o)
 string::buffer* string::buffer::clone()
 {
    auto _size = size() + sizeof(string::buffer);
-   uint8_t* puNew = new uint8_t[_size + 1];                                     // exact size + zero ending
+   uint8_t* puNew = new uint8_t[_size + 1];                                    // exact size + zero ending
    auto pbuffer = reinterpret_cast<string::buffer*>(puNew);
-   memcpy(pbuffer->c_buffer(), c_buffer(), size());
+   memcpy( puNew, this, _size ); 
+   memcpy(pbuffer->c_buffer(), c_buffer(), size() + 1 );                       // add null terminator
    uint32_t uFlags = is_type_reference() ? eBufferStorageReferenceCount : eBufferStorageSingle;
-   pbuffer->flags(uFlags);                                                       // set flags
+   pbuffer->flags(uFlags);                                                     // set flags
+   pbuffer->capacity( size() );
    return pbuffer;
 }
 

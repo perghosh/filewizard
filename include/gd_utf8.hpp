@@ -88,9 +88,11 @@ namespace gd {
 
       ///@{ 
       /// Count number of utf8 bytes needed to store char text
-      uint32_t size( const char* pbszText, uint32_t uLength );
+      uint32_t size( const char* pbszText, uint32_t uLength ); // --------------------------------- size
       ///@}
 
+      /// calculate size in bytes needed to store character
+      uint32_t get_character_size( const uint8_t* pubszText ); // --------------------------------- get_character_size
 
 
       ///@{
@@ -126,6 +128,8 @@ namespace gd {
 
       std::pair<bool, const uint16_t*> convert_unicode(const uint16_t* pbszFrom, uint8_t* pbszTo, const uint8_t* pbszEnd);
       ///@}
+
+      std::intptr_t distance(const uint8_t* p1, const uint8_t* p2);
 
 
       ///@{
@@ -215,6 +219,19 @@ namespace gd {
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>( previous( reinterpret_cast<const uint8_t*>(pubszPosition), uCount ) );
          };
+         ///@}
+
+         ///@{
+         inline const uint8_t* advance(const uint8_t* pubszPosition, int iOffset) {
+            if(iOffset > 0) return next(pubszPosition, iOffset);
+            else if(iOffset < 0) return previous(pubszPosition, -iOffset);
+            return pubszPosition;
+         }
+         inline uint8_t* advance(uint8_t* pubszPosition, int iOffset) {
+            if(iOffset > 0) return next(pubszPosition, iOffset);
+            else if(iOffset < 0) return previous(pubszPosition, -iOffset);
+            return pubszPosition;
+         }
          ///@}
 
          // move to end of string (finds zero character and stop)
