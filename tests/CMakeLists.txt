@@ -29,6 +29,7 @@ set( catch_test
    "catch_text.cpp"
    "catch_file.cpp"
    "catch_application.cpp"
+   "catch_lua.cpp"
 )
 
 message( ${CMAKE_PREFIX_PATH} )
@@ -37,7 +38,7 @@ message( ${CMAKE_PREFIX_PATH} )
 
 
 # Add source to this project's executable.
-add_executable ("fw_test" "fw_test.cpp" "fw_test.h" "${source_cpp}" "${catch_test}" )
+add_executable ("fw_test" "fw_test.cpp" "fw_test.h" "${source_cpp}" "${catch_test}")
 
 target_compile_definitions( "fw_test" PUBLIC DEBUG )
 

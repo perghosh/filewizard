@@ -1,3 +1,13 @@
+/*
+## Overview
+| Name | Description |
+| - | - |
+|  |  |
+
+
+*/
+
+
 #include <stdexcept>
 #include <vector>
 #include <algorithm>
@@ -9,25 +19,6 @@
 #pragma warning( disable : 4244 4267 )
 
 namespace gd { namespace utf8 { 
-
-string::buffer string::m_pbuffer_empty_reference[] = {
-   0, // size ( m_uSize )
-   0, // total buffer size ( m_uSizeBuffer )
-   0, // number of utf8 characters ( m_uCount )
-   0x00000100, // flags ( m_uFlags ) last byte has type and 0x0100 is marked as empty reference buffer
-   -1,// size ( m_iReferenceCount )
-   0  // last character is zero to mimic null terminator 
-};
-
-string::buffer string::m_pbuffer_empty_unique[] = {
-   0, // size ( m_uSize )
-   0, // total buffer size ( m_uSizeBuffer )
-   0, // number of utf8 characters ( m_uCount )
-   0x00000200, // flags ( m_uFlags ) last byte has type and 0x0100 is marked as empty reference buffer
-   -1,// size ( m_iReferenceCount )
-   0  // last character is zero to mimic null terminator 
-};
-
 
 string::string( gd::utf8::buffer bufferStack ) {                              assert( bufferStack.m_uSize > sizeof( string::buffer ) );
    m_pbuffer = reinterpret_cast<string::buffer*>( bufferStack.m_pBuffer );

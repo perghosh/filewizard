@@ -1,3 +1,15 @@
+/*
+## Overview
+| Name | Description |
+| - | - |
+| character | get one character from buffer as uint32_t |
+| convert | convert character into bytes and place it in specified buffer |
+| count | count utf8 characters in buffer |
+| size | size needed in bytes to store characters |
+
+
+*/
+
 #pragma once
 
 #include <stdint.h>
@@ -11,9 +23,9 @@
 | - | - |
 | character | return character number |
 | convert | convert character value and store it in pointer to utf8 buffer |
+| convert_ascii | convert ascii characters to utf8 into byte buffer |
 | copy | copy utf8 character from source buffer to target buffer |
 | size | calculate number of bytes needed to store character in utf8 format |
-|  |  |
 |  |  |
 
 

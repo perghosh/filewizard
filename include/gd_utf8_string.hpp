@@ -66,7 +66,7 @@ namespace gd::utf8 {
 class string
 {
 public:
-   enum enumBufferStorage : std::uint32_t {
+   enum enumBufferStorage {
       eBufferStorageReferenceCount   = 0x01,
       eBufferStorageStack            = 0x02,   // string data is on stack, do not delete
       eBufferStorageSingle           = 0x04,   // string data is not reference counted
@@ -77,7 +77,7 @@ public:
    };
 
    // constant to set storage type
-   enum storage : std::uint32_t { reference_counter, unique };
+   enum storage { reference_counter, unique };
 
 public:
    typedef string                self;
@@ -298,8 +298,10 @@ public:
    /** @name Construct
    *///@{
    string(): m_pbuffer(string::m_pbuffer_empty_reference) {}
-   // construct string with specific storage type
-   string(storage _1) { m_pbuffer = _1 == reference_counter ? string::m_pbuffer_empty_reference : string::m_pbuffer_empty_unique; }
+   /// construct string with specific storage type
+   /// storage::reference_counter = string has reference counter
+   /// storage::unique = string owns data, use this in threaded code
+   string(storage _1) { m_pbuffer = _1 == storage::reference_counter ? string::m_pbuffer_empty_reference : string::m_pbuffer_empty_unique; }
    explicit string( gd::utf8::buffer bufferStack );
    explicit string( const char* pbszText ): m_pbuffer(string::m_pbuffer_empty_reference) { assign( pbszText ); }
    string( std::string_view stringText );
@@ -612,8 +614,22 @@ private:
       return p;
    }
 
-   static buffer m_pbuffer_empty_reference[];
-   static buffer m_pbuffer_empty_unique[];
+   inline static buffer m_pbuffer_empty_reference[] = {
+      0, // size ( m_uSize )
+      0, // total buffer size ( m_uSizeBuffer )
+      0, // number of utf8 characters ( m_uCount )
+      0x00000100, // flags ( m_uFlags ) last byte has type and 0x0100 is marked as empty reference buffer
+      -1,// size ( m_iReferenceCount )
+      0  // last character is zero to mimic null terminator 
+   };
+   inline static buffer m_pbuffer_empty_unique[] = {
+      0, // size ( m_uSize )
+      0, // total buffer size ( m_uSizeBuffer )
+      0, // number of utf8 characters ( m_uCount )
+      0x00000200, // flags ( m_uFlags ) last byte has type and 0x0100 is marked as empty reference buffer
+      -1,// size ( m_iReferenceCount )
+      0  // last character is zero to mimic null terminator 
+   };
 };
 
 /**
