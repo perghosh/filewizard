@@ -774,7 +774,20 @@ std::vector<arguments::const_pointer> gd::argument::arguments::find_all(std::str
    return vectorP;
 }
 
-std::string arguments::dump() const
+/*----------------------------------------------------------------------------- print */ /**
+ * Print all values into string
+ * *sample*
+~~~{.cpp}
+   gd::argument::arguments argumentsValue;
+
+   argumentsValue.append("AAA", int32_t(1111));
+   argumentsValue.append("BBB", int32_t(2222));
+
+   auto stringAll = argumentsValue.print();
+~~~
+ * \return std::string all values as text
+ */
+std::string arguments::print() const
 {
    std::string stringDump;
 
@@ -782,11 +795,48 @@ std::string arguments::dump() const
    {
       if( stringDump.empty() == false ) stringDump += std::string_view(", ");
 
-      stringDump += arguments::dump_s(pPosition);
+      stringDump += arguments::print_s(pPosition);
    }
 
    return stringDump;
 }
+
+/*----------------------------------------------------------------------------- print */ /**
+ * Print selected values into string
+ * *sample*
+~~~{.cpp}
+   gd::argument::arguments argumentsValue;
+
+   argumentsValue.append("AAA", int32_t(1111));
+   argumentsValue.append("BBB", int32_t(2222));
+   argumentsValue.append("CCC", int32_t(3333));
+   argumentsValue.append("DDD", int32_t(4444));
+
+   auto stringAll = argumentsValue.print( std::begin( argumentsValue ) );
+   auto it =  std::begin( argumentsValue );
+   it++;
+   it++;
+   auto stringThirdAndFourth = argumentsValue.print( it );  // out: "CCC": 3333, "DDD": 4444
+~~~
+ * \param itBegin start printing values
+ * \param itEnd quit printing values at this position
+ * \param stringSplit text to split values for better format
+ * \return std::string selected values as text
+ */
+std::string arguments::print( const_iterator itBegin, const_iterator itEnd, std::string_view stringSplit ) const
+{
+   std::string stringDump;
+
+   for( ; itBegin != itEnd; itBegin++ )
+   {
+      if( stringDump.empty() == false ) stringDump += stringSplit;
+
+      stringDump += arguments::print_s(itBegin);
+   }
+
+   return stringDump;
+}
+
 
 
 /*----------------------------------------------------------------------------- reserve */ /**
@@ -1117,19 +1167,31 @@ unsigned int arguments::sizeof_s(const argument& argumentValue)
    return uSize + argumentValue.length();
 }
 
-std::string arguments::dump_s(const_pointer pPosition)
+/*----------------------------------------------------------------------------- print_s */ /**
+ * Print values into text and return string with values
+ * \param pPosition position in arguments object where value is located
+ * \param uPairType pair type to print, key and/or value can be printed
+ * \return std::string text containing key/value 
+ */
+std::string arguments::print_s(const_pointer pPosition, uint32_t uPairType)
 {
    std::string stringArgument;
    if( *pPosition == eCType_ParameterName )
    {
-      stringArgument += "\"";
-      stringArgument.append( reinterpret_cast<const char*>(pPosition+ 2), *(pPosition + 1) );
-      stringArgument += "\": ";
+      if( uPairType & ePairTypeKey )
+      {
+         stringArgument += "\"";
+         stringArgument.append( reinterpret_cast<const char*>(pPosition+ 2), *(pPosition + 1) );
+         stringArgument += "\": ";
+      }
       pPosition += size_t(pPosition[1]) + size_t(2);                             // move to value
    }
 
-   arguments::argument argumentValue( get_param_s( pPosition ) );
-   stringArgument += argumentValue.get_string();
+   if( uPairType & ePairTypeValue )
+   {
+      arguments::argument argumentValue( get_param_s( pPosition ) );
+      stringArgument += argumentValue.get_string();
+   }
 
    return stringArgument;
 }

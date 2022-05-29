@@ -91,6 +91,13 @@ public:
       CType_MASK = 0b11100000,
    };
 
+   enum enumPairType
+   {
+      ePairTypeKey   = (1<<0),        // Key (name for value) in argument list
+      ePairTypeValue = (1<<1),        // Value in argument list
+      ePairTypeAll   = ePairTypeKey | ePairTypeValue,
+   };
+
    /**
     * Base64 flags used to specify how base64 formated text is formated
     */
@@ -594,7 +601,16 @@ public:
       return argument();
    }
 
-   std::string dump() const;
+/** \name PRINT
+* Methods used to format argument values into text
+*///@{
+   std::string print() const;
+   std::string print(const_iterator itBegin) const { return print(itBegin, end(), ", "); };
+   std::string print( const_iterator itBegin, const_iterator itEnd ) const { return print(itBegin, itEnd, ", "); };
+   std::string print(const_iterator itBegin, const_iterator itEnd, std::string_view stringSplit) const;
+//@}
+
+   
 
 
 #ifdef _DEBUG
@@ -710,7 +726,8 @@ public:
    }
 
    /// ## dump information about values
-   static std::string dump_s(const_pointer pPosition);
+   static inline std::string print_s(const_pointer pPosition) { return print_s(pPosition, ePairTypeAll); }
+   static std::string print_s(const_pointer pPosition, uint32_t uPairType );
 
    /// Get raw type for value
    constexpr static unsigned int type_s(unsigned int uType) { return uType & ~CType_MASK; }
