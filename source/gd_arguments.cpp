@@ -632,7 +632,11 @@ arguments& arguments::set(pointer pPosition, param_type uType, const_pointer pBu
       unsigned uNameLength = arguments::sizeof_name_s( pPosition );
       //auto uOldSize = uNameLength + arguments::sizeof_s(argumentOld);
       auto uNewSize = uNameLength + uLength + sizeof_value_prefix( uType );
-      if( uOldSize != uNewSize ) { resize(pPosition, uOldSize, uNewSize); }
+      if( uOldSize != uNewSize ) 
+      { 
+         if( uOldSize < uNewSize ) reserve(m_uLength + (uNewSize - uOldSize));   // increase buffer if needed
+         resize(pPosition, uOldSize, uNewSize); 
+      }
 
       m_uLength += int(uNewSize - uOldSize);
 
@@ -849,6 +853,7 @@ void arguments::reserve(unsigned int uCount)
    if( uCount > m_uBufferLength )
    {
       uCount += (uCount >> 1);
+      if( uCount > 32 ) uCount += (64 - (uCount % 64));
       unsigned char* pBuffer = new unsigned char[uCount];
 
       if( m_uLength > 0 ) memcpy(pBuffer, m_pBuffer, m_uLength);
