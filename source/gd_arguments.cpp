@@ -38,6 +38,18 @@ arguments::const_pointer arguments::move_to_value(const_pointer pPosition)
 }
 
 
+/*----------------------------------------------------------------------------- compare_name_s */ /**
+ * compare name at argument position in arguments buffer
+ * \param pPosition position in arguments buffer
+ * \param stringName name to compare with
+ * \return bool true if name matches, false if not
+ */
+bool arguments::compare_name_s(const_pointer pPosition, std::string_view stringName)
+{
+   if( is_name_s(pPosition) && get_name_s(pPosition) == stringName ) return true;
+   return false;
+}
+
 static uint8_t ctype_size[arguments::CType_MAX] = {
    0,       // eCTypeNone = 0,
    1,       // eCTypeBool = 1,
@@ -582,7 +594,7 @@ arguments& arguments::set(const char* pbszName, uint32_t uNameLength, param_type
 
    // ## Found value - replace
    // get current argument
-   argument argumentOld = arguments::get_param_s(pPosition);
+   argument argumentOld = arguments::get_argument_s(pPosition);
    if( arguments::compare_type_s(argumentOld, uType) == true && (uType & (eValueLength|eValueArray)) == 0 )
    {
       pPosition += size_t(2) + size_t(uNameLength);
@@ -620,7 +632,7 @@ arguments& arguments::set(const char* pbszName, uint32_t uNameLength, param_type
 arguments& arguments::set(pointer pPosition, param_type uType, const_pointer pBuffer, unsigned int uLength)
 {
    // get current argument
-   argument argumentOld = arguments::get_param_s(pPosition);
+   argument argumentOld = arguments::get_argument_s(pPosition);
    auto pPositionValue = move_to_value(pPosition);
    if( arguments::compare_type_s(argumentOld, uType) == true && (uType & (eValueLength | eValueArray)) == 0 )
    {
@@ -672,7 +684,7 @@ unsigned int arguments::count(std::string_view stringName) const
    unsigned int uCount = 0;
    for( auto pPosition = next(); pPosition != nullptr; pPosition = next(pPosition) )
    {
-      if( arguments::is_name(pPosition) == true )
+      if( arguments::is_name_s(pPosition) == true )
       {
          if( arguments::get_name_s(pPosition) == stringName ) uCount++;
       }
@@ -709,7 +721,7 @@ arguments::pointer arguments::find(std::string_view stringName)
 {
    for( auto pPosition = next(); pPosition != nullptr; pPosition = next(pPosition) )
    {
-      if( arguments::is_name(pPosition) == true )
+      if( arguments::is_name_s(pPosition) == true )
       {
          if( arguments::get_name(pPosition) == stringName ) return pPosition;
       }
@@ -729,7 +741,7 @@ arguments::const_pointer arguments::find(std::string_view stringName) const
 {
    for( auto pPosition = next(); pPosition != nullptr; pPosition = next(pPosition) )
    {
-      if( arguments::is_name(pPosition) == true )
+      if( arguments::is_name_s(pPosition) == true )
       {
          if( arguments::get_name_s(pPosition) == stringName ) return pPosition;
       }
@@ -750,7 +762,7 @@ arguments::const_pointer arguments::find(std::string_view stringName, const_poin
 {
    for( ; pPosition != nullptr; pPosition = next(pPosition) )
    {
-      if( arguments::is_name(pPosition) == true )
+      if( arguments::is_name_s(pPosition) == true )
       {
          if( arguments::get_name_s(pPosition) == stringName ) return pPosition;
       }
@@ -769,7 +781,7 @@ std::vector<arguments::const_pointer> gd::argument::arguments::find_all(std::str
    std::vector<arguments::const_pointer> vectorP;
    for( auto pPosition = next(); pPosition != nullptr; pPosition = next(pPosition) )
    {
-      if( arguments::is_name(pPosition) == true )
+      if( arguments::is_name_s(pPosition) == true )
       {
          if( arguments::get_name_s(pPosition) == stringName ) vectorP.push_back( pPosition );
       }
@@ -956,7 +968,7 @@ arguments::argument arguments::get_argument(unsigned int uIndex) const
       uIndex--;
    }
 
-   if( pPosition != nullptr ) return arguments::get_param_s(pPosition);
+   if( pPosition != nullptr ) return arguments::get_argument_s(pPosition);
    return argument();
 }
 
@@ -1003,7 +1015,7 @@ bool arguments::compare_argument_s(const argument& argument1, const argument& ar
  * \param it position for returned param
  * \return param  holding value at iterator position
  */
-arguments::argument arguments::get_param_s(arguments::const_pointer pPosition)
+arguments::argument arguments::get_argument_s(arguments::const_pointer pPosition)
 {
    arguments::enumCType eCType = (arguments::enumCType)*pPosition;
    pPosition++;
@@ -1056,7 +1068,7 @@ arguments::argument arguments::get_param_s(arguments::const_pointer pPosition)
    {
       pPosition += *pPosition;
       pPosition++;
-      return get_param_s(pPosition);
+      return get_argument_s(pPosition);
    }
    break;
 
@@ -1068,7 +1080,7 @@ arguments::argument arguments::get_param_s(arguments::const_pointer pPosition)
 
 arguments::argument_edit arguments::get_edit_param_s(arguments* parguments, arguments::const_pointer pPosition)
 {
-   arguments::argument argumentValue = arguments::get_param_s( pPosition );
+   arguments::argument argumentValue = arguments::get_argument_s( pPosition );
    return arguments::argument_edit( parguments, pPosition, argumentValue );
 }
 
@@ -1082,6 +1094,16 @@ unsigned int arguments::get_total_param_length_s(const_pointer pPosition)
 {
    const_pointer pEnd = next_s( pPosition );
    return static_cast<unsigned int>(pEnd - pPosition);
+}
+
+std::vector<arguments::argument> arguments::get_argument_all_s(const_pointer pBegin, const_pointer pEnd, std::string_view stringName)
+{
+   std::vector<argument> vectorArgument;
+   do 
+   {
+      if( compare_name_s(pBegin, stringName) == true ) vectorArgument.push_back( get_argument_s( pBegin ) );
+   } while( (pBegin = next_s(pBegin)) < pEnd );
+   return vectorArgument;
 }
 
 /*----------------------------------------------------------------------------- get_total_param_length_s */ /**
@@ -1194,7 +1216,7 @@ std::string arguments::print_s(const_pointer pPosition, uint32_t uPairType)
 
    if( uPairType & ePairTypeValue )
    {
-      arguments::argument argumentValue( get_param_s( pPosition ) );
+      arguments::argument argumentValue( get_argument_s( pPosition ) );
       stringArgument += argumentValue.get_string();
    }
 

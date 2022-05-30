@@ -54,6 +54,7 @@ public:
 
    enum enumCType
    {
+      // ## primitive types
       eCTypeNone = 0,
       eCTypeBool = 1,
       eCTypeInt8 = 2,
@@ -68,17 +69,17 @@ public:
       eCTypeFloat,
       eCTypeDouble,
 
-      eCTypePointer,
+      // ## derived types
+      eCTypePointer,       // pointer to memory
 
-      eCTypeBinaryUuid,
+      eCTypeBinaryUuid,    // universal unique identifier
 
-      // zero ending types
-      eCTypeString,
-      eCTypeUtf8String,
-      eCTypeWString,
+      eCTypeString,        // ascii string
+      eCTypeUtf8String,    // utf8 string
+      eCTypeWString,       // unicode string
 
-      // binary values
       eCTypeBinary,
+
       CType_MAX,
 
 
@@ -328,7 +329,7 @@ public:
       operator arguments::const_pointer() const { return m_pPosition; }
 
       std::string name() const {                                                 assert( m_pArguments->verify_d( m_pPosition ));
-         if( arguments::is_name(m_pPosition) == true )
+         if( arguments::is_name_s(m_pPosition) == true )
          {
             return std::string(arguments::get_name_s(m_pPosition));
          }
@@ -336,7 +337,7 @@ public:
       }
 
       bool compare_name(std::string_view stringName) const { 
-         if( arguments::is_name(m_pPosition) == true )
+         if( arguments::is_name_s(m_pPosition) == true )
          {
             if( arguments::get_name_s(m_pPosition) == stringName ) return true;
          }
@@ -344,10 +345,10 @@ public:
       }
 
       argument get_argument() {
-         return arguments::get_param_s(m_pPosition);
+         return arguments::get_argument_s(m_pPosition);
       }
       const argument get_argument() const { 
-         return arguments::get_param_s(m_pPosition);
+         return arguments::get_argument_s(m_pPosition);
       }
 
 
@@ -535,7 +536,7 @@ public:
    /// find param value for name
    [[nodiscard]] argument find_param(std::string_view stringName) const {
       const_pointer pPosition = find(stringName);
-      if( pPosition ) return get_param_s(pPosition);
+      if( pPosition ) return get_argument_s(pPosition);
       return argument();
    }
 
@@ -548,7 +549,7 @@ public:
    /// find param value for name
    [[nodiscard]] argument find_param(std::string_view stringName, const_pointer pPosition) const {
       pPosition = find(stringName, pPosition);
-      if( pPosition ) return get_param_s(pPosition);
+      if( pPosition ) return get_argument_s(pPosition);
       return argument();
    }
 //@}
@@ -565,9 +566,9 @@ public:
    }
    [[nodiscard]] size_t size() const;
 
-   [[nodiscard]] argument get_argument() const { return get_param_s(m_pBuffer); }
+   [[nodiscard]] argument get_argument() const { return get_argument_s(m_pBuffer); }
    [[nodiscard]] argument get_argument(const_pointer pPosition) const {                assert( verify_d(pPosition) );
-      return get_param_s(m_pBuffer); 
+      return get_argument_s(m_pBuffer); 
    }
 
    [[nodiscard]] argument get_argument(unsigned int uIndex) const;
@@ -600,6 +601,9 @@ public:
       }
       return argument();
    }
+
+   /// return all values for name
+   [[nodiscard]] std::vector<argument> get_argument_all(std::string_view stringName) { return get_argument_all_s(get_buffer_start(), get_buffer_end(), stringName); }
 
 /** \name PRINT
 * Methods used to format argument values into text
@@ -635,7 +639,7 @@ public:
    int resize(pointer pPosition, int iOffset, int iNewOffset);
 //@}
 
-   static bool is_name(const_pointer pPosition) {
+   static bool is_name_s(const_pointer pPosition) {
       assert(*pPosition != 0);
       return *pPosition == arguments::eCType_ParameterName;
    }
@@ -648,6 +652,8 @@ public:
 /** \name INTERNAL FREE FUNCTIONS
 *///@{
    /// ## Compare logic
+   /// Compare argument name if argument has name
+   static bool compare_name_s(const_pointer pPosition, std::string_view stringName);
    /// compare arguments
    static bool compare_argument_s(const argument& argument1, const argument& argument2);
    /// compare if argument type is fixed size, this is useful when setting values in arguments object
@@ -659,19 +665,20 @@ public:
 
    /// ## name and type methods
    static std::string_view get_name_s(const_pointer pPosition) {
-      assert(arguments::is_name(pPosition));
+      assert(arguments::is_name_s(pPosition));
       pPosition++;                                                               // move past type (now on name length)
       return std::string_view(reinterpret_cast<const char*>(pPosition + 1), *pPosition);// generate string_view for name
    }
 
    /// ## argument methods
    /// return param the position points to
-   static argument get_param_s(const_pointer pPosition);
+   static argument get_argument_s(const_pointer pPosition);
    /// return editable param based on position
    static argument_edit get_edit_param_s(arguments* parguments, const_pointer pPosition);
    /// count internal param length in bytes
    static unsigned int get_total_param_length_s(const_pointer pPosition);
    static unsigned int get_total_param_length_s(std::string_view stringName, const argument argumentValue);
+   static std::vector<argument> get_argument_all_s(const_pointer pBegin, const_pointer pEnd, std::string_view stringName);
 
    /// ## move methods
    /// move pointer to next value in buffer
