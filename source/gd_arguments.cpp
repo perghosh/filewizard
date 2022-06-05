@@ -306,7 +306,126 @@ unsigned int arguments::argument::get_uint() const
    return uValue;
 }
 
+/*----------------------------------------------------------------------------- get_int */ /**
+ * Tries to convert value to int and returns that int value, if it failles to convert to int then 0 is returned
+ * \return int converted value
+ */
+int64_t arguments::argument::get_int64() const
+{
+   int64_t iValue = 0;
 
+   switch( type_s( m_eCType) )
+   {
+   case arguments::eCTypeNone:
+      iValue = 0;
+      break;
+   case arguments::eCTypeBool :
+      iValue = ( m_unionValue.b == true ? 1 : 0 );
+      break;
+   case arguments::eCTypeInt8:
+      iValue = (int64_t)m_unionValue.v_int8;
+      break;
+   case arguments::eCTypeUInt8:
+      iValue = (int64_t)m_unionValue.v_uint8;
+      break;
+   case arguments::eCTypeInt16 :
+      iValue = (int64_t)m_unionValue.v_int16;
+      break;
+   case arguments::eCTypeUInt16:
+      iValue = (int64_t)m_unionValue.v_uint16;
+      break;
+   case arguments::eCTypeInt32 :
+      iValue = (int64_t)m_unionValue.v_int32;
+      break;
+   case arguments::eCTypeUInt32 :
+      iValue = (int64_t)m_unionValue.v_uint32;
+      break;
+   case arguments::eCTypeInt64 :
+      iValue = (int64_t)m_unionValue.v_int64;
+      break;
+   case arguments::eCTypeUInt64 :
+      iValue = (int64_t)m_unionValue.v_uint64;
+      break;
+   case arguments::eCTypeFloat :
+      iValue = (int64_t)m_unionValue.f;
+      break;
+   case arguments::eCTypeDouble :
+      iValue = (int64_t)m_unionValue.d;
+      break;
+   case arguments::eCTypeString :
+   case arguments::eCTypeUtf8String :
+      iValue = _atoi64( m_unionValue.pbsz );
+      break;
+   case arguments::eCTypeWString :
+      iValue = _wtoll( m_unionValue.pwsz );
+      break;
+   default:
+                                                                                 assert( false );
+   }
+
+
+   return iValue;
+}
+
+
+
+
+double arguments::argument::get_double() const
+{
+   double dValue = 0;
+
+   switch( type_s(m_eCType) )
+   {
+   case arguments::eCTypeNone:
+      dValue = 0;
+      break;
+   case arguments::eCTypeBool:
+      dValue = (m_unionValue.b == true ? 1 : 0);
+      break;
+   case arguments::eCTypeInt8:
+      dValue = (double)m_unionValue.v_int8;
+      break;
+   case arguments::eCTypeUInt8:
+      dValue = (double)m_unionValue.v_uint8;
+      break;
+   case arguments::eCTypeInt16:
+      dValue = (double)m_unionValue.v_int16;
+      break;
+   case arguments::eCTypeUInt16:
+      dValue = (double)m_unionValue.v_uint16;
+      break;
+   case arguments::eCTypeInt32:
+      dValue = (double)m_unionValue.v_int32;
+      break;
+   case arguments::eCTypeUInt32:
+      dValue = (double)m_unionValue.v_uint32;
+      break;
+   case arguments::eCTypeInt64:
+      dValue = (double)m_unionValue.v_int64;
+      break;
+   case arguments::eCTypeUInt64:
+      dValue = (double)m_unionValue.v_uint64;
+      break;
+   case arguments::eCTypeFloat:
+      dValue = (double)m_unionValue.f;
+      break;
+   case arguments::eCTypeDouble:
+      dValue = m_unionValue.d;
+      break;
+   case arguments::eCTypeString:
+   case arguments::eCTypeUtf8String:
+      dValue = std::strtod(m_unionValue.pbsz, nullptr);
+      break;
+   case arguments::eCTypeWString:
+      dValue = wcstod(m_unionValue.pwsz, nullptr);
+      break;
+   default:
+      assert(false);
+   }
+
+
+   return dValue;
+}
 
 /*----------------------------------------------------------------------------- get_string */ /**
  * Return value as string object
@@ -506,6 +625,18 @@ arguments::arguments(std::pair<std::string_view, gd::variant> pairArgument)
 }
 
 
+
+arguments::arguments(std::initializer_list<std::pair<std::string_view, gd::variant>> listPair)
+{
+   zero();
+   for( auto it : listPair ) append_argument(it);
+}
+
+arguments& arguments::operator=(std::initializer_list<std::pair<std::string_view, gd::variant>> listPair)
+{
+   for( auto it : listPair ) append_argument(it);
+   return *this;
+}
 
 /*----------------------------------------------------------------------------- append */ /**
  * Add typed parameter to binary stream of bytes
@@ -805,17 +936,47 @@ std::vector<arguments::const_pointer> gd::argument::arguments::find_all(std::str
  */
 std::string arguments::print() const
 {
-   std::string stringDump;
+   std::string stringPrint;
 
    for( auto pPosition = next(); pPosition != nullptr; pPosition = next(pPosition) )
    {
-      if( stringDump.empty() == false ) stringDump += std::string_view(", ");
+      if( stringPrint.empty() == false ) stringPrint += std::string_view(", ");
 
-      stringDump += arguments::print_s(pPosition);
+      stringPrint += arguments::print_s(pPosition);
    }
 
-   return stringDump;
+   return stringPrint;
 }
+
+/*----------------------------------------------------------------------------- print_json */ /**
+ * print in a json format
+ * \return std::string
+ */
+std::string arguments::print_json() const
+{
+   std::string stringPrint;
+
+   for( auto pPosition = next(); pPosition != nullptr; pPosition = next(pPosition) )
+   {
+      if( stringPrint.empty() == false ) stringPrint += std::string_view(", ");
+
+      argument argumentValue = get_argument_s(pPosition);
+
+      if( argumentValue.is_text() )
+      {
+         stringPrint += "\"";
+         stringPrint += arguments::print_s(pPosition);
+         stringPrint += "\"";
+      }
+      else
+      {
+         stringPrint += arguments::print_s(pPosition);
+      }
+   }
+
+   return stringPrint;
+}
+
 
 /*----------------------------------------------------------------------------- print */ /**
  * Print selected values into string
@@ -841,16 +1002,16 @@ std::string arguments::print() const
  */
 std::string arguments::print( const_iterator itBegin, const_iterator itEnd, std::string_view stringSplit ) const
 {
-   std::string stringDump;
+   std::string stringPrint;
 
    for( ; itBegin != itEnd; itBegin++ )
    {
-      if( stringDump.empty() == false ) stringDump += stringSplit;
+      if( stringPrint.empty() == false ) stringPrint += stringSplit;
 
-      stringDump += arguments::print_s(itBegin);
+      stringPrint += arguments::print_s(itBegin);
    }
 
-   return stringDump;
+   return stringPrint;
 }
 
 
@@ -865,7 +1026,7 @@ void arguments::reserve(unsigned int uCount)
    if( uCount > m_uBufferLength )
    {
       uCount += (uCount >> 1);
-      if( uCount > 32 ) uCount += (64 - (uCount % 64));
+      if( uCount > 32 ) uCount += (64 - (uCount % 64));                          // align to 64 byte blocks
       unsigned char* pBuffer = new unsigned char[uCount];
 
       if( m_uLength > 0 ) memcpy(pBuffer, m_pBuffer, m_uLength);
@@ -972,6 +1133,12 @@ arguments::argument arguments::get_argument(unsigned int uIndex) const
    return argument();
 }
 
+/*----------------------------------------------------------------------------- compare_argument_s */ /**
+ * compare to argument values if equal
+ * \param argument1 first argument that is compared
+ * \param argument2 second argument to compare
+ * \return bool true if equal, false if not
+ */
 bool arguments::compare_argument_s(const argument& argument1, const argument& argument2)
 {
    auto eCType = argument1.type();
@@ -1007,6 +1174,25 @@ bool arguments::compare_argument_s(const argument& argument1, const argument& ar
 
    return false;
 }
+
+/*----------------------------------------------------------------------------- compare_argument_group_s */ /**
+ * compare arguments based on type, it is a broader comparison that tries to match value
+ * even if it isn't same type
+ * \param argument1 first argument that is compared
+ * \param argument2 second argument to compare
+ * \return bool true if equal, false if not
+ */
+bool arguments::compare_argument_group_s(const argument& argument1, const argument& argument2)
+{
+   if( argument1.is_number() == true )
+   {
+      if( argument1.is_decimal() ) return argument1.get_double() == argument2.get_double();
+      else return argument1.get_int64() == argument2.get_int64();
+   }
+
+   return compare_argument_s( argument1, argument2 );
+}
+
 
 
 
@@ -1050,19 +1236,6 @@ arguments::argument arguments::get_argument_s(arguments::const_pointer pPosition
    case (arguments::eCTypeUtf8String | arguments::eValueLength): return arguments::argument(eCType, (const char*)(pPosition + sizeof(uint32_t)));
    case (arguments::eCTypeWString | arguments::eValueLength): return arguments::argument(eCType, (const wchar_t*)(pPosition + sizeof(uint32_t)));
    case (arguments::eCTypeBinary | arguments::eValueLength): return arguments::argument(eCType, (const uint8_t*)pPosition + sizeof(uint32_t));
-
-/*
-   case arguments::eCTypeString: return arguments::argument(arguments::enumCType(arguments::eCTypeString|arguments::eValueLength),(const char*)(pPosition + sizeof(uint32_t)));
-   case arguments::eCTypeUtf8String: return arguments::argument(arguments::enumCType(arguments::eCTypeString|arguments::eValueLength),(const char*)(pPosition + sizeof(uint32_t)));
-   case arguments::eCTypeWString: return arguments::argument(arguments::enumCType(arguments::eCTypeString|arguments::eValueLength),(const wchar_t*)(pPosition + sizeof(uint32_t)));
-   case arguments::eCTypeBinary: return arguments::argument(arguments::enumCType(arguments::eCTypeBinary|arguments::eValueLength),(const uint8_t*)pPosition + sizeof(uint32_t));
-
-   case (arguments::eCTypeString | arguments::eValueLength): return arguments::argument(arguments::enumCType(arguments::eCTypeString | arguments::eValueLength), (const char*)(pPosition + sizeof(uint32_t)));
-   case (arguments::eCTypeUtf8String | arguments::eValueLength): return arguments::argument(arguments::enumCType(arguments::eCTypeString | arguments::eValueLength), (const char*)(pPosition + sizeof(uint32_t)));
-   case (arguments::eCTypeWString | arguments::eValueLength): return arguments::argument(arguments::enumCType(arguments::eCTypeString | arguments::eValueLength), (const wchar_t*)(pPosition + sizeof(uint32_t)));
-   case (arguments::eCTypeBinary | arguments::eValueLength): return arguments::argument(arguments::enumCType(arguments::eCTypeBinary | arguments::eValueLength), (const uint8_t*)pPosition + sizeof(uint32_t));
-*/
-
 
    case arguments::eCType_ParameterName:
    {
@@ -1405,12 +1578,6 @@ arguments::argument arguments::get_argument_s(const gd::variant& variantValue)
    return arguments::argument();
 }
 
-/*
-arguments arguments::read_json_s(const argument& argumentValue)
-{
-
-}
-*/
 
 } // namespace gd::argument
 

@@ -16,6 +16,9 @@
 
 mdtable
 
+// structured binding
+// https://devblogs.microsoft.com/oldnewthing/20201015-00/?p=104369
+
 */
 
 
@@ -26,6 +29,8 @@ namespace gd::argument {
 #else
 _GD_PARAM_BEGIN
 #endif
+
+struct pair_value { std::string_view m_stringKey; gd::variant m_variantValue; };
 
 
 /**
@@ -52,19 +57,23 @@ public:
 
 public:
 
+   /**
+    * \brief type values used in arguments class
+    *
+    */
    enum enumCType
    {
       // ## primitive types
-      eCTypeNone = 0,
-      eCTypeBool = 1,
-      eCTypeInt8 = 2,
-      eCTypeUInt8,
-      eCTypeInt16,
-      eCTypeUInt16,
-      eCTypeInt32,
-      eCTypeUInt32,
-      eCTypeInt64,
-      eCTypeUInt64,
+      eCTypeNone     = 0,
+      eCTypeBool     = 1,
+      eCTypeInt8     = 2,
+      eCTypeUInt8    = 3,
+      eCTypeInt16    = 4,
+      eCTypeUInt16   = 5,
+      eCTypeInt32    = 6,
+      eCTypeUInt32   = 7,
+      eCTypeInt64    = 8,
+      eCTypeUInt64   = 9,
 
       eCTypeFloat,
       eCTypeDouble,
@@ -92,6 +101,12 @@ public:
       CType_MASK = 0b11100000,
    };
 
+   const unsigned ARGUMENTS_NO_LENGTH = eCTypeBinaryUuid;
+
+   /**
+    * \brief member type for complete value in arguments list
+    *
+    */
    enum enumPairType
    {
       ePairTypeKey   = (1<<0),        // Key (name for value) in argument list
@@ -165,6 +180,12 @@ public:
       const argument& operator>>(int& v) const { v = get_int(); return *this; }
       const argument& operator>>(unsigned int& v) const { v = get_uint(); return *this; }
       const argument& operator>>(std::string& v) const { v = get_string(); return *this; }
+      template <typename VALUE>
+      const argument& operator>>(std::pair<std::string_view,VALUE&> pair) const { 
+         auto pPosition = find( pair.first );
+         if( pPosition ) pair.second = get_argument_s(pair.first);
+         return *this;
+      }
 
 
       operator bool() const { assert(type() == arguments::eCTypeBool); return m_unionValue.b; }
@@ -184,12 +205,10 @@ public:
       operator std::wstring() const { assert(type() == arguments::eCTypeNone || type() == arguments::eCTypeWString); return (type() == arguments::eCTypeWString) ? m_unionValue.pwsz : L""; }
       operator void* () const { assert(type() == arguments::eCTypeNone || type() == arguments::eCTypePointer); return (type() == arguments::eCTypePointer) ? m_unionValue.p : NULL; }
 
-/*
-      bool compare(bool b) { return ((type() == arguments::eCTypeBool && b == m_unionValue.b) ? true : false); }
-      bool compare(const char* p) { return ((type() == arguments::eCTypeInt8 && strcmp(p, m_unionValue.pbsz) == 0) ? true : false); }
-      bool compare(const wchar_t* p) { return ((type() == arguments::eCTypeWString && wcscmp(p, m_unionValue.pwsz) == 0) ? true : false); }
-*/
+      /// compare two argument values
       bool compare( const argument& o ) const { return compare_argument_s(*this, o); }
+      /// compare within group type, if integer all sizes are valid for comparison
+      bool compare_group( const argument& o ) const { return compare_argument_group_s(*this, o); }
 
       /// length in bytes for param
       unsigned int length() const;
@@ -221,11 +240,15 @@ public:
 
       int          get_int() const;
       unsigned int get_uint() const;
+      int64_t      get_int64() const;
+      double       get_double() const;
       std::string  get_string() const;
       gd::variant  get_variant() const { return arguments::get_variant_s(*this); }
       gd::variant  get_variant( bool ) const { return arguments::get_variant_s(*this, false); } /// for speed, do not copy data
       value        get_value() { return m_unionValue; }
       const value& get_value() const { return m_unionValue; }
+
+      std::string  to_string() const { return get_string(); }
 
       bool         is_null() const { return (m_eCType == arguments::eCTypeNone); }
       bool         is_bool() const { return (m_eCType == arguments::eCTypeBool); }
@@ -237,7 +260,11 @@ public:
       bool         is_string() const { return (m_eCType == arguments::eCTypeString); }
       bool         is_wstring() const { return (m_eCType == arguments::eCTypeWString); }
       bool         is_true() const;
+      bool         is_primitive() const { return (m_eCType > arguments::eCTypeNone && m_eCType < eCTypeDouble); } ///< primitive = built in types in C++
+      bool         is_text() const { return (m_eCType >= arguments::eCTypeString && m_eCType <= eCTypeWString); } ///< text = some sort of string value, ascii, utf8 or unicode
+      bool         is_binary() const { return m_eCType == arguments::eCTypeBinary; } ///< binary = blob data, length is unknown if used in argument (work with this in arguments)
       bool         is_number() const { return (m_eCType >= arguments::eCTypeInt32 && m_eCType <= arguments::eCTypeDouble); }
+      bool         is_decimal() const { return (m_eCType >= arguments::eCTypeFloat && m_eCType <= arguments::eCTypeDouble); }
       bool         is_integer() const { return (m_eCType >= arguments::eCTypeInt32 && m_eCType <= arguments::eCTypeUInt64); }
 
       void*        get_raw_pointer() const { return m_unionValue.p; }            ///< return raw pointer to value
@@ -352,6 +379,15 @@ public:
       }
 
 
+      template<std::size_t uIndex>
+      auto get() const
+      {
+         static_assert(uIndex < 2, "Allowed index are 0 and 1, above is not valid");
+         if constexpr( uIndex == 0 ) return name();
+         if constexpr( uIndex == 1 ) return get_argument();
+      }
+
+
       // attributes
    public:
       const arguments* m_pArguments;
@@ -366,6 +402,7 @@ public:
    /** Set buffer and size, use this to avoid heap allocations (if internal data grows over buffer size you will get heap allocation)  */
    arguments(pointer pBuffer, unsigned int uSize) : m_bOwner(false), m_pBuffer(pBuffer), m_uLength(0), m_uBufferLength(uSize) {}
 
+   //explicit arguments(std::string_view stringName, const gd::variant& variantValue ) : m_bOwner(false), m_pBuffer(nullptr), m_uLength(0), m_uBufferLength(0) { append_argument(stringName, variantValue); }
    arguments(std::pair<std::string_view, gd::variant> pairArgument);
    template <typename... Arguments>
    arguments(std::pair<std::string_view, gd::variant> pairArgument, Arguments... arguments)
@@ -375,8 +412,7 @@ public:
       append_argument(pairArgument.first, _argument);
       append_argument(arguments...);
    }
-   //arguments(std::initializer_list<char> listString);
-   //explicit arguments(std::vector< std::pair<std::string_view, gd::variant> > vectorArgument);
+   arguments(std::initializer_list<std::pair<std::string_view, gd::variant>> listPair);
 
    // copy
    arguments(const arguments& o): m_pBuffer(nullptr), m_uBufferLength(0) { common_construct(o); }
@@ -384,6 +420,8 @@ public:
    // assign
    arguments& operator=(const arguments& o) { common_construct(o); return *this; }
    arguments& operator=(arguments&& o) noexcept { common_construct(o); return *this; }
+
+   arguments& operator=(std::initializer_list<std::pair<std::string_view, gd::variant>> listPair);
 
    ~arguments() { 
       if( m_bOwner ) delete[] m_pBuffer;
@@ -482,7 +520,9 @@ public:
    arguments& append_argument(std::string_view stringName, const gd::variant& variantValue) {
       auto argumentValue = get_argument_s(variantValue);
       const_pointer pData = (argumentValue.type() <= eCTypePointer ? (const_pointer)&argumentValue.m_unionValue : (const_pointer)argumentValue.get_raw_pointer());
-      return append(stringName, argumentValue.ctype(), pData, argumentValue.length());
+      unsigned uType = argumentValue.type();
+      if( uType > ARGUMENTS_NO_LENGTH ) { uType |= eValueLength; }
+      return append(stringName, uType, pData, argumentValue.length());
    }
 
 
@@ -507,10 +547,6 @@ public:
    arguments& set(std::string_view stringName, param_type uType, const_pointer pBuffer, unsigned int uLength) { return set(stringName.data(), (uint32_t)stringName.length(), uType, pBuffer, uLength); }
    arguments& set(const char* pbszName, uint32_t uNameLength, param_type uType, const_pointer pBuffer, unsigned int uLength);
    arguments& set(pointer pPosition, param_type uType, const_pointer pBuffer, unsigned int uLength);
-   /*
-   arguments& set_argument(std::string_view stringName, argument argumentValue) {
-   }
-   */
 
    // TODO: Implement set methods
 
@@ -612,6 +648,7 @@ public:
    std::string print(const_iterator itBegin) const { return print(itBegin, end(), ", "); };
    std::string print( const_iterator itBegin, const_iterator itEnd ) const { return print(itBegin, itEnd, ", "); };
    std::string print(const_iterator itBegin, const_iterator itEnd, std::string_view stringSplit) const;
+   std::string print_json() const;
 //@}
 
    
@@ -656,6 +693,7 @@ public:
    static bool compare_name_s(const_pointer pPosition, std::string_view stringName);
    /// compare arguments
    static bool compare_argument_s(const argument& argument1, const argument& argument2);
+   static bool compare_argument_group_s(const argument& argument1, const argument& argument2);
    /// compare if argument type is fixed size, this is useful when setting values in arguments object
    static constexpr bool is_type_fixed_size_s(unsigned uType) { return uType <= eCTypeBinaryUuid; }
 
@@ -748,12 +786,6 @@ public:
 //@}
 
 
-protected:
-   /** \name INTERNAL
-   *///@{
-
-   //@}
-
    // ## attributes ----------------------------------------------------------------
 public:
    bool           m_bOwner;      ///< if buffer is owned (delete in destructor)
@@ -763,12 +795,9 @@ public:
 
    static size_type npos;
 
-
-
-
-
 };
 
 
 
-} // namespace gd::param
+
+} // namespace _GD_PARAM_BEGIN
