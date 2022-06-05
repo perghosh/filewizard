@@ -5,8 +5,10 @@
 #include <vector>
 #include <type_traits>
 
-#ifndef _GD_BEGIN_VARIANT
-#  define GD_BEGIN_VARIANT
+#include "gd_variant.h"
+
+#ifndef _GD_BEGIN_VARIANT_VIEW
+#  define _GD_BEGIN_VARIANT_VIEW
 #endif
 
 #pragma warning( push )
@@ -18,142 +20,19 @@ namespace gd {
 _GD_BEGIN
 #endif
 
-
-namespace variant_type
-{
-   enum enumGroup
-   {
-      eGroupBoolean     = 0x01000000,
-      eGroupInteger     = 0x02000000,
-      eGroupDecimal     = 0x04000000,
-      eGroupString      = 0x08000000,
-      eGroupBinary      = 0x10000000,
-   };
-
-   enum enumFlag
-   {
-      eFlagAllocate     = 0x00010000,                                            // variant object has allocated data on heap
-      eFlagLengthPrefix = 0x00020000,                                            // pointer to object is prefixed with length
-   };
-
-   /*-----------------------------------------*/ /**
-    * \brief variant type based on single number
-    *
-    *
-    */
-   enum enumTypeNumber
-   {
-      eTypeNumberUnknown = 0,
-      eTypeNumberBit,
-      eTypeNumberBool,
-      eTypeNumberInt8,
-      eTypeNumberInt16,
-      eTypeNumberInt32,
-      eTypeNumberInt64,
-      eTypeNumberUInt8,
-      eTypeNumberUInt16,
-      eTypeNumberUInt32,
-      eTypeNumberUInt64,
-      eTypeNumberCFloat,
-      eTypeNumberCDouble,
-      eTypeNumberGuid,
-      eTypeNumberBinary,
-      eTypeNumberUtf8String,
-      eTypeNumberUtf32String,
-      eTypeNumberString,
-      eTypeNumberWString,
-      eTypeNumberJson,
-      eTypeNumberXml,
-      eTypeNumberVoid,
-   };
-
-
-   /*-----------------------------------------*/ /**
-    * \brief One single type each supported value in variant
-    *
-    *
-    */
-   enum enumType
-   {
-      eTypeUnknown      = eTypeNumberUnknown,
-      eTypeBit          = eTypeNumberBit      | eGroupBoolean,
-      eTypeBool         = eTypeNumberBool     | eGroupBoolean,
-      eTypeInt8         = eTypeNumberInt8     | eGroupInteger,
-      eTypeInt16        = eTypeNumberInt16    | eGroupInteger,
-      eTypeInt32        = eTypeNumberInt32    | eGroupInteger,
-      eTypeInt64        = eTypeNumberInt64    | eGroupInteger,
-      eTypeUInt8        = eTypeNumberUInt8    | eGroupInteger,
-      eTypeUInt16       = eTypeNumberUInt16   | eGroupInteger,
-      eTypeUInt32       = eTypeNumberUInt32   | eGroupInteger,
-      eTypeUInt64       = eTypeNumberUInt64   | eGroupInteger,
-      eTypeCFloat       = eTypeNumberCFloat   | eGroupDecimal,
-      eTypeCDouble      = eTypeNumberCDouble  | eGroupDecimal,
-      eTypeGuid         = eTypeNumberGuid     | eGroupBinary,
-      eTypeBinary       = eTypeNumberBinary   | eGroupBinary,
-      eTypeUtf8String   = eTypeNumberUtf8String | eGroupString,
-      eTypeUtf32String  = eTypeNumberUtf32String | eGroupString,
-      eTypeString       = eTypeNumberString   | eGroupString,
-      eTypeWString      = eTypeNumberWString  | eGroupString,
-      eTypeJson         = eTypeNumberJson     | eGroupString,
-      eTypeXml          = eTypeNumberXml      | eGroupString,
-      eTypeVoid         = eTypeNumberVoid,
-   };
-
-   /*-----------------------------------------*/ /**
-    * \brief wrapper used to handle utf8 text
-    */
-   struct utf8 
-   {
-      utf8( const char* pbsz ) : m_pbsz(pbsz), m_uLength( strlen( pbsz ) ) {}
-      utf8( const char* pbsz, size_t uLength ) : m_pbsz(pbsz), m_uLength( uLength ) {}
-      utf8( const utf8& o ) { m_pbsz = o.m_pbsz; m_uLength = o.m_uLength; }
-      // attributes
-      public:
-      const char* m_pbsz;
-      size_t m_uLength;
-   };
-
-   enum enumFilter
-   {
-      eFilterTypeGroup  = 0xff000000,     ///< flags used to get group information from type
-      eFilterTypeNumber = 0x000000ff,     ///< flags for filter out index for type
-   };
-
-   /*-----------------------------------------*/ /**
-    * \brief wrapper used to set uuid value
-    */
-   struct uuid { const uint8_t* m_pbUuid; };
-
-
-}
-
-
 /**
- * \brief variant holds type and value
+ * \brief variant_view holds type and value
  *
  *
  *
  \code
  \endcode
  */
-class variant 
+class variant_view 
 {
 public:
-   /*-----------------------------------------*/ /**
-    * \brief wrapper used to handle utf8 text
-    */
-   struct utf8 
-   {
-      utf8( const char* pbsz ) : m_pbsz(pbsz), m_uLength( strlen( pbsz ) ) {}
-      utf8( const char* pbsz, size_t uLength ) : m_pbsz(pbsz), m_uLength( uLength ) {}
-      utf8( const utf8& o ) { m_pbsz = o.m_pbsz; m_uLength = o.m_uLength; }
-      // attributes
-      public:
-      const char* m_pbsz;
-      size_t m_uLength;
-   };
 
-public:
+private:
    enum enumMASK
    {
       eTYPE             = 0x000000ff,  ///< filter type value
@@ -163,54 +42,42 @@ public:
 
 // construction
 public:
-   variant()               : m_uType(variant_type::eTypeUnknown)    {}
-   variant( bool b )       : m_uType(variant_type::eTypeBool)       { m_V.m_b = b; }
-   variant( int8_t v )     : m_uType(variant_type::eTypeInt8)       { m_V.m_int8 = v; }
-   variant( int16_t v )    : m_uType(variant_type::eTypeInt16)      { m_V.m_int16 = v; }
-   variant( int32_t v )    : m_uType(variant_type::eTypeInt32)      { m_V.m_int32 = v; }
-   variant( int64_t v )    : m_uType(variant_type::eTypeInt64)      { m_V.m_int64 = v; }
-   variant( uint8_t v )    : m_uType(variant_type::eTypeUInt8)      { m_V.m_uint8 = v; }
-   variant( uint16_t v )   : m_uType(variant_type::eTypeUInt16)     { m_V.m_uint16 = v; }
-   variant( uint32_t v )   : m_uType(variant_type::eTypeUInt32)     { m_V.m_uint32 = v; }
-   variant( uint64_t v )   : m_uType(variant_type::eTypeUInt64)     { m_V.m_uint64 = v; }
-   variant( float v )      : m_uType(variant_type::eTypeCFloat)     { m_V.m_f = v; }
-   variant( double v )     : m_uType(variant_type::eTypeCDouble)    { m_V.m_d = v; }
-   variant( const char* v ): m_uType(variant_type::eTypeString|variant_type::eFlagAllocate), m_uSize(strlen(v)) { m_V.m_pbsz = (char*)allocate(m_uSize + 1u); memcpy( m_V.m_pbsz, v, m_uSize + 1u ); }
-   variant( const wchar_t* v ): m_uType(variant_type::eTypeWString|variant_type::eFlagAllocate), m_uSize(wcslen(v)) { m_V.m_pwsz = (wchar_t*)allocate((m_uSize + 1u) * sizeof(wchar_t)); memcpy( m_V.m_pwsz, v, (m_uSize + 1u) * sizeof(wchar_t) ); }
-   variant( const char* v, size_t uLength ): m_uType(variant_type::eTypeString|variant_type::eFlagAllocate), m_uSize(uLength) { m_V.m_pbsz = (char*)allocate(uLength + 1); memcpy( m_V.m_pbsz, v, uLength ); m_V.m_pbsz[uLength] = '\0';  }
-   variant( const char* v, size_t uLength, bool ): m_uType(variant_type::eTypeString), m_uSize(uLength) { m_V.m_pbsz = const_cast<char*>(v); }
-   variant( const wchar_t* v, size_t uLength ): m_uType(variant_type::eTypeWString|variant_type::eFlagAllocate), m_uSize(uLength) { m_V.m_pwsz = (wchar_t*)allocate((uLength + 1) * sizeof(wchar_t)); memcpy( m_V.m_pwsz, v, (uLength) * sizeof(wchar_t) ); m_V.m_pwsz[uLength] = L'\0'; }
-   variant( const wchar_t* v, size_t uLength, bool ) : m_uType(variant_type::eTypeWString), m_uSize(uLength) { m_V.m_pwsz = const_cast<wchar_t*>(v); }
-   variant( const unsigned char* v, size_t uLength ): m_uType(variant_type::eTypeBinary|variant_type::eFlagAllocate), m_uSize(uLength) { m_V.m_pb = (unsigned char*)allocate(uLength); memcpy( m_V.m_pb, v, uLength );  }
-   variant( const unsigned char* v, size_t uLength, bool ): m_uType(variant_type::eTypeBinary), m_uSize(uLength) { m_V.m_pb = const_cast<unsigned char*>(v); }
-   variant( const utf8& v ) : m_uType(variant_type::eTypeUtf8String|variant_type::eFlagAllocate), m_uSize(v.m_uLength) { m_V.m_pbsz = (char*)allocate( m_uSize + 1u ); memcpy( m_V.m_pbsz, v.m_pbsz, m_uSize + 1u ); }
-   variant( const utf8& v, unsigned int uType ) : m_uType(uType|variant_type::eFlagAllocate), m_uSize(v.m_uLength) { m_V.m_pbsz = (char*)allocate( m_uSize + 1u ); memcpy( m_V.m_pbsz, v.m_pbsz, m_uSize + 1u ); }
-   variant( const utf8& v, bool ) : m_uType(variant_type::eTypeUtf8String), m_uSize(v.m_uLength) { m_V.m_pbsz = const_cast<char*>(v.m_pbsz); }
-   variant( unsigned int uType, void* v, size_t uLength, size_t uDataLength = 0 ) : m_uType(uType), m_uSize( uLength ) { if( uDataLength == 0 ) uDataLength = uLength; m_V.m_pb = (unsigned char*)allocate(uDataLength); memcpy( m_V.m_pb, v, uDataLength );  }
+   variant_view()               : m_uType(variant_type::eTypeUnknown)    {}
+   variant_view( bool b )       : m_uType(variant_type::eTypeBool)       { m_V.m_b = b; }
+   variant_view( int8_t v )     : m_uType(variant_type::eTypeInt8)       { m_V.m_int8 = v; }
+   variant_view( int16_t v )    : m_uType(variant_type::eTypeInt16)      { m_V.m_int16 = v; }
+   variant_view( int32_t v )    : m_uType(variant_type::eTypeInt32)      { m_V.m_int32 = v; }
+   variant_view( int64_t v )    : m_uType(variant_type::eTypeInt64)      { m_V.m_int64 = v; }
+   variant_view( uint8_t v )    : m_uType(variant_type::eTypeUInt8)      { m_V.m_uint8 = v; }
+   variant_view( uint16_t v )   : m_uType(variant_type::eTypeUInt16)     { m_V.m_uint16 = v; }
+   variant_view( uint32_t v )   : m_uType(variant_type::eTypeUInt32)     { m_V.m_uint32 = v; }
+   variant_view( uint64_t v )   : m_uType(variant_type::eTypeUInt64)     { m_V.m_uint64 = v; }
+   variant_view( float v )      : m_uType(variant_type::eTypeCFloat)     { m_V.m_f = v; }
+   variant_view( double v )     : m_uType(variant_type::eTypeCDouble)    { m_V.m_d = v; }
+   variant_view(const char* v) : m_uType(variant_type::eTypeString), m_uSize(strlen(v)) { m_V.m_pbsz_const = v;  }
+   variant_view(const wchar_t* v) : m_uType(variant_type::eTypeWString), m_uSize(wcslen(v)) { m_V.m_pwsz_const = v; }
+   variant_view(const char* v, size_t uLength) : m_uType(variant_type::eTypeString), m_uSize(uLength) { m_V.m_pbsz_const = v; }
+   variant_view( const char* v, size_t uLength, bool ): m_uType(variant_type::eTypeString), m_uSize(uLength) { m_V.m_pbsz = const_cast<char*>(v); }
+   variant_view(const wchar_t* v, size_t uLength) : m_uType(variant_type::eTypeWString), m_uSize(uLength) { m_V.m_pwsz_const = v; }
+   variant_view(const unsigned char* v, size_t uLength) : m_uType(variant_type::eTypeBinary), m_uSize(uLength) { m_V.m_pb_const = v; }
+   variant_view(const variant_type::utf8& v) : m_uType(variant_type::eTypeUtf8String), m_uSize(v.m_uLength) { m_V.m_pbsz_const = v.m_pbsz; }
+   variant_view(const variant_type::utf8& v, unsigned int uType) : m_uType(uType), m_uSize(v.m_uLength) { m_V.m_pbsz_const = v.m_pbsz; }
+   variant_view(const variant_type::uuid& v) : m_uType(variant_type::eTypeGuid), m_uSize(16) { m_V.m_pb_const = v.m_pbUuid; }
+   variant_view(unsigned int uType, void* v, size_t uLength) : m_uType(uType), m_uSize(uLength) { m_V.m_b = v; }
 
-   variant(const char* v, bool) : m_uType(variant_type::eTypeString), m_uSize(strlen(v)) { m_V.m_pbsz_const = v; }
-   variant(std::string_view v, bool) : m_uType(variant_type::eTypeString), m_uSize(v.length()) { m_V.m_pbsz_const = v.data(); }
+   variant_view(const char* v, bool) : m_uType(variant_type::eTypeString), m_uSize(strlen(v)) { m_V.m_pbsz_const = v; }
+   variant_view(std::string_view v, bool) : m_uType(variant_type::eTypeString), m_uSize(v.length()) { m_V.m_pbsz_const = v.data(); }
 
-
-   // explicit variant( const _variant& rv ) : m_uType(variant_type::eTypeUnknown) { _set_value( rv );  }
-
-   //variant( uint32_t uType, int8_t v )     : m_uType(uType)       { m_V.m_int8 = v; }
-   //variant( uint32_t uType, const char* v, size_t uLength ): m_uType(uType), m_uSize(uLength) { m_V.m_pbsz = v; }
-   //variant( uint32_t uType, const unsigned char* v, size_t uLength ): m_uType(uType), m_uSize(uLength) { m_V.m_pb = v; }
-
-   //variant( uint32_t uType, bool ) : m_uType(uType) {}
-  // variant( uint32_t uType, uint32_t uExtra, bool ) : m_uType(uType) { m_uType |= uExtra; }
-
-   variant( const variant& o ) { common_construct( o ); }                        // copy
-   variant( variant&& o ) noexcept { move_construct( o ); }                      // move
+   variant_view( const variant_view& o ) { common_construct( o ); }                        // copy
+   variant_view( variant_view&& o ) noexcept { move_construct( o ); }                      // move
 
    // assign
-   variant& operator=( const variant& o ) { clear(); common_construct( o ); return *this; }
-   variant& operator=( variant&& o ) noexcept { 
+   variant_view& operator=( const variant_view& o ) { clear(); common_construct( o ); return *this; }
+   variant_view& operator=( variant_view&& o ) noexcept { 
       clear();
       if( this != &o ) { ((uint64_t*)this)[0] = ((uint64_t*)&o)[0]; ((uint64_t*)this)[1] = ((uint64_t*)&o)[1]; o.m_uType = variant_type::eTypeUnknown; }
       return *this; }
-   ~variant() { clear(); }
+   ~variant_view() { clear(); }
 
    void operator=( bool b )     { clear(); m_uType = variant_type::eTypeBool; m_V.m_b = b; }
    void operator=( int8_t v )   { clear(); m_uType = variant_type::eTypeInt8; m_V.m_int8 = v;  }
@@ -223,12 +90,10 @@ public:
    void operator=( uint64_t v ) { clear(); m_uType = variant_type::eTypeUInt64; m_V.m_uint64 = v; }
    void operator=( float v )    { clear(); m_uType = variant_type::eTypeCFloat; m_V.m_f = v;  }
    void operator=( double v )   { clear(); m_uType = variant_type::eTypeCDouble; m_V.m_d = v;  }
-   void operator=( const char* v ) { clear(); m_uType = variant_type::eTypeString|variant_type::eFlagAllocate; m_uSize = (unsigned int)strlen(v); m_V.m_pbsz = (char*)allocate(m_uSize + 1u); memcpy( m_V.m_pbsz, v, m_uSize + 1u ); }
-   void operator=( const wchar_t* v ) { clear(); m_uType = variant_type::eTypeWString|variant_type::eFlagAllocate; m_uSize = (unsigned int)wcslen(v); m_V.m_pwsz = (wchar_t*)allocate((m_uSize + 1u) * sizeof(wchar_t)); memcpy( m_V.m_pwsz, v, (m_uSize + 1u) * sizeof(wchar_t) ); }
-   void operator=( const utf8& v ) { clear(); m_uType = variant_type::eTypeUtf8String|variant_type::eFlagAllocate; m_uSize = v.m_uLength; m_V.m_pbsz = (char*)allocate( m_uSize + 1u ); memcpy( m_V.m_pbsz, v.m_pbsz, m_uSize + 1u ); }
-   //void operator=( const std::pair<const char*,size_t>& rpairV ) { m_uType = variant_type::eTypeString; m_uSize = rpairV.second; m_V.m_pbsz = rpairV.first; }
-   //void operator=( const std::pair<const wchar_t*,size_t>& rpairV ) { m_uType = variant_type::eTypeString; m_uSize = rpairV.second; m_V.m_pwsz = rpairV.first; }
-   //void operator=( const std::pair<const unsigned char*,size_t>& rpairV ) { m_uType = variant_type::eTypeBinary; m_uSize = rpairV.second; m_V.m_pb = rpairV.first; }
+   void operator=(const char* v) { clear(); m_uType = variant_type::eTypeString; m_uSize = (unsigned int)strlen(v); m_V.m_pbsz_const = v; }
+   void operator=(const wchar_t* v) { clear(); m_uType = variant_type::eTypeWString; m_uSize = (unsigned int)wcslen(v); m_V.m_pwsz_const = v; }
+   void operator=(const variant_type::utf8& v) { clear(); m_uType = variant_type::eTypeUtf8String; m_uSize = v.m_uLength; m_V.m_pbsz_const = v.m_pbsz; }
+   void operator=(const variant_type::uuid& v) { clear(); m_uType = variant_type::eTypeGuid; m_uSize = 16; m_V.m_pb_const = v.m_pbUuid; }
 
    int32_t operator+(int32_t v) { return m_V.m_int32 + v; }
    uint32_t operator+(uint32_t v) { return m_V.m_uint32 + v; }
@@ -239,14 +104,14 @@ public:
    int64_t operator-(int64_t v) { return m_V.m_int64 - v; }
    uint64_t operator-(uint64_t v) { return m_V.m_uint64 - v; }
 
-   variant& operator+=(int32_t v) { m_V.m_int32 += v; return *this; }
-   variant& operator+=(uint32_t v) { m_V.m_uint32 += v; return *this; }
-   variant& operator+=(int64_t v) { m_V.m_int64 += v; return *this; }
-   variant& operator+=(uint64_t v) { m_V.m_uint64 += v; return *this; }
-   variant& operator-=(int32_t v) { m_V.m_int32 -= v; return *this; }
-   variant& operator-=(uint32_t v) { m_V.m_uint32 -= v; return *this; }
-   variant& operator-=(int64_t v) { m_V.m_int64 -= v; return *this; }
-   variant& operator-=(uint64_t v) { m_V.m_uint64 -= v; return *this; }
+   variant_view& operator+=(int32_t v) { m_V.m_int32 += v; return *this; }
+   variant_view& operator+=(uint32_t v) { m_V.m_uint32 += v; return *this; }
+   variant_view& operator+=(int64_t v) { m_V.m_int64 += v; return *this; }
+   variant_view& operator+=(uint64_t v) { m_V.m_uint64 += v; return *this; }
+   variant_view& operator-=(int32_t v) { m_V.m_int32 -= v; return *this; }
+   variant_view& operator-=(uint32_t v) { m_V.m_uint32 -= v; return *this; }
+   variant_view& operator-=(int64_t v) { m_V.m_int64 -= v; return *this; }
+   variant_view& operator-=(uint64_t v) { m_V.m_uint64 -= v; return *this; }
 
 
    void assign( bool v )      { _set_value( v ); }
@@ -264,9 +129,9 @@ public:
    void assign( const wchar_t* v ) { _set_value( v ); }
    void assign( const unsigned char* v, size_t uLength ) { _set_value( v, uLength ); }
    void assign( const wchar_t* v, unsigned int uLength ) { _set_value( v, uLength ); }
-   void assign( const utf8& v ) { _set_value( v ); }
-   void assign( const utf8& v, unsigned int uType ) { _set_value( v, uType ); }
-   //void assign_binary( const uint8_t* p, size_t uLength ) { _set_binary_value( p, uLength ); }
+   void assign( const variant_type::utf8& v ) { _set_value( v ); }
+   void assign( const variant_type::utf8& v, unsigned int uType ) { _set_value( v, uType ); }
+   void assign(const variant_type::uuid& v) { _set_value(v); }
 
 
    operator bool() const      { assert(type_number() == variant_type::eTypeNumberBool); return m_V.m_b; }
@@ -312,44 +177,29 @@ public:
    void _set_value( uint64_t v )    { clear(); m_uType = variant_type::eTypeUInt64;   m_V.m_uint64 = v; }
    void _set_value( float v )       { clear(); m_uType = variant_type::eTypeCFloat;   m_V.m_f = v; }
    void _set_value( double v )      { clear(); m_uType = variant_type::eTypeCDouble;  m_V.m_d = v; }
-   void _set_value( const char* v ) { clear(); m_uType = variant_type::eTypeString|variant_type::eFlagAllocate; m_uSize = (unsigned int)strlen(v); m_V.m_pbsz = (char*)allocate(m_uSize + 1u); memcpy( m_V.m_pbsz, v, m_uSize ); m_V.m_pbsz[m_uSize] = '\0'; }
-   void _set_value( const char* v, unsigned int  uLength ) { clear(); m_uType = variant_type::eTypeString|variant_type::eFlagAllocate; m_uSize = (unsigned int)uLength; m_V.m_pbsz = (char*)allocate(m_uSize + 1u); memcpy( m_V.m_pbsz, v, m_uSize ); m_V.m_pbsz[m_uSize] = '\0'; }
-   void _set_value( const wchar_t* v ) { clear(); m_uType = variant_type::eTypeWString|variant_type::eFlagAllocate; m_uSize = (unsigned int)wcslen(v); m_V.m_pwsz = (wchar_t*)allocate((m_uSize + 1u) * sizeof(wchar_t)); memcpy( m_V.m_pwsz, v, (m_uSize + 1u) * sizeof(wchar_t) ); }
-   void _set_value( const unsigned char* v, unsigned int  uLength ) { clear(); m_uType = variant_type::eTypeBinary|variant_type::eFlagAllocate; m_uSize = (unsigned int)uLength; m_V.m_pb = (unsigned char*)allocate(uLength); memcpy( m_V.m_pb, v, uLength ); }
-   void _set_value( const wchar_t* v, unsigned int uLength ) { clear(); m_uType = variant_type::eTypeWString|variant_type::eFlagAllocate; m_uSize = (unsigned int)uLength; m_V.m_pwsz = (wchar_t*)allocate((m_uSize + 1u) * sizeof(wchar_t)); memcpy( m_V.m_pwsz, v, (m_uSize) * sizeof(wchar_t) );  m_V.m_pwsz[m_uSize] = 0; }
-   void _set_value( const utf8& v ) { clear(); m_uType = variant_type::eTypeUtf8String|variant_type::eFlagAllocate; m_uSize = v.m_uLength; m_V.m_pbsz = (char*)allocate( m_uSize + 1u ); memcpy( m_V.m_pbsz, v.m_pbsz, m_uSize + 1u ); }
-   void _set_value( const utf8& v, unsigned int uType ) { clear(); m_uType = uType|variant_type::eFlagAllocate; m_uSize = v.m_uLength; m_V.m_pbsz = (char*)allocate( m_uSize + 1u ); memcpy( m_V.m_pbsz, v.m_pbsz, m_uSize + 1u ); }
+   void _set_value( const char* v ) { clear(); m_uType = variant_type::eTypeString; m_uSize = (unsigned int)strlen(v); m_V.m_pbsz_const = v; }
+   void _set_value( const char* v, unsigned int  uLength ) { clear(); m_uType = variant_type::eTypeString; m_uSize = (unsigned int)uLength; m_V.m_pbsz_const = v; }
+   void _set_value( const wchar_t* v ) { clear(); m_uType = variant_type::eTypeWString; m_uSize = (unsigned int)wcslen(v); m_V.m_pwsz_const = v; }
+   void _set_value( const unsigned char* v, unsigned int  uLength ) { clear(); m_uType = variant_type::eTypeBinary; m_uSize = (unsigned int)uLength; m_V.m_pb = (unsigned char*)allocate(uLength); memcpy( m_V.m_pb, v, uLength ); }
+   void _set_value( const wchar_t* v, unsigned int uLength ) { clear(); m_uType = variant_type::eTypeWString; m_uSize = (unsigned int)uLength; m_V.m_pwsz_const = v; }
+   void _set_value( const variant_type::utf8& v ) { clear(); m_uType = variant_type::eTypeUtf8String; m_uSize = v.m_uLength; m_V.m_pbsz_const = v.m_pbsz; }
+   void _set_value(const variant_type::utf8& v, unsigned int uType) { clear(); m_uType = uType; m_uSize = v.m_uLength; m_V.m_pbsz_const = v.m_pbsz; }
+   void _set_value(const variant_type::uuid& v) { clear(); m_uType = variant_type::eTypeGuid; m_uSize = 16; m_V.m_pb_const = v.m_pbUuid; }
 
    // void _set_value( _variant v );
 
-   //void _set_binary_value( const uint8_t* v, unsigned int uLength ) { clear(); m_uType = variant_type::eTypeBinary|variant_type::eFlagAllocate; m_uSize = uLength; m_V.m_pb = (unsigned char*)allocate( m_uSize ); memcpy( m_V.m_pb, v, m_uSize ); }
+   //void _set_binary_value( const uint8_t* v, unsigned int uLength ) { clear(); m_uType = variant_type::eTypeBinary; m_uSize = uLength; m_V.m_pb = (unsigned char*)allocate( m_uSize ); memcpy( m_V.m_pb, v, m_uSize ); }
 
 //@}
 
 private:
    // common copy
-   void common_construct( const variant& o ) {
-      m_uType = o.m_uType;
-      m_uSize = o.m_uSize;
-      if( (m_uType & variant_type::eFlagAllocate) == 0 )
-      {
-         m_V.m_int64 = o.m_V.m_int64;
-      }
-      else if( type_number() == variant_type::eTypeNumberWString )
-      {
-         m_V.m_pwsz = (wchar_t*)allocate((m_uSize + 1u) * sizeof(wchar_t)); memcpy( m_V.m_pwsz, o.m_V.m_pwsz, (m_uSize + 1u) * sizeof(wchar_t) );
-      }
-      else if( type_number() == variant_type::eTypeNumberString || type_number() == variant_type::eTypeNumberUtf8String )
-      {
-         m_V.m_pbsz = (char*)allocate(m_uSize + 1u); memcpy( m_V.m_pbsz, o.m_V.m_pbsz, m_uSize + 1u );
-      }
-      else
-      {
-         m_V.m_pb = (unsigned char*)allocate(m_uSize); memcpy( m_V.m_pb, o.m_V.m_pb, m_uSize );
-      }
+   void common_construct( const variant_view& o ) {
+      ((uint64_t*)this)[0] = ((uint64_t*)&o)[0];
+      ((uint64_t*)this)[1] = ((uint64_t*)&o)[1];
    }
 
-   void move_construct( variant& o ) {
+   void move_construct( variant_view& o ) {
       ((uint64_t*)this)[0] = ((uint64_t*)&o)[0];
       ((uint64_t*)this)[1] = ((uint64_t*)&o)[1];
       o.m_uType = variant_type::eTypeUnknown;
@@ -457,7 +307,7 @@ public:
 *///@{
    //bool is_true() const throw();
    void clear() { 
-      if( (m_uType & variant_type::eFlagAllocate) == variant_type::eFlagAllocate ) { free_(); } 
+      //if( (m_uType & variant_type::eFlagAllocate) == variant_type::eFlagAllocate ) { free_(); } 
       m_uType = variant_type::eTypeUnknown; 
    }
    bool empty() const { return m_uType == variant_type::eTypeUnknown; }
@@ -468,8 +318,8 @@ protected:
 *///@{
    void* allocate( size_t uSize ) { return  ::malloc( uSize ); }
    void free_() { 
-      if( !(m_uType & variant_type::eFlagLengthPrefix) ) { ::free( m_V.m_p ); }
-      else                                               { ::free( ((unsigned char*)m_V.m_p - sizeof(uint32_t)) ); } 
+      //if( !(m_uType & variant_type::eFlagLengthPrefix) ) { ::free( m_V.m_p ); }
+      //else                                               { ::free( ((unsigned char*)m_V.m_p - sizeof(uint32_t)) ); } 
    }
    //@}
 
@@ -494,8 +344,9 @@ public:
       char8_t     m_putf8;
       char32_t    m_putf32;
       wchar_t*    m_pwsz;
-      wchar_t*    m_pwsz_const;
+      const wchar_t* m_pwsz_const;
       unsigned char* m_pb;
+      const unsigned char* m_pb_const;
       float       m_f;
       double      m_d;
       void*       m_p;   
@@ -540,7 +391,7 @@ public:
 //inline _variant::_variant( variant v ) { ((uint64_t*)this)[0] = ((uint64_t*)&v)[0]; ((uint64_t*)this)[1] = ((uint64_t*)&v)[1];  }
 
 // ä'static_assert( sizeof(_variant) == 16, "_variant size isn't 16 bytes" );
-static_assert( sizeof(variant) == 16, "variant size isn't 16 bytes" );
+static_assert( sizeof(variant_view) == 16, "variant size isn't 16 bytes" );
 
 
 
