@@ -28,8 +28,8 @@ bool variant::get_bool() const
    case eTypeNumberUInt16      : return m_V.m_uint16 != 0 ? true : false;
    case eTypeNumberUInt32      : return m_V.m_uint32 != 0 ? true : false;
    case eTypeNumberUInt64      : return m_V.m_uint64 != 0 ? true : false;
-   case eTypeNumberCFloat      : return m_V.m_f != 0.0 ? true : false;
-   case eTypeNumberCDouble     : return m_V.m_d != 0.0 ? true : false;
+   case eTypeNumberFloat       : return m_V.m_f != 0.0 ? true : false;
+   case eTypeNumberDouble      : return m_V.m_d != 0.0 ? true : false;
    case eTypeNumberGuid        : return false;
    case eTypeNumberBinary      : return false;
    case eTypeNumberUtf8String  : 
@@ -57,8 +57,8 @@ int variant::get_int() const
    case eTypeNumberUInt16      : return (int)m_V.m_uint16;
    case eTypeNumberUInt32      : return (int)m_V.m_uint32;
    case eTypeNumberUInt64      : return (int)m_V.m_uint64;
-   case eTypeNumberCFloat      : return (int)m_V.m_f;
-   case eTypeNumberCDouble     : return (int)m_V.m_d;
+   case eTypeNumberFloat       : return (int)m_V.m_f;
+   case eTypeNumberDouble      : return (int)m_V.m_d;
    case eTypeNumberGuid        : return 0;
    case eTypeNumberBinary      : return 0;
    case eTypeNumberUtf8String  : 
@@ -85,8 +85,8 @@ unsigned int variant::get_uint() const
    case eTypeNumberUInt16      : return (unsigned int)m_V.m_uint16;
    case eTypeNumberUInt32      : return (unsigned int)m_V.m_uint32;
    case eTypeNumberUInt64      : return (unsigned int)m_V.m_uint64;
-   case eTypeNumberCFloat      : return (unsigned int)m_V.m_f;
-   case eTypeNumberCDouble     : return (unsigned int)m_V.m_d;
+   case eTypeNumberFloat       : return (unsigned int)m_V.m_f;
+   case eTypeNumberDouble      : return (unsigned int)m_V.m_d;
    case eTypeNumberGuid        : return 0;
    case eTypeNumberBinary      : return 0;
    case eTypeNumberUtf8String  : 
@@ -114,8 +114,8 @@ int64_t variant::get_int64() const
    case eTypeNumberUInt16      : return (int64_t)m_V.m_uint16;
    case eTypeNumberUInt32      : return (int64_t)m_V.m_uint32;
    case eTypeNumberUInt64      : return (int64_t)m_V.m_uint64;
-   case eTypeNumberCFloat      : return (int64_t)m_V.m_f;
-   case eTypeNumberCDouble     : return (int64_t)m_V.m_d;
+   case eTypeNumberFloat       : return (int64_t)m_V.m_f;
+   case eTypeNumberDouble      : return (int64_t)m_V.m_d;
    case eTypeNumberGuid        : return 0;
    case eTypeNumberBinary      : return 0;
    case eTypeNumberUtf8String  : 
@@ -143,8 +143,8 @@ double variant::get_decimal() const
    case eTypeNumberUInt16      : return (double)m_V.m_uint16;
    case eTypeNumberUInt32      : return (double)m_V.m_uint32;
    case eTypeNumberUInt64      : return (double)m_V.m_uint64;
-   case eTypeNumberCFloat      : return (double)m_V.m_f;
-   case eTypeNumberCDouble     : return m_V.m_d;
+   case eTypeNumberFloat       : return (double)m_V.m_f;
+   case eTypeNumberDouble      : return m_V.m_d;
    case eTypeNumberGuid        : 
    case eTypeNumberBinary      :
    case eTypeNumberUtf8String  :
@@ -171,8 +171,8 @@ std::string variant::get_string() const
    case eTypeNumberUInt16      : return std::to_string( m_V.m_uint16 );
    case eTypeNumberUInt32      : return std::to_string( m_V.m_uint32 );
    case eTypeNumberUInt64      : return std::to_string( m_V.m_uint64 );
-   //case eTypeNumberCFloat      : return std::string( string_buffer::c_type( m_V.m_f,  gd_std::string::eConvertNoExponent ).c_str() );
-   //case eTypeNumberCDouble     : return std::string( string_buffer::c_type( m_V.m_d,  gd_std::string::eConvertNoExponent ).c_str() );
+   case eTypeNumberFloat       : return std::to_string( m_V.m_f );
+   case eTypeNumberDouble      : return std::to_string( m_V.m_d );
       /*
    case eTypeNumberGuid        : 
       {  assert( false );
@@ -275,8 +275,8 @@ std::wstring variant::get_wstring() const
    case eTypeNumberUInt16: return std::to_wstring(m_V.m_uint16);
    case eTypeNumberUInt32: return std::to_wstring(m_V.m_uint32);
    case eTypeNumberUInt64: return std::to_wstring(m_V.m_uint64);
-   case eTypeNumberCFloat: return std::to_wstring(m_V.m_f); 
-   case eTypeNumberCDouble: return std::to_wstring(m_V.m_d); 
+   case eTypeNumberFloat: return std::to_wstring(m_V.m_f); 
+   case eTypeNumberDouble: return std::to_wstring(m_V.m_d); 
    //case eTypeNumberUtf8String: return gd_std::wstring( gd_std::string::utf8( m_V.m_pbsz ) ).get_wstring();
    //case eTypeNumberString: return gd_std::wstring( m_V.m_pbsz ).get_wstring();
    case eTypeNumberWString: return std::wstring( m_V.m_pwsz, m_V.m_pwsz + m_uSize );

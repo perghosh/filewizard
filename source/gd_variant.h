@@ -43,28 +43,29 @@ namespace variant_type
     */
    enum enumTypeNumber
    {
-      eTypeNumberUnknown = 0,
-      eTypeNumberBit,
-      eTypeNumberBool,
-      eTypeNumberInt8,
-      eTypeNumberInt16,
-      eTypeNumberInt32,
-      eTypeNumberInt64,
-      eTypeNumberUInt8,
-      eTypeNumberUInt16,
-      eTypeNumberUInt32,
-      eTypeNumberUInt64,
-      eTypeNumberCFloat,
-      eTypeNumberCDouble,
-      eTypeNumberGuid,
-      eTypeNumberBinary,
-      eTypeNumberUtf8String,
-      eTypeNumberUtf32String,
+      eTypeNumberUnknown   = 0,
+      eTypeNumberBool      = 1,
+      eTypeNumberInt8      = 2,
+      eTypeNumberUInt8     = 3,
+      eTypeNumberInt16     = 4,
+      eTypeNumberUInt16    = 5,
+      eTypeNumberInt32     = 6,
+      eTypeNumberUInt32    = 7,
+      eTypeNumberInt64     = 8,
+      eTypeNumberUInt64    = 9,
+      eTypeNumberFloat     = 10,
+      eTypeNumberDouble    = 11,
+      eTypeNumberPointer   = 12,
+      eTypeNumberGuid      = 13,
       eTypeNumberString,
+      eTypeNumberUtf8String,
       eTypeNumberWString,
+      eTypeNumberUtf32String,
+      eTypeNumberBinary,
       eTypeNumberJson,
       eTypeNumberXml,
       eTypeNumberVoid,
+      eTypeNumberBit,
    };
 
 
@@ -86,8 +87,9 @@ namespace variant_type
       eTypeUInt16       = eTypeNumberUInt16   | eGroupInteger,
       eTypeUInt32       = eTypeNumberUInt32   | eGroupInteger,
       eTypeUInt64       = eTypeNumberUInt64   | eGroupInteger,
-      eTypeCFloat       = eTypeNumberCFloat   | eGroupDecimal,
-      eTypeCDouble      = eTypeNumberCDouble  | eGroupDecimal,
+      eTypeCFloat       = eTypeNumberFloat    | eGroupDecimal,
+      eTypeCDouble      = eTypeNumberDouble   | eGroupDecimal,
+      eTypePointer      = eTypeNumberPointer,
       eTypeGuid         = eTypeNumberGuid     | eGroupBinary,
       eTypeBinary       = eTypeNumberBinary   | eGroupBinary,
       eTypeUtf8String   = eTypeNumberUtf8String | eGroupString,
@@ -96,7 +98,7 @@ namespace variant_type
       eTypeWString      = eTypeNumberWString  | eGroupString,
       eTypeJson         = eTypeNumberJson     | eGroupString,
       eTypeXml          = eTypeNumberXml      | eGroupString,
-      eTypeVoid         = eTypeNumberVoid,
+      eTypeVoid         = eTypeNumberVoid
    };
 
    /*-----------------------------------------*/ /**
@@ -278,8 +280,8 @@ public:
    operator uint16_t() const  { assert(type_number() == variant_type::eTypeNumberUInt16); return m_V.m_uint16; }
    operator uint32_t() const  { assert(type_number() == variant_type::eTypeNumberUInt32); return m_V.m_uint32; }
    operator uint64_t() const  { assert(type_number() == variant_type::eTypeNumberUInt64); return m_V.m_uint64; }
-   operator float()  const    { assert(type_number() == variant_type::eTypeNumberCFloat); return m_V.m_f; }
-   operator double() const    { assert(type_number() == variant_type::eTypeNumberCDouble); return m_V.m_d; }
+   operator float()  const    { assert(type_number() == variant_type::eTypeNumberFloat); return m_V.m_f; }
+   operator double() const    { assert(type_number() == variant_type::eTypeNumberDouble); return m_V.m_d; }
    operator const char*() const { assert(type_number() == variant_type::eTypeNumberString || type_number() == variant_type::eTypeNumberUtf8String || type_number() == variant_type::eTypeNumberJson || type_number() == variant_type::eTypeNumberXml ); return m_V.m_pbsz; }
    operator const wchar_t*() const { assert(type_number() == variant_type::eTypeNumberWString); return m_V.m_pwsz; }
    operator const unsigned char*() const { assert(type_number()== variant_type::eTypeNumberBinary); return m_V.m_pb; }
@@ -518,8 +520,8 @@ public:
       case variant_type::enumTypeNumber::eTypeNumberUInt16: return "uint16";
       case variant_type::enumTypeNumber::eTypeNumberUInt32: return "uint32";
       case variant_type::enumTypeNumber::eTypeNumberUInt64: return "uint64";
-      case variant_type::enumTypeNumber::eTypeNumberCFloat: return "float";
-      case variant_type::enumTypeNumber::eTypeNumberCDouble: return "double";
+      case variant_type::enumTypeNumber::eTypeNumberFloat: return "float";
+      case variant_type::enumTypeNumber::eTypeNumberDouble: return "double";
       case variant_type::enumTypeNumber::eTypeNumberGuid:  return "guid";
       case variant_type::enumTypeNumber::eTypeNumberBinary:  return "binary";
       case variant_type::enumTypeNumber::eTypeNumberUtf8String: return "utf8";

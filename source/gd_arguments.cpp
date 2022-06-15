@@ -4,7 +4,7 @@
 
 #include "gd_arguments.h"  
 
-#pragma warning( disable : 4996 6054 6387 26812 ) // disable warnings for buffer that might not be zero terminated and 
+#pragma warning( disable : 4996 6054 6387 26812 33010 ) // disable warnings for buffer that might not be zero terminated and 
 
 #ifndef _GD_PARAM_BEGIN
 namespace gd::argument {
@@ -15,7 +15,7 @@ _GD_PARAM_BEGIN
 arguments::pointer arguments::move_to_value(pointer pPosition)
 {                                                                                assert( pPosition != nullptr );
    enumCType eType = (enumCType)*pPosition;                                      // get section type
-   if( eType == eCType_ParameterName )
+   if( eType == eType_ParameterName )
    {
       pPosition++;
       uint8_t uNameLength = *pPosition + 1;                                      // get name length and add one for byte that holds how many characters name has (it is not zero based)
@@ -28,7 +28,7 @@ arguments::pointer arguments::move_to_value(pointer pPosition)
 arguments::const_pointer arguments::move_to_value(const_pointer pPosition)
 {
    enumCType eType = (enumCType)*pPosition;                                      // get section type
-   if( eType == eCType_ParameterName )
+   if( eType == eType_ParameterName )
    {
       pPosition++;
       uint8_t uNameLength = *pPosition + 1;                                      // get name length and add one for byte that holds how many characters name has (it is not zero based)
@@ -51,22 +51,22 @@ bool arguments::compare_name_s(const_pointer pPosition, std::string_view stringN
 }
 
 static uint8_t ctype_size[arguments::CType_MAX] = {
-   0,       // eCTypeNone = 0,
-   1,       // eCTypeBool = 1,
-   1,       // eCTypeInt8 = 2,
-   1,       // eCTypeUInt8,
-   2,       // eCTypeInt16,
-   2,       // eCTypeUInt16,
-   4,       // eCTypeInt32,
-   4,       // eCTypeUInt32,
-   8,       // eCTypeInt64,
-   8,       // eCTypeUInt64,
+   0,       // eTypeNumberUnknown = 0,
+   1,       // eTypeNumberBool = 1,
+   1,       // eCTypeNumberInt8 = 2,
+   1,       // eCTypeNumberUInt8,
+   2,       // eCTypeNumberInt16,
+   2,       // eCTypeNumberUInt16,
+   4,       // eCTypeNumberInt32,
+   4,       // eCTypeNumberUInt32,
+   8,       // eCTypeNumberInt64,
+   8,       // eCTypeNumberUInt64,
 
-   sizeof(float), // eCTypeFloat,
-   sizeof(double),// eCTypeDouble,
+   sizeof(float), // eTypeNumberFloat,
+   sizeof(double),// eTypeNumberDouble,
 
-   sizeof(void*), //eCTypePointer,
-   16,      // eCTypeBinaryUuid   
+   sizeof(void*), //eTypeNumberPointer,
+   16,      // eTypeNumberGuid   
 };
 
 
@@ -125,7 +125,8 @@ inline void _binary_to_hex(CHAR* pTPosition, const uint8_t* pBytes, unsigned uLe
  */
 unsigned int arguments::argument::length() const
 {
-   if( type() < arguments::eCTypeString ) return ctype_size[type()];
+   auto eTypeNumber = type_number();
+   if( eTypeNumber < arguments::eTypeNumberString ) { return ctype_size[(unsigned)eTypeNumber]; }
    else
    {
       if( ctype() & eValueLength )
@@ -133,7 +134,7 @@ unsigned int arguments::argument::length() const
          auto uSize = *(uint32_t*)(m_unionValue.puch - 4);                       assert(uSize < 0x00A00000); // realistic
          return uSize;
       }
-      else if( type() == eCTypeWString ) return (unsigned int)wcslen(m_unionValue.pwsz) * 2 + 2;
+      else if( eTypeNumber == eTypeNumberWString ) return (unsigned int)wcslen(m_unionValue.pwsz) * 2 + 2;
 
       return (unsigned int)strlen(m_unionValue.pbsz) + 1;
    }
@@ -192,49 +193,49 @@ int arguments::argument::get_int() const
 {
    int iValue = 0;
 
-   switch( type_s( m_eCType) )
+   switch( type_number_s( m_eType) )
    {
-   case arguments::eCTypeNone:
+   case arguments::eTypeNumberUnknown:
       iValue = 0;
       break;
-   case arguments::eCTypeBool :
+   case arguments::eTypeNumberBool :
       iValue = ( m_unionValue.b == true ? 1 : 0 );
       break;
-   case arguments::eCTypeInt8:
+   case arguments::eTypeNumberInt8:
       iValue = (int)m_unionValue.v_int8;
       break;
-   case arguments::eCTypeUInt8:
+   case arguments::eTypeNumberUInt8:
       iValue = (int)m_unionValue.v_uint8;
       break;
-   case arguments::eCTypeInt16 :
+   case arguments::eTypeNumberInt16 :
       iValue = (int)m_unionValue.v_int16;
       break;
-   case arguments::eCTypeUInt16:
+   case arguments::eTypeNumberUInt16:
       iValue = (int)m_unionValue.v_uint16;
       break;
-   case arguments::eCTypeInt32 :
+   case arguments::eTypeNumberInt32 :
       iValue = (int)m_unionValue.v_int32;
       break;
-   case arguments::eCTypeUInt32 :
+   case arguments::eTypeNumberUInt32 :
       iValue = (int)m_unionValue.v_uint32;
       break;
-   case arguments::eCTypeInt64 :
+   case arguments::eTypeNumberInt64 :
       iValue = (int)m_unionValue.v_int64;
       break;
-   case arguments::eCTypeUInt64 :
+   case arguments::eTypeNumberUInt64 :
       iValue = (int)m_unionValue.v_uint64;
       break;
-   case arguments::eCTypeFloat :
+   case arguments::eTypeNumberFloat :
       iValue = (int)m_unionValue.f;
       break;
-   case arguments::eCTypeDouble :
+   case arguments::eTypeNumberDouble :
       iValue = (int)m_unionValue.d;
       break;
-   case arguments::eCTypeString :
-   case arguments::eCTypeUtf8String :
+   case arguments::eTypeNumberString :
+   case arguments::eTypeNumberUtf8String :
       iValue = atoi( m_unionValue.pbsz );
       break;
-   case arguments::eCTypeWString :
+   case arguments::eTypeNumberWString :
       iValue = _wtoi( m_unionValue.pwsz );
       break;
    default:
@@ -253,49 +254,49 @@ unsigned int arguments::argument::get_uint() const
 {
    unsigned int uValue = 0;
 
-   switch( type_s( m_eCType) )
+   switch( type_number_s( m_eType) )
    {
-   case arguments::eCTypeNone:
+   case arguments::eTypeNumberUnknown:
       uValue = 0;
       break;
-   case arguments::eCTypeBool:
+   case arguments::eTypeNumberBool:
       uValue = (m_unionValue.b == true ? 1 : 0);
       break;
-   case arguments::eCTypeInt8:
+   case arguments::eTypeNumberInt8:
       uValue = (unsigned int)m_unionValue.v_int8;
       break;
-   case arguments::eCTypeUInt8:
+   case arguments::eTypeNumberUInt8:
       uValue = (unsigned int)m_unionValue.v_uint8;
       break;
-   case arguments::eCTypeInt16:
+   case arguments::eTypeNumberInt16:
       uValue = (unsigned int)m_unionValue.v_int16;
       break;
-   case arguments::eCTypeUInt16:
+   case arguments::eTypeNumberUInt16:
       uValue = (unsigned int)m_unionValue.v_uint16;
       break;
-   case arguments::eCTypeInt32:
+   case arguments::eTypeNumberInt32:
       uValue = (unsigned int)m_unionValue.v_int32;
       break;
-   case arguments::eCTypeUInt32:
+   case arguments::eTypeNumberUInt32:
       uValue = (unsigned int)m_unionValue.v_uint32;
       break;
-   case arguments::eCTypeInt64:
+   case arguments::eTypeNumberInt64:
       uValue = (unsigned int)m_unionValue.v_int64;
       break;
-   case arguments::eCTypeUInt64:
+   case arguments::eTypeNumberUInt64:
       uValue = (unsigned int)m_unionValue.v_uint64;
       break;
-   case arguments::eCTypeFloat:
+   case arguments::eTypeNumberFloat:
       uValue = (unsigned int)m_unionValue.f;
       break;
-   case arguments::eCTypeDouble:
+   case arguments::eTypeNumberDouble:
       uValue = (unsigned int)m_unionValue.d;
       break;
-   case arguments::eCTypeString:
-   case arguments::eCTypeUtf8String:
+   case arguments::eTypeNumberString:
+   case arguments::eTypeNumberUtf8String:
       uValue = strtoul(m_unionValue.pbsz, nullptr, 10);
       break;
-   case arguments::eCTypeWString:
+   case arguments::eTypeNumberWString:
       uValue = wcstoul(m_unionValue.pwsz, nullptr, 10);
       break;
    default:
@@ -314,49 +315,49 @@ int64_t arguments::argument::get_int64() const
 {
    int64_t iValue = 0;
 
-   switch( type_s( m_eCType) )
+   switch( type_number_s( m_eType) )
    {
-   case arguments::eCTypeNone:
+   case arguments::eTypeNumberUnknown:
       iValue = 0;
       break;
-   case arguments::eCTypeBool :
+   case arguments::eTypeNumberBool :
       iValue = ( m_unionValue.b == true ? 1 : 0 );
       break;
-   case arguments::eCTypeInt8:
+   case arguments::eTypeNumberInt8:
       iValue = (int64_t)m_unionValue.v_int8;
       break;
-   case arguments::eCTypeUInt8:
+   case arguments::eTypeNumberUInt8:
       iValue = (int64_t)m_unionValue.v_uint8;
       break;
-   case arguments::eCTypeInt16 :
+   case arguments::eTypeNumberInt16 :
       iValue = (int64_t)m_unionValue.v_int16;
       break;
-   case arguments::eCTypeUInt16:
+   case arguments::eTypeNumberUInt16:
       iValue = (int64_t)m_unionValue.v_uint16;
       break;
-   case arguments::eCTypeInt32 :
+   case arguments::eTypeNumberInt32 :
       iValue = (int64_t)m_unionValue.v_int32;
       break;
-   case arguments::eCTypeUInt32 :
+   case arguments::eTypeNumberUInt32 :
       iValue = (int64_t)m_unionValue.v_uint32;
       break;
-   case arguments::eCTypeInt64 :
+   case arguments::eTypeNumberInt64 :
       iValue = (int64_t)m_unionValue.v_int64;
       break;
-   case arguments::eCTypeUInt64 :
+   case arguments::eTypeNumberUInt64 :
       iValue = (int64_t)m_unionValue.v_uint64;
       break;
-   case arguments::eCTypeFloat :
+   case arguments::eTypeNumberFloat :
       iValue = (int64_t)m_unionValue.f;
       break;
-   case arguments::eCTypeDouble :
+   case arguments::eTypeNumberDouble :
       iValue = (int64_t)m_unionValue.d;
       break;
-   case arguments::eCTypeString :
-   case arguments::eCTypeUtf8String :
+   case arguments::eTypeNumberString :
+   case arguments::eTypeNumberUtf8String :
       iValue = _atoi64( m_unionValue.pbsz );
       break;
-   case arguments::eCTypeWString :
+   case arguments::eTypeNumberWString :
       iValue = _wtoll( m_unionValue.pwsz );
       break;
    default:
@@ -374,49 +375,49 @@ double arguments::argument::get_double() const
 {
    double dValue = 0;
 
-   switch( type_s(m_eCType) )
+   switch( type_number_s(m_eType) )
    {
-   case arguments::eCTypeNone:
+   case arguments::eTypeNumberUnknown:
       dValue = 0;
       break;
-   case arguments::eCTypeBool:
+   case arguments::eTypeNumberBool:
       dValue = (m_unionValue.b == true ? 1 : 0);
       break;
-   case arguments::eCTypeInt8:
+   case arguments::eTypeNumberInt8:
       dValue = (double)m_unionValue.v_int8;
       break;
-   case arguments::eCTypeUInt8:
+   case arguments::eTypeNumberUInt8:
       dValue = (double)m_unionValue.v_uint8;
       break;
-   case arguments::eCTypeInt16:
+   case arguments::eTypeNumberInt16:
       dValue = (double)m_unionValue.v_int16;
       break;
-   case arguments::eCTypeUInt16:
+   case arguments::eTypeNumberUInt16:
       dValue = (double)m_unionValue.v_uint16;
       break;
-   case arguments::eCTypeInt32:
+   case arguments::eTypeNumberInt32:
       dValue = (double)m_unionValue.v_int32;
       break;
-   case arguments::eCTypeUInt32:
+   case arguments::eTypeNumberUInt32:
       dValue = (double)m_unionValue.v_uint32;
       break;
-   case arguments::eCTypeInt64:
+   case arguments::eTypeNumberInt64:
       dValue = (double)m_unionValue.v_int64;
       break;
-   case arguments::eCTypeUInt64:
+   case arguments::eTypeNumberUInt64:
       dValue = (double)m_unionValue.v_uint64;
       break;
-   case arguments::eCTypeFloat:
+   case arguments::eTypeNumberFloat:
       dValue = (double)m_unionValue.f;
       break;
-   case arguments::eCTypeDouble:
+   case arguments::eTypeNumberDouble:
       dValue = m_unionValue.d;
       break;
-   case arguments::eCTypeString:
-   case arguments::eCTypeUtf8String:
+   case arguments::eTypeNumberString:
+   case arguments::eTypeNumberUtf8String:
       dValue = std::strtod(m_unionValue.pbsz, nullptr);
       break;
-   case arguments::eCTypeWString:
+   case arguments::eTypeNumberWString:
       dValue = wcstod(m_unionValue.pwsz, nullptr);
       break;
    default:
@@ -434,7 +435,7 @@ double arguments::argument::get_double() const
 std::string arguments::argument::get_string() const
 {
    std::string s;
-   if( m_eCType == (arguments::eCTypeString | eValueLength) || m_eCType == (arguments::eCTypeUtf8String | eValueLength) )
+   if( m_eType == (arguments::eTypeNumberString | eValueLength) || m_eType == (arguments::eTypeNumberUtf8String | eValueLength) )
    {
       s = std::string_view(m_unionValue.pbsz, length() - 1); // try for string before converting other possible values (remember to not include last zero ending as text)
    }
@@ -447,69 +448,70 @@ std::string arguments::argument::get_string() const
 #else
       pbsz[0] = L'\0';
 #endif
-      switch( type_s( m_eCType) )
+      enumCType eCType = static_cast<enumCType>( type_number_s(m_eType) );
+      switch( eCType )
       {
-      case arguments::eCTypeBool:
+      case arguments::eTypeNumberBool:
          pbsz[0] = '0';
          pbsz[1] = '\0';
          if( m_unionValue.b == true ) pbsz[0] = '1';
          break;
-      case arguments::eCTypeInt8:
+      case arguments::eTypeNumberInt8:
          pbsz[0] = m_unionValue.ch;
          pbsz[1] = '\0';
          break;
-      case arguments::eCTypeUInt8:
+      case arguments::eTypeNumberUInt8:
          sprintf(pbsz, "%u", (unsigned int)m_unionValue.uch);
          break;
-      case arguments::eCTypeInt16:
+      case arguments::eTypeNumberInt16:
          sprintf(pbsz, "%d", (short)m_unionValue.s);
          break;
-      case arguments::eCTypeUInt16:
+      case arguments::eTypeNumberUInt16:
          pbsz[0] = (char)m_unionValue.wch;
          pbsz[1] = '\0';
          break;
-      case arguments::eCTypeInt32:
+      case arguments::eTypeNumberInt32:
          sprintf(pbsz, "%d", (int)m_unionValue.v_int32);
          break;
-      case arguments::eCTypeUInt32:
+      case arguments::eTypeNumberUInt32:
          sprintf(pbsz, "%u", (unsigned int)m_unionValue.v_uint32);
          break;
-      case arguments::eCTypeInt64:
+      case arguments::eTypeNumberInt64:
          sprintf(pbsz, "%lld", m_unionValue.v_int64);
          break;
-      case arguments::eCTypeUInt64:
+      case arguments::eTypeNumberUInt64:
          sprintf(pbsz, "%llu", m_unionValue.v_uint64);
          break;
-      case arguments::eCTypeFloat:
+      case arguments::eTypeNumberFloat:
          sprintf(pbsz, "%g", (double)m_unionValue.f);
          break;
-      case arguments::eCTypeDouble:
+      case arguments::eTypeNumberDouble:
          sprintf(pbsz, "%g", m_unionValue.d);
          break;
-      case arguments::eCTypePointer:
+      case arguments::eTypeNumberPointer:
          // When storing pointer and get_string is called, it thinks that the pointer
          // is to char string. If you haven't set this to char pointer and runs get_string
          // there will be an error.
                                                                                  assert(strlen(m_unionValue.pbsz) < 0x000F0000); // realistic
          s = m_unionValue.pbsz;
          break;
-      case arguments::eCTypeString:
-      case arguments::eCTypeUtf8String:
+      case arguments::eTypeNumberString:
+      case arguments::eTypeNumberUtf8String:
       {
          s = std::string_view(m_unionValue.pbsz);
       }
       break;
-      case arguments::eCTypeWString:
+      case arguments::eTypeNumberWString:
       {
          gd::utf8::convert_utf16_to_uft8( reinterpret_cast<const uint16_t*>(m_unionValue.pwsz), s);
       }
       break;
-      case arguments::eCTypeBinary:
+      case arguments::eTypeNumberBinary:
       {
          get_binary_as_hex(s);
          return std::move(s);
       }
-      case arguments::eCTypeBinaryUuid:
+      case arguments::eTypeNumberGuid:
       {
          constexpr unsigned int uUuidSize = 16;
          //pbsz[uUuidSize] = '\0';
@@ -537,49 +539,49 @@ bool arguments::argument::is_true() const
 {
    bool bTrue = false;
 
-   switch( type_s(m_eCType) )
+   switch( type_number_s(m_eType) )
    {
-   case arguments::eCTypeNone:
+   case arguments::eTypeNumberUnknown:
       bTrue = false;
       break;
-   case arguments::eCTypeBool:
+   case arguments::eTypeNumberBool:
       bTrue = m_unionValue.b;
       break;
-   case arguments::eCTypeInt8:
+   case arguments::eTypeNumberInt8:
       bTrue = (m_unionValue.v_int8 != 0 ? true : false);
       break;
-   case arguments::eCTypeUInt8:
+   case arguments::eTypeNumberUInt8:
       bTrue = (m_unionValue.v_uint8 != 0 ? true : false);
       break;
-   case arguments::eCTypeInt16:
+   case arguments::eTypeNumberInt16:
       bTrue = (m_unionValue.v_int16 != 0 ? true : false);
       break;
-   case arguments::eCTypeUInt16:
+   case arguments::eTypeNumberUInt16:
       bTrue = (m_unionValue.v_uint16 != 0 ? true : false);
       break;
-   case arguments::eCTypeInt32:
+   case arguments::eTypeNumberInt32:
       bTrue = (m_unionValue.v_int32 != 0 ? true : false);
       break;
-   case arguments::eCTypeUInt32:
+   case arguments::eTypeNumberUInt32:
       bTrue = (m_unionValue.v_uint32 != 0 ? true : false);
       break;
-   case arguments::eCTypeInt64:
+   case arguments::eTypeNumberInt64:
       bTrue = (m_unionValue.v_int64 != 0 ? true : false);
       break;
-   case arguments::eCTypeUInt64:
+   case arguments::eTypeNumberUInt64:
       bTrue = (m_unionValue.v_uint64 != 0 ? true : false);
       break;
-   case arguments::eCTypeFloat:
+   case arguments::eTypeNumberFloat:
       bTrue = (m_unionValue.f != 0.0 ? true : false);
       break;
-   case arguments::eCTypeDouble:
+   case arguments::eTypeNumberDouble:
       bTrue = (m_unionValue.d != 0.0 ? true : false);
       break;
-   case arguments::eCTypeString:
-   case arguments::eCTypeUtf8String:
+   case arguments::eTypeNumberString:
+   case arguments::eTypeNumberUtf8String:
       bTrue = (m_unionValue.pbsz != nullptr && *m_unionValue.pbsz != '\0' ? true : false);
       break;
-   case arguments::eCTypeWString:
+   case arguments::eTypeNumberWString:
       bTrue = (m_unionValue.pwsz != nullptr && *m_unionValue.pbsz != L'\0' ? true : false);
       break;
    default:
@@ -591,8 +593,8 @@ bool arguments::argument::is_true() const
 
 void arguments::argument_edit::set(argument argumentSet)
 {
-   auto eType = argumentSet.type();
-   if( is_type_fixed_size_s(eType) == true && eType == type() )
+   auto eType = argumentSet.type_number();
+   if( is_type_fixed_size_s(eType) == true && eType == type_number() )
    {
       auto pValueData = m_pValue + 1;                                            // move past type to data
       unsigned uSize = ctype_size[eType];
@@ -683,13 +685,14 @@ arguments& arguments::append( param_type uType, const_pointer pBuffer, unsigned 
 arguments& arguments::append(const char* pbszName, uint32_t uNameLength, param_type uType, const_pointer pBuffer, unsigned int uLength)
 {                                                                                assert(strlen(pbszName) < 255); assert(m_uLength < 0xffffff); assert(uLength < 0xffffff);
 #ifdef _DEBUG
-   enumCType debug_eCType = (enumCType)(uType & ~CType_MASK);                    // get absolute variable type
+   enumCType debug_eCType = (enumCType)(uType & ~eTypeNumber_MASK);              // get absolute variable type
 #endif // _DEBUG
 
    // reserve data for name, length for name, name type and data type
+   // [current length][data length][name length][type + length + zero ending (=param_type*3)][length value if data isn't primitive type]
    reserve(m_uLength + uLength + uNameLength + sizeof(param_type) * 3 + sizeof(uint32_t));
 
-   m_pBuffer[m_uLength] = eCType_ParameterName;                                  // set name type
+   m_pBuffer[m_uLength] = eType_ParameterName;                                   // set name type
    m_uLength++;
    m_pBuffer[m_uLength] = (uint8_t)uNameLength;                                  // set length for name
    m_uLength++;
@@ -703,14 +706,14 @@ arguments& arguments::append(const char* pbszName, uint32_t uNameLength, param_t
    {
       memcpy(&m_pBuffer[m_uLength], pBuffer, uLength);
       m_uLength += uLength;
-
+                                                                                 assert(m_uLength <= m_uBufferLength);
       return *this;
    }
 
    *(uint32_t*)&m_pBuffer[m_uLength] = (uint32_t)uLength;                        // set length for data
    m_uLength += sizeof(uint32_t);
    memcpy(&m_pBuffer[m_uLength], pBuffer, uLength);                              // copy data
-   m_uLength += uLength;                                                         assert(m_uLength < m_uBufferLength);
+   m_uLength += uLength;                                                         assert(m_uLength <= m_uBufferLength);
 
    return *this;
 }
@@ -1135,39 +1138,39 @@ arguments::argument arguments::get_argument(unsigned int uIndex) const
 
 /*----------------------------------------------------------------------------- compare_argument_s */ /**
  * compare to argument values if equal
- * \param argument1 first argument that is compared
+ * \param v1 first argument that is compared
  * \param argument2 second argument to compare
  * \return bool true if equal, false if not
  */
 bool arguments::compare_argument_s(const argument& argument1, const argument& argument2)
 {
-   auto eCType = argument1.type();
-   if( eCType != argument2.type() ) return false;
-   switch( eCType )
+   auto eType = argument1.type_number();
+   if( eType != argument2.type_number() ) return false;
+   switch( eType )
    {
-   case arguments::eCTypeNone: return true;
-   case arguments::eCTypeBool: return argument1.m_unionValue.b == argument2.m_unionValue.b;
-   case arguments::eCTypeInt8: return argument1.m_unionValue.v_int8 == argument2.m_unionValue.v_int8;
-   case arguments::eCTypeUInt8: return argument1.m_unionValue.v_uint8 == argument2.m_unionValue.v_uint8;
-   case arguments::eCTypeInt16: return argument1.m_unionValue.v_int16 == argument2.m_unionValue.v_int16;
-   case arguments::eCTypeUInt16: return argument1.m_unionValue.v_uint16 == argument2.m_unionValue.v_uint16;
-   case arguments::eCTypeInt32: return argument1.m_unionValue.v_int32 == argument2.m_unionValue.v_int32;
-   case arguments::eCTypeUInt32: return argument1.m_unionValue.v_uint32 == argument2.m_unionValue.v_uint32;
-   case arguments::eCTypeInt64: return argument1.m_unionValue.v_int64 == argument2.m_unionValue.v_int64;
-   case arguments::eCTypeUInt64: return argument1.m_unionValue.v_uint64 == argument2.m_unionValue.v_uint64;
-   case arguments::eCTypePointer: return argument1.m_unionValue.v_uint64 == argument2.m_unionValue.v_uint64;
+   case arguments::eTypeNumberUnknown: return true;
+   case arguments::eTypeNumberBool: return argument1.m_unionValue.b == argument2.m_unionValue.b;
+   case arguments::eTypeNumberInt8: return argument1.m_unionValue.v_int8 == argument2.m_unionValue.v_int8;
+   case arguments::eTypeNumberUInt8: return argument1.m_unionValue.v_uint8 == argument2.m_unionValue.v_uint8;
+   case arguments::eTypeNumberInt16: return argument1.m_unionValue.v_int16 == argument2.m_unionValue.v_int16;
+   case arguments::eTypeNumberUInt16: return argument1.m_unionValue.v_uint16 == argument2.m_unionValue.v_uint16;
+   case arguments::eTypeNumberInt32: return argument1.m_unionValue.v_int32 == argument2.m_unionValue.v_int32;
+   case arguments::eTypeNumberUInt32: return argument1.m_unionValue.v_uint32 == argument2.m_unionValue.v_uint32;
+   case arguments::eTypeNumberInt64: return argument1.m_unionValue.v_int64 == argument2.m_unionValue.v_int64;
+   case arguments::eTypeNumberUInt64: return argument1.m_unionValue.v_uint64 == argument2.m_unionValue.v_uint64;
+   case arguments::eTypeNumberPointer: return argument1.m_unionValue.v_uint64 == argument2.m_unionValue.v_uint64;
       return argument1.m_unionValue.p == argument2.m_unionValue.p;
       break;
-   case arguments::eCTypeBinaryUuid: return argument1.m_unionValue.v_uint64 == argument2.m_unionValue.v_uint64;
+   case arguments::eTypeNumberGuid: return argument1.m_unionValue.v_uint64 == argument2.m_unionValue.v_uint64;
       return memcmp(argument1.m_unionValue.p, argument2.m_unionValue.p, 16) == 0;
       break;
-   case arguments::eCTypeFloat: return argument1.m_unionValue.f == argument2.m_unionValue.f;
-   case arguments::eCTypeDouble: return argument1.m_unionValue.d == argument2.m_unionValue.d;
-   case arguments::eCTypeString: 
-   case arguments::eCTypeUtf8String:
+   case arguments::eTypeNumberFloat: return argument1.m_unionValue.f == argument2.m_unionValue.f;
+   case arguments::eTypeNumberDouble: return argument1.m_unionValue.d == argument2.m_unionValue.d;
+   case arguments::eTypeNumberString: 
+   case arguments::eTypeNumberUtf8String:
       return strcmp(argument1.m_unionValue.pbsz, argument2.m_unionValue.pbsz) == 0;
       break;
-   case arguments::eCTypeWString:
+   case arguments::eTypeNumberWString:
       return wcscmp(argument1.m_unionValue.pwsz, argument2.m_unionValue.pwsz) == 0;
       break;
    }
@@ -1196,6 +1199,53 @@ bool arguments::compare_argument_group_s(const argument& argument1, const argume
 
 
 
+bool arguments::compare_argument_group_s(const argument& argument1, const gd::variant_view& VV2)
+{
+   if( argument1.is_number() == VV2.is_number() )
+   {
+      if( argument1.is_decimal() ) return argument1.get_double() == VV2.get_double();
+      else return argument1.get_int64() == VV2.get_int64();
+   }
+
+   return compare_s( argument1, VV2 );
+}
+
+bool arguments::compare_s(const argument& v1, const gd::variant_view v2)
+{
+   if( v1.type_number() != v2.type_number() ) return false;                      // type numbers matches between argument variant_view
+
+   switch( v1.type_number() )
+   {
+   case arguments::eTypeNumberUnknown: return true;
+   case arguments::eTypeNumberBool: return v1.m_unionValue.b == v2.m_V.b;
+   case arguments::eTypeNumberInt8: return v1.m_unionValue.v_int8 == v2.m_V.int8;
+   case arguments::eTypeNumberUInt8: return v1.m_unionValue.v_uint8 == v2.m_V.uint8;
+   case arguments::eTypeNumberInt16: return v1.m_unionValue.v_int16 == v2.m_V.int16;
+   case arguments::eTypeNumberUInt16: return v1.m_unionValue.v_uint16 == v2.m_V.uint16;
+   case arguments::eTypeNumberInt32: return v1.m_unionValue.v_int32 == v2.m_V.int32;
+   case arguments::eTypeNumberUInt32: return v1.m_unionValue.v_uint32 == v2.m_V.uint32;
+   case arguments::eTypeNumberInt64: return v1.m_unionValue.v_int64 == v2.m_V.int64;
+   case arguments::eTypeNumberUInt64: return v1.m_unionValue.v_uint64 == v2.m_V.uint64;
+   case arguments::eTypeNumberPointer: return v1.m_unionValue.v_uint64 == v2.m_V.uint64;
+      return v1.m_unionValue.p == v2.m_V.p;
+      break;
+   case arguments::eTypeNumberGuid: 
+      return memcmp(v1.m_unionValue.p, v2.m_V.p, 16) == 0;
+      break;
+   case arguments::eTypeNumberFloat: return v1.m_unionValue.f == v2.m_V.f;
+   case arguments::eTypeNumberDouble: return v1.m_unionValue.d == v2.m_V.d;
+   case arguments::eTypeNumberString:
+   case arguments::eTypeNumberUtf8String:
+      return strcmp(v1.m_unionValue.pbsz, v2.m_V.pbsz) == 0;
+      break;
+   case arguments::eTypeNumberWString:
+      return wcscmp(v1.m_unionValue.pwsz, v2.m_V.pwsz) == 0;
+      break;
+   }
+
+   return false;
+}
+
 /*----------------------------------------------------------------------------- get_param_s */ /**
  * return param for position iterator is pointing at
  * \param it position for returned param
@@ -1207,37 +1257,37 @@ arguments::argument arguments::get_argument_s(arguments::const_pointer pPosition
    pPosition++;
    switch( eCType )
    {
-   case arguments::eCTypeNone: return arguments::argument();
-   case arguments::eCTypeBool: return arguments::argument(*(bool*)pPosition);
-   case arguments::eCTypeInt8: return arguments::argument(*(int8_t*)pPosition);
-   case arguments::eCTypeUInt8: return arguments::argument(*(uint8_t*)pPosition);
-   case arguments::eCTypeInt16: return arguments::argument(*(int16_t*)pPosition);
-   case arguments::eCTypeUInt16: return arguments::argument(*(uint16_t*)pPosition);
-   case arguments::eCTypeInt32: return arguments::argument(*(int32_t*)pPosition);
-   case arguments::eCTypeUInt32: return arguments::argument(*(uint32_t*)pPosition);
-   case arguments::eCTypeInt64: return arguments::argument(*(int64_t*)pPosition);
-   case arguments::eCTypeUInt64: return arguments::argument(*(uint64_t*)pPosition);
-   case arguments::eCTypeFloat: return arguments::argument(*(float*)pPosition);
-   case arguments::eCTypeDouble: return arguments::argument(*(double*)pPosition);
+   case arguments::eTypeNumberUnknown: return arguments::argument();
+   case arguments::eTypeNumberBool: return arguments::argument(*(bool*)pPosition);
+   case arguments::eTypeNumberInt8: return arguments::argument(*(int8_t*)pPosition);
+   case arguments::eTypeNumberUInt8: return arguments::argument(*(uint8_t*)pPosition);
+   case arguments::eTypeNumberInt16: return arguments::argument(*(int16_t*)pPosition);
+   case arguments::eTypeNumberUInt16: return arguments::argument(*(uint16_t*)pPosition);
+   case arguments::eTypeNumberInt32: return arguments::argument(*(int32_t*)pPosition);
+   case arguments::eTypeNumberUInt32: return arguments::argument(*(uint32_t*)pPosition);
+   case arguments::eTypeNumberInt64: return arguments::argument(*(int64_t*)pPosition);
+   case arguments::eTypeNumberUInt64: return arguments::argument(*(uint64_t*)pPosition);
+   case arguments::eTypeNumberFloat: return arguments::argument(*(float*)pPosition);
+   case arguments::eTypeNumberDouble: return arguments::argument(*(double*)pPosition);
 
-   case arguments::eCTypePointer: return arguments::argument((void*)(*(size_t*)pPosition));
+   case arguments::eTypeNumberPointer: return arguments::argument((void*)(*(size_t*)pPosition));
 
-   case arguments::eCTypeBinaryUuid: return arguments::argument((const uint8_t*)pPosition, eCTypeBinaryUuid);
+   case arguments::eTypeNumberGuid: return arguments::argument((const uint8_t*)pPosition, eTypeGuid);
 
    // ## values that has value length stored in front of value, this is a four byte value
 
 
-   case arguments::eCTypeString: return arguments::argument(eCType, (const char*)(pPosition));
-   case arguments::eCTypeUtf8String: return arguments::argument(eCType, (const char*)(pPosition));
-   case arguments::eCTypeWString: return arguments::argument(eCType, (const wchar_t*)(pPosition));
-   case arguments::eCTypeBinary: return arguments::argument(eCType, (const uint8_t*)pPosition);
+   case arguments::eTypeNumberString: return arguments::argument(eTypeString, (const uint8_t*)(const char*)(pPosition));
+   case arguments::eTypeNumberUtf8String: return arguments::argument(eTypeUtf8String, (const uint8_t*)(const char*)(pPosition));
+   case arguments::eTypeNumberWString: return arguments::argument(eTypeWString, (const uint8_t*)(const wchar_t*)(pPosition));
+   case arguments::eTypeNumberBinary: return arguments::argument(eTypeGuid, (const uint8_t*)pPosition);
 
-   case (arguments::eCTypeString | arguments::eValueLength): return arguments::argument(eCType, (const char*)(pPosition + sizeof(uint32_t)));
-   case (arguments::eCTypeUtf8String | arguments::eValueLength): return arguments::argument(eCType, (const char*)(pPosition + sizeof(uint32_t)));
-   case (arguments::eCTypeWString | arguments::eValueLength): return arguments::argument(eCType, (const wchar_t*)(pPosition + sizeof(uint32_t)));
-   case (arguments::eCTypeBinary | arguments::eValueLength): return arguments::argument(eCType, (const uint8_t*)pPosition + sizeof(uint32_t));
+   case (arguments::eTypeNumberString | arguments::eValueLength): return arguments::argument(eTypeString | arguments::eValueLength, (const uint8_t*)(const char*)(pPosition + sizeof(uint32_t)));
+   case (arguments::eTypeNumberUtf8String | arguments::eValueLength): return arguments::argument(eTypeUtf8String | arguments::eValueLength, (const uint8_t*)(const char*)(pPosition + sizeof(uint32_t)));
+   case (arguments::eTypeNumberWString | arguments::eValueLength): return arguments::argument(eTypeWString | arguments::eValueLength, (const uint8_t*)(const wchar_t*)(pPosition + sizeof(uint32_t)));
+   case (arguments::eTypeNumberBinary | arguments::eValueLength): return arguments::argument(eTypeBinary | arguments::eValueLength, (const uint8_t*)pPosition + sizeof(uint32_t));
 
-   case arguments::eCType_ParameterName:
+   case arguments::eType_ParameterName:
    {
       pPosition += *pPosition;
       pPosition++;
@@ -1301,7 +1351,7 @@ arguments::pointer arguments::next_s(pointer pPosition)
    pPosition = arguments::move_to_value(pPosition);
    uint8_t uType = *pPosition;                                                   // get value type
    pPosition++;                                                                  // move past type
-   if( (uType & CType_MASK) == 0 )
+   if( (uType & eType_MASK) == 0 )
    {
       pPosition += ctype_size[uType];
    }
@@ -1328,14 +1378,14 @@ arguments::const_pointer arguments::next_s(const_pointer pPosition)
    pPosition = arguments::move_to_value(pPosition);
    uint8_t uType = *pPosition;                                                   // get value type
    pPosition++;                                                                  // move past type
-   if( (uType & CType_MASK) == 0 )
+   if( (uType & eType_MASK) == 0 )
    {
-      if( uType < eCTypeString ) { pPosition += ctype_size[uType]; }
+      if( uType < eTypeNumberString ) { pPosition += ctype_size[uType]; }
       else
       {
-         if( uType == eCTypeString ||
-            uType == eCTypeUtf8String ) pPosition += strlen((const char*)pPosition) + 1;
-         else if( uType == eCTypeString ) pPosition += wcslen((const wchar_t*)pPosition) * 2 + 2;
+         if( uType == eTypeNumberString ||
+            uType == eTypeNumberUtf8String ) pPosition += strlen((const char*)pPosition) + 1;
+         else if( uType == eTypeNumberString ) pPosition += wcslen((const wchar_t*)pPosition) * 2 + 2;
          else assert(false);
       }
    }
@@ -1376,7 +1426,7 @@ unsigned int arguments::sizeof_s(const argument& argumentValue)
 std::string arguments::print_s(const_pointer pPosition, uint32_t uPairType)
 {
    std::string stringArgument;
-   if( *pPosition == eCType_ParameterName )
+   if( *pPosition == eType_ParameterName )
    {
       if( uPairType & ePairTypeKey )
       {
@@ -1422,46 +1472,46 @@ gd::variant arguments::get_variant_s(const arguments::argument& argumentValue)
 {
    const auto& value = argumentValue.get_value();
 
-   switch( type_s(argumentValue.m_eCType) )
+   switch( type_number_s(argumentValue.m_eType) )
    {
-   case arguments::eCTypeBool:
+   case arguments::eTypeNumberBool:
       return gd::variant(value.b);
       break;
-   case arguments::eCTypeInt8:
+   case arguments::eTypeNumberInt8:
       return gd::variant(value.v_int8);
       break;
-   case arguments::eCTypeUInt8:
+   case arguments::eTypeNumberUInt8:
       return gd::variant(value.v_uint8);
       break;
-   case arguments::eCTypeInt16:
+   case arguments::eTypeNumberInt16:
       return gd::variant(value.v_int16);
       break;
-   case arguments::eCTypeUInt16:
+   case arguments::eTypeNumberUInt16:
       return gd::variant(value.v_uint16);
       break;
-   case arguments::eCTypeInt32:
+   case arguments::eTypeNumberInt32:
       return gd::variant(value.v_int32);
       break;
-   case arguments::eCTypeUInt32:
+   case arguments::eTypeNumberUInt32:
       return gd::variant(value.v_uint32);
       break;
-   case arguments::eCTypeInt64:
+   case arguments::eTypeNumberInt64:
       return gd::variant(value.v_int64);
       break;
-   case arguments::eCTypeUInt64:
+   case arguments::eTypeNumberUInt64:
       return gd::variant(value.v_uint64);
       break;
-   case arguments::eCTypeFloat:
+   case arguments::eTypeNumberFloat:
       return gd::variant(value.f);
       break;
-   case arguments::eCTypeDouble:
+   case arguments::eTypeNumberDouble:
       return gd::variant(value.d);
       break;
-   case arguments::eCTypeString:
-   case arguments::eCTypeUtf8String:
+   case arguments::eTypeNumberString:
+   case arguments::eTypeNumberUtf8String:
       return gd::variant(value.pbsz, (size_t)argumentValue.length());
       break;
-   case arguments::eCTypeWString:
+   case arguments::eTypeNumberWString:
       return gd::variant(value.pwsz, (size_t)argumentValue.length());
       break;
    default:
@@ -1481,46 +1531,48 @@ gd::variant arguments::get_variant_s(const arguments::argument& argumentValue, b
 {
    const auto& value = argumentValue.get_value();
 
-   switch( type_s(argumentValue.m_eCType) )
+   switch( type_number_s(argumentValue.m_eType) )
    {
-   case arguments::eCTypeBool:
+   case arguments::eTypeNumberBool:
       return gd::variant(value.b);
       break;
-   case arguments::eCTypeInt8:
+   case arguments::eTypeNumberInt8:
       return gd::variant(value.v_int8);
       break;
-   case arguments::eCTypeUInt8:
+   case arguments::eTypeNumberUInt8:
       return gd::variant(value.v_uint8);
       break;
-   case arguments::eCTypeInt16:
+   case arguments::eTypeNumberInt16:
       return gd::variant(value.v_int16);
       break;
-   case arguments::eCTypeUInt16:
+   case arguments::eTypeNumberUInt16:
       return gd::variant(value.v_uint16);
       break;
-   case arguments::eCTypeInt32:
+   case arguments::eTypeNumberInt32:
       return gd::variant(value.v_int32);
       break;
-   case arguments::eCTypeUInt32:
+   case arguments::eTypeNumberUInt32:
       return gd::variant(value.v_uint32);
       break;
-   case arguments::eCTypeInt64:
+   case arguments::eTypeNumberInt64:
       return gd::variant(value.v_int64);
       break;
-   case arguments::eCTypeUInt64:
+   case arguments::eTypeNumberUInt64:
       return gd::variant(value.v_uint64);
       break;
-   case arguments::eCTypeFloat:
+   case arguments::eTypeNumberFloat:
       return gd::variant(value.f);
       break;
-   case arguments::eCTypeDouble:
+   case arguments::eTypeNumberDouble:
       return gd::variant(value.d);
       break;
-   case arguments::eCTypeString:
-   case arguments::eCTypeUtf8String:
+   case arguments::eTypeNumberString:
       return gd::variant(value.pbsz, (size_t)argumentValue.length(), false);
       break;
-   case arguments::eCTypeWString:
+   case arguments::eTypeNumberUtf8String:
+      return gd::variant( variant::utf8( value.pbsz, (size_t)argumentValue.length() ) );
+      break;
+   case arguments::eTypeNumberWString:
       return gd::variant(value.pwsz, (size_t)argumentValue.length(), false);
       break;
    default:
@@ -1529,6 +1581,70 @@ gd::variant arguments::get_variant_s(const arguments::argument& argumentValue, b
 
    return variant();
 }
+
+/*----------------------------------------------------------------------------- get_variant_s */ /**
+ * Return argument value as variant_view
+ * \param argumentValue value that is returned as variant_view
+ * \return gd::variant_view value with argument value
+ */
+gd::variant_view arguments::get_variant_view_s(const arguments::argument& argumentValue)
+{
+   const auto& value = argumentValue.get_value();
+
+   switch( type_number_s(argumentValue.m_eType) )
+   {
+   case arguments::eTypeNumberBool:
+      return gd::variant_view(value.b);
+      break;
+   case arguments::eTypeNumberInt8:
+      return gd::variant_view(value.v_int8);
+      break;
+   case arguments::eTypeNumberUInt8:
+      return gd::variant_view(value.v_uint8);
+      break;
+   case arguments::eTypeNumberInt16:
+      return gd::variant_view(value.v_int16);
+      break;
+   case arguments::eTypeNumberUInt16:
+      return gd::variant_view(value.v_uint16);
+      break;
+   case arguments::eTypeNumberInt32:
+      return gd::variant_view(value.v_int32);
+      break;
+   case arguments::eTypeNumberUInt32:
+      return gd::variant_view(value.v_uint32);
+      break;
+   case arguments::eTypeNumberInt64:
+      return gd::variant_view(value.v_int64);
+      break;
+   case arguments::eTypeNumberUInt64:
+      return gd::variant_view(value.v_uint64);
+      break;
+   case arguments::eTypeNumberFloat:
+      return gd::variant_view(value.f);
+      break;
+   case arguments::eTypeNumberDouble:
+      return gd::variant_view(value.d);
+      break;
+   case arguments::eTypeNumberGuid:
+      return gd::variant_view(value.pbsz, (size_t)argumentValue.length());
+      break;
+   case arguments::eTypeNumberString:
+      return gd::variant_view(value.pbsz, (size_t)argumentValue.length());
+      break;
+   case arguments::eTypeNumberUtf8String:
+      return gd::variant_view( variant_type::utf8( value.pbsz, (size_t)argumentValue.length() ) );
+      break;
+   case arguments::eTypeNumberWString:
+      return gd::variant_view(value.pwsz, (size_t)argumentValue.length());
+      break;
+   default:
+      assert(false);
+   }
+
+   return variant_view();
+}
+
 
 arguments::argument arguments::get_argument_s(const gd::variant& variantValue)
 {
@@ -1561,10 +1677,10 @@ arguments::argument arguments::get_argument_s(const gd::variant& variantValue)
    case variant_type::eTypeNumberUInt64:
       return arguments::argument((uint64_t)variantValue);
       break;
-   case variant_type::eTypeNumberCFloat:
+   case variant_type::eTypeNumberFloat:
       return arguments::argument((float)variantValue);
       break;
-   case variant_type::eTypeNumberCDouble:
+   case variant_type::eTypeNumberDouble:
       return arguments::argument((double)variantValue);
       break;
    case variant_type::eTypeNumberString:

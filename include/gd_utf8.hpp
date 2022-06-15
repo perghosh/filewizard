@@ -19,6 +19,11 @@
 #include <type_traits>
 
 /*
+
+
+Links: https://github.com/nemtrif/utfcpp
+
+
 | method | description |
 | - | - |
 | character | return character number |
@@ -126,6 +131,8 @@ namespace gd {
             reinterpret_cast<UTF8_TYPE*>(std::get<2>(_result))
          );
       }
+      /// Convert Unicode buffer to stl string where text is stored in utf8 format
+      std::tuple<bool, const uint16_t*> convert_utf16_to_uft8(const uint16_t* pwszUtf16, std::string& stringUtf8);
 
       std::pair<bool, const uint8_t*> convert_ascii(const uint8_t* pbszFrom, uint8_t* pbszTo); // - convert_ascii
       template <typename UTF8_TYPE, typename TYPE>
@@ -154,7 +161,9 @@ namespace gd {
       */
       namespace move {
 
-         ///@{ 
+         /** \name NEXT OPERATIONS
+         moves to next...
+         *///@{ 
 
          // move to next utf8 character in buffer pointer points at
          const uint8_t* next(const uint8_t* pubszPosition); // ------------------------------------ next                                       
@@ -200,6 +209,23 @@ namespace gd {
             static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
             return reinterpret_cast<const UTF8_TYPE*>(next(reinterpret_cast<const uint8_t**>(ppubszPosition), uCount));
          };
+
+         // move pointer to next space character (space, carriage return, tab or new line)
+         const uint8_t* next_space(const uint8_t* pubszPosition); // ------------------------------ next_space
+         template <typename UTF8_TYPE>
+         const UTF8_TYPE* next_space(const UTF8_TYPE* pubszPosition) { // ------------------------- next_space
+            static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
+            return reinterpret_cast<const UTF8_TYPE*>(next_space(reinterpret_cast<const uint8_t*>(pubszPosition)));
+         };
+
+         // move pointer to next non space character
+         const uint8_t* next_non_space(const uint8_t* pubszPosition); // -------------------------- next_non_space
+         template <typename UTF8_TYPE>
+         const UTF8_TYPE* next_non_space(const UTF8_TYPE* pubszPosition) { // --------------------- next_non_space
+            static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
+            return reinterpret_cast<const UTF8_TYPE*>(next_non_space(reinterpret_cast<const uint8_t*>(pubszPosition)));
+         };
+
          ///@}
 
 

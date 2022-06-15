@@ -4,8 +4,15 @@
 #include <initializer_list>
 #include "gd_utf8.hpp"
 
+
 namespace gd { 
    namespace utf8 {
+
+      const uint8_t CHARACTER_TAB = 9;
+      const uint8_t CHARACTER_LINEFEED = 10;
+      const uint8_t CHARACTER_CARRAGERETURN = 13;
+      const uint8_t CHARACTER_SPACE = 32;
+
 
       const uint8_t pNeededByteCount[0x100] =
       {
@@ -249,6 +256,24 @@ namespace gd {
       }
 
 
+      std::tuple<bool, const uint16_t*> convert_utf16_to_uft8(const uint16_t* pwszUtf16, std::string& stringUtf8)
+      {
+         uint8_t puBuffer[SIZE32_MAX_UTF_SIZE + 1];
+         const uint16_t* pwszPosition = pwszUtf16;
+         while( *pwszPosition )
+         {
+            uint32_t uCharacter = gd::utf16::character(pwszPosition);
+            uint32_t uSize = size(static_cast<uint16_t>(*pwszPosition));
+            pwszPosition++;
+            uSize = convert(uCharacter, puBuffer);
+            stringUtf8.append(reinterpret_cast<const char*>(puBuffer), uSize);
+         }
+
+         return { true, pwszPosition };
+      }
+
+
+
       /**
        * @brief convert ascii text to utf8   
        * @param pbszFrom pointer to ascii text that will be converted
@@ -394,7 +419,7 @@ namespace gd {
           * @brief move to next character in utf8 buffer
           * @param pubszPosition pointer to position where movement starts
           * @return {const uint8_t*} new position
-         */
+          */
          const uint8_t* next(const uint8_t* pubszPosition)
          {
             if(*pubszPosition != '\0')
@@ -414,7 +439,7 @@ namespace gd {
           * @param pubszPosition pointer to current position in text
           * @param uCount number of characters to move
           * @return pointer to new position
-         */
+          */
          const uint8_t* next( const uint8_t* pubszPosition, uint32_t uCount )
          {
             while(uCount-- > 0) pubszPosition = next( pubszPosition );
@@ -426,7 +451,7 @@ namespace gd {
           * @param ppubszPosition pointer to pointer that is moved in text
           * @param uCount how much movement
           * @return {bool} true if pointer was moved, false if not
-         */
+          */
          bool next(const uint8_t** ppubszPosition, uint32_t uCount) {
             auto pubszPosition = *ppubszPosition;
             
@@ -443,13 +468,51 @@ namespace gd {
 
          }
 
+         /**
+          * @brief move pointer to next space
+          * @param pubszPosition pointer to string where first space is searched for
+          * @return {const uint8_t*} position to next position in text where space is found or end of string
+          */
+         const uint8_t* next_space(const uint8_t* pubszPosition)
+         {
+            const uint8_t* pubzNext = pubszPosition;
+            do
+            {
+               pubszPosition = pubzNext;
+               if( *pubszPosition <= CHARACTER_SPACE )
+               {
+                  if( *pubszPosition == CHARACTER_SPACE || *pubszPosition == CHARACTER_TAB || *pubszPosition == CHARACTER_LINEFEED || *pubszPosition == CHARACTER_CARRAGERETURN ) return pubszPosition;
+               }
+               pubzNext = next( pubszPosition );
+            } while( pubzNext != pubszPosition );
+
+            return pubzNext;
+         }
+
+         /**
+          * @brief move pointer to next non space character
+          * @param pubszPosition pointer to string where first non space is searched for
+          * @return {const uint8_t*} position to next position in text where non space is found or end of string
+          */
+         const uint8_t* next_non_space(const uint8_t* pubszPosition)
+         {
+            const uint8_t* pubzNext = pubszPosition;
+            do
+            {
+               pubszPosition = pubzNext;
+               if( *pubszPosition >= CHARACTER_SPACE ) return pubszPosition;
+               pubzNext = next( pubszPosition );
+            } while( pubzNext != pubszPosition );
+
+            return pubzNext;
+         }
 
 
          /**
           * @brief Move to previous character in utf8 buffer
           * @param pubszPosition pointer to position where movement starts
           * @return {const uint8_t*} new position
-         */
+          */
          const uint8_t* previous(const uint8_t* pubszPosition)
          {
             auto pubszTest = pubszPosition - 1;
@@ -467,7 +530,7 @@ namespace gd {
           * @param pubszPosition pointer to current position in text 
           * @param uCount number of characters to move
           * @return {const uint8_t*} pointer to new position
-         */
+          */
          const uint8_t* previous(const uint8_t* pubszPosition, uint32_t uCount)
          {
             while(uCount-- > 0) pubszPosition = previous(pubszPosition);
@@ -479,7 +542,7 @@ namespace gd {
           * @brief move to end of utf8 text
           * @param pubszPosition 
           * @return {const uint8_t*} pointer to utf8 text end
-         */
+          */
          const uint8_t* end(const uint8_t* pubszPosition)
          {
             while(*pubszPosition != '\0') pubszPosition++;

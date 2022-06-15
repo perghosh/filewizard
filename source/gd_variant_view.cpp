@@ -18,23 +18,23 @@ bool variant_view::get_bool() const
    switch( type_number() )
    {
    case eTypeNumberUnknown     : return false;
-   case eTypeNumberBit         : return m_V.m_int8 != 0 ? true : false;
-   case eTypeNumberBool        : return m_V.m_b;
-   case eTypeNumberInt8        : return m_V.m_int8 != 0 ? true : false;
-   case eTypeNumberInt16       : return m_V.m_int16 != 0 ? true : false;
-   case eTypeNumberInt32       : return m_V.m_int32 != 0 ? true : false;
-   case eTypeNumberInt64       : return m_V.m_int64 != 0 ? true : false;
-   case eTypeNumberUInt8       : return m_V.m_uint8 != 0 ? true : false;
-   case eTypeNumberUInt16      : return m_V.m_uint16 != 0 ? true : false;
-   case eTypeNumberUInt32      : return m_V.m_uint32 != 0 ? true : false;
-   case eTypeNumberUInt64      : return m_V.m_uint64 != 0 ? true : false;
-   case eTypeNumberCFloat      : return m_V.m_f != 0.0 ? true : false;
-   case eTypeNumberCDouble     : return m_V.m_d != 0.0 ? true : false;
+   case eTypeNumberBit         : return m_V.int8 != 0 ? true : false;
+   case eTypeNumberBool        : return m_V.b;
+   case eTypeNumberInt8        : return m_V.int8 != 0 ? true : false;
+   case eTypeNumberInt16       : return m_V.int16 != 0 ? true : false;
+   case eTypeNumberInt32       : return m_V.int32 != 0 ? true : false;
+   case eTypeNumberInt64       : return m_V.int64 != 0 ? true : false;
+   case eTypeNumberUInt8       : return m_V.uint8 != 0 ? true : false;
+   case eTypeNumberUInt16      : return m_V.uint16 != 0 ? true : false;
+   case eTypeNumberUInt32      : return m_V.uint32 != 0 ? true : false;
+   case eTypeNumberUInt64      : return m_V.uint64 != 0 ? true : false;
+   case eTypeNumberFloat       : return m_V.f != 0.0 ? true : false;
+   case eTypeNumberDouble      : return m_V.d != 0.0 ? true : false;
    case eTypeNumberGuid        : return false;
    case eTypeNumberBinary      : return false;
    case eTypeNumberUtf8String  : 
-   case eTypeNumberString      : return *m_V.m_pbsz != '\0' ? true : false;
-   case eTypeNumberWString     : return *m_V.m_pwsz != L'\0' ? true : false;
+   case eTypeNumberString      : return *m_V.pbsz != '\0' ? true : false;
+   case eTypeNumberWString     : return *m_V.pwsz != L'\0' ? true : false;
    default:                                                                      assert( false );
    }
 
@@ -47,23 +47,23 @@ int variant_view::get_int() const
    switch( type_number() )
    {
    case eTypeNumberUnknown     : return 0;
-   case eTypeNumberBit         : return (m_V.m_int8 & 0x01 ? 1 : 0);
-   case eTypeNumberBool        : return (m_V.m_b == true ? 1 : 0);
-   case eTypeNumberInt8        : return (int)m_V.m_int8;
-   case eTypeNumberInt16       : return (int)m_V.m_int16;
-   case eTypeNumberInt32       : return (int)m_V.m_int32;
-   case eTypeNumberInt64       : return (int)m_V.m_int64;
-   case eTypeNumberUInt8       : return (int)m_V.m_uint8;
-   case eTypeNumberUInt16      : return (int)m_V.m_uint16;
-   case eTypeNumberUInt32      : return (int)m_V.m_uint32;
-   case eTypeNumberUInt64      : return (int)m_V.m_uint64;
-   case eTypeNumberCFloat      : return (int)m_V.m_f;
-   case eTypeNumberCDouble     : return (int)m_V.m_d;
+   case eTypeNumberBit         : return (m_V.int8 & 0x01 ? 1 : 0);
+   case eTypeNumberBool        : return (m_V.b == true ? 1 : 0);
+   case eTypeNumberInt8        : return (int)m_V.int8;
+   case eTypeNumberInt16       : return (int)m_V.int16;
+   case eTypeNumberInt32       : return (int)m_V.int32;
+   case eTypeNumberInt64       : return (int)m_V.int64;
+   case eTypeNumberUInt8       : return (int)m_V.uint8;
+   case eTypeNumberUInt16      : return (int)m_V.uint16;
+   case eTypeNumberUInt32      : return (int)m_V.uint32;
+   case eTypeNumberUInt64      : return (int)m_V.uint64;
+   case eTypeNumberFloat       : return (int)m_V.f;
+   case eTypeNumberDouble      : return (int)m_V.d;
    case eTypeNumberGuid        : return 0;
    case eTypeNumberBinary      : return 0;
    case eTypeNumberUtf8String  : 
-   case eTypeNumberString      : return atoi( m_V.m_pbsz );
-   case eTypeNumberWString     : return _wtoi( m_V.m_pwsz );
+   case eTypeNumberString      : return atoi( m_V.pbsz );
+   case eTypeNumberWString     : return _wtoi( m_V.pwsz );
    default:                                                                      assert( false );
    }
 
@@ -75,23 +75,23 @@ unsigned int variant_view::get_uint() const
    switch( type_number() )
    {
    case eTypeNumberUnknown     : return 0;
-   case eTypeNumberBit         : return (m_V.m_int8 & 0x01 ? 1 : 0);
-   case eTypeNumberBool        : return (m_V.m_b == true ? 1 : 0);
-   case eTypeNumberInt8        : return (unsigned int)m_V.m_int8;
-   case eTypeNumberInt16       : return (unsigned int)m_V.m_int16;
-   case eTypeNumberInt32       : return (unsigned int)m_V.m_int32;
-   case eTypeNumberInt64       : return (unsigned int)m_V.m_int64;
-   case eTypeNumberUInt8       : return (unsigned int)m_V.m_uint8;
-   case eTypeNumberUInt16      : return (unsigned int)m_V.m_uint16;
-   case eTypeNumberUInt32      : return (unsigned int)m_V.m_uint32;
-   case eTypeNumberUInt64      : return (unsigned int)m_V.m_uint64;
-   case eTypeNumberCFloat      : return (unsigned int)m_V.m_f;
-   case eTypeNumberCDouble     : return (unsigned int)m_V.m_d;
+   case eTypeNumberBit         : return (m_V.int8 & 0x01 ? 1 : 0);
+   case eTypeNumberBool        : return (m_V.b == true ? 1 : 0);
+   case eTypeNumberInt8        : return (unsigned int)m_V.int8;
+   case eTypeNumberInt16       : return (unsigned int)m_V.int16;
+   case eTypeNumberInt32       : return (unsigned int)m_V.int32;
+   case eTypeNumberInt64       : return (unsigned int)m_V.int64;
+   case eTypeNumberUInt8       : return (unsigned int)m_V.uint8;
+   case eTypeNumberUInt16      : return (unsigned int)m_V.uint16;
+   case eTypeNumberUInt32      : return (unsigned int)m_V.uint32;
+   case eTypeNumberUInt64      : return (unsigned int)m_V.uint64;
+   case eTypeNumberFloat       : return (unsigned int)m_V.f;
+   case eTypeNumberDouble      : return (unsigned int)m_V.d;
    case eTypeNumberGuid        : return 0;
    case eTypeNumberBinary      : return 0;
    case eTypeNumberUtf8String  : 
-   case eTypeNumberString      : return (unsigned int)atoi( m_V.m_pbsz );
-   case eTypeNumberWString     : return (unsigned int)_wtoi( m_V.m_pwsz );
+   case eTypeNumberString      : return (unsigned int)atoi( m_V.pbsz );
+   case eTypeNumberWString     : return (unsigned int)_wtoi( m_V.pwsz );
    default:                                                                      assert( false );
    }
 
@@ -104,23 +104,24 @@ int64_t variant_view::get_int64() const
    switch( type_number() )
    {
    case eTypeNumberUnknown     : return 0;
-   case eTypeNumberBit         : return (m_V.m_int8 & 0x01 ? 1 : 0);
-   case eTypeNumberBool        : return (m_V.m_b == true ? 1 : 0);
-   case eTypeNumberInt8        : return (int64_t)m_V.m_int8;
-   case eTypeNumberInt16       : return (int64_t)m_V.m_int16;
-   case eTypeNumberInt32       : return (int64_t)m_V.m_int32;
-   case eTypeNumberInt64       : return (int64_t)m_V.m_int64;
-   case eTypeNumberUInt8       : return (int64_t)m_V.m_uint8;
-   case eTypeNumberUInt16      : return (int64_t)m_V.m_uint16;
-   case eTypeNumberUInt32      : return (int64_t)m_V.m_uint32;
-   case eTypeNumberUInt64      : return (int64_t)m_V.m_uint64;
-   case eTypeNumberCFloat      : return (int64_t)m_V.m_f;
-   case eTypeNumberCDouble     : return (int64_t)m_V.m_d;
+   case eTypeNumberBit         : return (m_V.int8 & 0x01 ? 1 : 0);
+   case eTypeNumberBool        : return (m_V.b == true ? 1 : 0);
+   case eTypeNumberInt8        : return (int64_t)m_V.int8;
+   case eTypeNumberInt16       : return (int64_t)m_V.int16;
+   case eTypeNumberInt32       : return (int64_t)m_V.int32;
+   case eTypeNumberInt64       : return (int64_t)m_V.int64;
+   case eTypeNumberUInt8       : return (int64_t)m_V.uint8;
+   case eTypeNumberUInt16      : return (int64_t)m_V.uint16;
+   case eTypeNumberUInt32      : return (int64_t)m_V.uint32;
+   case eTypeNumberUInt64      : return (int64_t)m_V.uint64;
+   case eTypeNumberFloat       : return (int64_t)m_V.f;
+   case eTypeNumberDouble      : return (int64_t)m_V.d;
    case eTypeNumberGuid        : return 0;
    case eTypeNumberBinary      : return 0;
    case eTypeNumberUtf8String  : 
-   case eTypeNumberString      : return _atoi64( m_V.m_pbsz );
-   case eTypeNumberWString     : return _wtoi64( m_V.m_pwsz );
+   case eTypeNumberString      : return _atoi64( m_V.pbsz );
+   case eTypeNumberWString     : return _wtoi64( m_V.pwsz );
+   case eTypeNumberUtf32String : return _wtoi64( m_V.pwsz );
    default:                                                                                        assert( false );
    }
 
@@ -133,18 +134,18 @@ double variant_view::get_decimal() const
    switch( type_number() )
    {
    case eTypeNumberUnknown     : return 0.0;
-   case eTypeNumberBit         : return (m_V.m_int8 & 0x01 ? 1.0 : 0.0);
-   case eTypeNumberBool        : return (m_V.m_b == true ? 1.0 : 0.0);
-   case eTypeNumberInt8        : return (double)m_V.m_int8;
-   case eTypeNumberInt16       : return (double)m_V.m_int16;
-   case eTypeNumberInt32       : return (double)m_V.m_int32;
-   case eTypeNumberInt64       : return (double)m_V.m_int64;
-   case eTypeNumberUInt8       : return (double)m_V.m_uint8;
-   case eTypeNumberUInt16      : return (double)m_V.m_uint16;
-   case eTypeNumberUInt32      : return (double)m_V.m_uint32;
-   case eTypeNumberUInt64      : return (double)m_V.m_uint64;
-   case eTypeNumberCFloat      : return (double)m_V.m_f;
-   case eTypeNumberCDouble     : return m_V.m_d;
+   case eTypeNumberBit         : return (m_V.int8 & 0x01 ? 1.0 : 0.0);
+   case eTypeNumberBool        : return (m_V.b == true ? 1.0 : 0.0);
+   case eTypeNumberInt8        : return (double)m_V.int8;
+   case eTypeNumberInt16       : return (double)m_V.int16;
+   case eTypeNumberInt32       : return (double)m_V.int32;
+   case eTypeNumberInt64       : return (double)m_V.int64;
+   case eTypeNumberUInt8       : return (double)m_V.uint8;
+   case eTypeNumberUInt16      : return (double)m_V.uint16;
+   case eTypeNumberUInt32      : return (double)m_V.uint32;
+   case eTypeNumberUInt64      : return (double)m_V.uint64;
+   case eTypeNumberFloat       : return (double)m_V.f;
+   case eTypeNumberDouble      : return m_V.d;
    case eTypeNumberGuid        : 
    case eTypeNumberBinary      :
    case eTypeNumberUtf8String  :
@@ -161,43 +162,43 @@ std::string variant_view::get_string() const
    switch( type_number() )
    {
    case eTypeNumberUnknown     : return std::string();
-   //case eTypeNumberBit         : return std::string( gd_std::string_buffer::c_type( m_V.m_int8 ).c_str() );
-   case eTypeNumberBool        : return std::to_string( m_V.m_b );
-   case eTypeNumberInt8        : return std::to_string( m_V.m_int8 );
-   case eTypeNumberInt16       : return std::to_string( m_V.m_int16 );
-   case eTypeNumberInt32       : return std::to_string( m_V.m_int32 );
-   case eTypeNumberInt64       : return std::to_string( m_V.m_int64 );
-   case eTypeNumberUInt8       : return std::to_string( m_V.m_uint8 );
-   case eTypeNumberUInt16      : return std::to_string( m_V.m_uint16 );
-   case eTypeNumberUInt32      : return std::to_string( m_V.m_uint32 );
-   case eTypeNumberUInt64      : return std::to_string( m_V.m_uint64 );
-   //case eTypeNumberCFloat      : return std::string( string_buffer::c_type( m_V.m_f,  gd_std::string::eConvertNoExponent ).c_str() );
-   //case eTypeNumberCDouble     : return std::string( string_buffer::c_type( m_V.m_d,  gd_std::string::eConvertNoExponent ).c_str() );
+   //case eTypeNumberBit         : return std::string( gd_std::string_buffer::c_type( m_V.int8 ).c_str() );
+   case eTypeNumberBool        : return std::to_string( m_V.b );
+   case eTypeNumberInt8        : return std::to_string( m_V.int8 );
+   case eTypeNumberInt16       : return std::to_string( m_V.int16 );
+   case eTypeNumberInt32       : return std::to_string( m_V.int32 );
+   case eTypeNumberInt64       : return std::to_string( m_V.int64 );
+   case eTypeNumberUInt8       : return std::to_string( m_V.uint8 );
+   case eTypeNumberUInt16      : return std::to_string( m_V.uint16 );
+   case eTypeNumberUInt32      : return std::to_string( m_V.uint32 );
+   case eTypeNumberUInt64      : return std::to_string( m_V.uint64 );
+   case eTypeNumberFloat       : return std::to_string(m_V.f);
+   case eTypeNumberDouble      : return std::to_string(m_V.d);
       /*
    case eTypeNumberGuid        : 
       {  assert( false );
       gd_std::wstring s;
-      s.assign_hex( m_V.m_pb, m_uSize );
+      s.assign_hex( m_V.pb, m_uSize );
       return s;
       }
    case eTypeNumberBinary      :
       {
          gd_std::wstring s;
-         s.assign_hex( m_V.m_pb, m_uSize );
+         s.assign_hex( m_V.pb, m_uSize );
          return s;
       }
       */
    case eTypeNumberUtf8String  : 
-   case eTypeNumberString      : return std::string( m_V.m_pbsz, m_uSize ); 
+   case eTypeNumberString      : return std::string( m_V.pbsz, m_uSize ); 
    case eTypeNumberWString     : 
    {
       std::string s;
-      gd::utf8::convert_utf16_to_uft8( reinterpret_cast<const uint16_t*>(m_V.m_pwsz), s);
+      gd::utf8::convert_utf16_to_uft8( reinterpret_cast<const uint16_t*>(m_V.pwsz), s);
       return std::move(s);
    }
       /*
-   case eTypeNumberJson        : return gd_std::wstring( gd_std::string::utf8( m_V.m_pbsz ), m_uSize ); 
-   case eTypeNumberXml         : return gd_std::wstring( gd_std::string::utf8( m_V.m_pbsz ), m_uSize ); 
+   case eTypeNumberJson        : return gd_std::wstring( gd_std::string::utf8( m_V.pbsz ), m_uSize ); 
+   case eTypeNumberXml         : return gd_std::wstring( gd_std::string::utf8( m_V.pbsz ), m_uSize ); 
       break;
    */
    }
@@ -212,45 +213,45 @@ std::string variant_view::get_utf8string() const
    switch( type_number() )
    {
    case eTypeNumberUnknown     : return std::string();
-   case eTypeNumberBit         : return std::string( gd_std::string_buffer::c_type( m_V.m_int8 ).c_str() );
-   case eTypeNumberBool        : return std::string( string_buffer::c_type( m_V.m_b ).c_str() );
-   case eTypeNumberInt8        : return std::string( string_buffer::c_type( m_V.m_int8 ).c_str() );
-   case eTypeNumberInt16       : return std::string( string_buffer::c_type( m_V.m_int16 ).c_str() );
-   case eTypeNumberInt32       : return std::string( string_buffer::c_type( m_V.m_int32 ).c_str() );
-   case eTypeNumberInt64       : return std::string( string_buffer::c_type( m_V.m_int64 ).c_str() );
-   case eTypeNumberUInt8       : return std::string( string_buffer::c_type( m_V.m_uint8 ).c_str() );
-   case eTypeNumberUInt16      : return std::string( string_buffer::c_type( m_V.m_uint16 ).c_str() );
-   case eTypeNumberUInt32      : return std::string( string_buffer::c_type( m_V.m_uint32 ).c_str() );
-   case eTypeNumberUInt64      : return std::string( string_buffer::c_type( m_V.m_uint64 ).c_str() );
-   case eTypeNumberCFloat      : return std::string( string_buffer::c_type( m_V.m_f,  gd_std::string::eConvertNoExponent ).c_str() );
-   case eTypeNumberCDouble     : return std::string( string_buffer::c_type( m_V.m_d,  gd_std::string::eConvertNoExponent ).c_str() );
-   case eTypeNumberUtf8String  : return std::string( m_V.m_pbsz, m_uSize ); 
+   case eTypeNumberBit         : return std::string( gd_std::string_buffer::c_type( m_V.int8 ).c_str() );
+   case eTypeNumberBool        : return std::string( string_buffer::c_type( m_V.b ).c_str() );
+   case eTypeNumberInt8        : return std::string( string_buffer::c_type( m_V.int8 ).c_str() );
+   case eTypeNumberInt16       : return std::string( string_buffer::c_type( m_V.int16 ).c_str() );
+   case eTypeNumberInt32       : return std::string( string_buffer::c_type( m_V.int32 ).c_str() );
+   case eTypeNumberInt64       : return std::string( string_buffer::c_type( m_V.int64 ).c_str() );
+   case eTypeNumberUInt8       : return std::string( string_buffer::c_type( m_V.uint8 ).c_str() );
+   case eTypeNumberUInt16      : return std::string( string_buffer::c_type( m_V.uint16 ).c_str() );
+   case eTypeNumberUInt32      : return std::string( string_buffer::c_type( m_V.uint32 ).c_str() );
+   case eTypeNumberUInt64      : return std::string( string_buffer::c_type( m_V.uint64 ).c_str() );
+   case eTypeNumberCFloat      : return std::string( string_buffer::c_type( m_V.f,  gd_std::string::eConvertNoExponent ).c_str() );
+   case eTypeNumberCDouble     : return std::string( string_buffer::c_type( m_V.d,  gd_std::string::eConvertNoExponent ).c_str() );
+   case eTypeNumberUtf8String  : return std::string( m_V.pbsz, m_uSize ); 
    case eTypeNumberString      : 
       {
-         auto _length = string::utf8_encode( m_V.m_pbsz, m_V.m_pbsz + m_uSize, nullptr );
+         auto _length = string::utf8_encode( m_V.pbsz, m_V.pbsz + m_uSize, nullptr );
          std::vector<unsigned char> vectorString;
 
          vectorString.reserve( _length + 1 );
          vectorString.resize( _length );
-         string::utf8_encode( m_V.m_pbsz, m_V.m_pbsz + m_uSize, vectorString.data() );
+         string::utf8_encode( m_V.pbsz, m_V.pbsz + m_uSize, vectorString.data() );
          return std::string( vectorString.begin(), vectorString.end() ); 
       }
    case eTypeNumberWString : 
       {
-         auto _length = string::utf8_encode( m_V.m_pwsz, m_V.m_pwsz + m_uSize, nullptr );
+         auto _length = string::utf8_encode( m_V.pwsz, m_V.pwsz + m_uSize, nullptr );
          std::vector<unsigned char> vectorString;
 
          vectorString.reserve( _length + 1 );
          vectorString.resize( _length );
 
-         //string::utf8_encode( m_V.m_pwsz, m_V.m_pwsz + m_uSize, vectorString.data() );
-         auto _size = string::utf8_encode_validate( m_V.m_pwsz, m_V.m_pwsz + m_uSize, vectorString.data() );
+         //string::utf8_encode( m_V.pwsz, m_V.pwsz + m_uSize, vectorString.data() );
+         auto _size = string::utf8_encode_validate( m_V.pwsz, m_V.pwsz + m_uSize, vectorString.data() );
          if( _size < _length ) { vectorString.resize( _size ); }
 
          return std::string( vectorString.begin(), vectorString.end() ); 
       }
-   case eTypeNumberJson        : return std::string( m_V.m_pbsz, m_uSize ); 
-   case eTypeNumberXml         : return std::string( m_V.m_pbsz, m_uSize );
+   case eTypeNumberJson        : return std::string( m_V.pbsz, m_uSize ); 
+   case eTypeNumberXml         : return std::string( m_V.pbsz, m_uSize );
       break;
    }
 
@@ -265,23 +266,23 @@ std::wstring variant_view::get_wstring() const
    switch( type_number() )
    {
    case eTypeNumberUnknown: return std::wstring();
-   case eTypeNumberBit: return std::to_wstring(m_V.m_int8);
-   case eTypeNumberBool: return std::to_wstring(m_V.m_b);
-   case eTypeNumberInt8: return std::to_wstring(m_V.m_int8);
-   case eTypeNumberInt16: return std::to_wstring(m_V.m_int16);
-   case eTypeNumberInt32: return std::to_wstring(m_V.m_int32);
-   case eTypeNumberInt64: return std::to_wstring(m_V.m_int64);
-   case eTypeNumberUInt8: return std::to_wstring(m_V.m_uint8);
-   case eTypeNumberUInt16: return std::to_wstring(m_V.m_uint16);
-   case eTypeNumberUInt32: return std::to_wstring(m_V.m_uint32);
-   case eTypeNumberUInt64: return std::to_wstring(m_V.m_uint64);
-   case eTypeNumberCFloat: return std::to_wstring(m_V.m_f); 
-   case eTypeNumberCDouble: return std::to_wstring(m_V.m_d); 
-   //case eTypeNumberUtf8String: return gd_std::wstring( gd_std::string::utf8( m_V.m_pbsz ) ).get_wstring();
-   //case eTypeNumberString: return gd_std::wstring( m_V.m_pbsz ).get_wstring();
-   case eTypeNumberWString: return std::wstring( m_V.m_pwsz, m_V.m_pwsz + m_uSize );
-   //case eTypeNumberJson: return gd_std::wstring( gd_std::string::utf8( m_V.m_pbsz ), m_uSize ).get_wstring();
-   //case eTypeNumberXml: return gd_std::wstring( gd_std::string::utf8( m_V.m_pbsz ), m_uSize ).get_wstring();
+   case eTypeNumberBit: return std::to_wstring(m_V.int8);
+   case eTypeNumberBool: return std::to_wstring(m_V.b);
+   case eTypeNumberInt8: return std::to_wstring(m_V.int8);
+   case eTypeNumberInt16: return std::to_wstring(m_V.int16);
+   case eTypeNumberInt32: return std::to_wstring(m_V.int32);
+   case eTypeNumberInt64: return std::to_wstring(m_V.int64);
+   case eTypeNumberUInt8: return std::to_wstring(m_V.uint8);
+   case eTypeNumberUInt16: return std::to_wstring(m_V.uint16);
+   case eTypeNumberUInt32: return std::to_wstring(m_V.uint32);
+   case eTypeNumberUInt64: return std::to_wstring(m_V.uint64);
+   case eTypeNumberFloat: return std::to_wstring(m_V.f); 
+   case eTypeNumberDouble: return std::to_wstring(m_V.d); 
+   //case eTypeNumberUtf8String: return gd_std::wstring( gd_std::string::utf8( m_V.pbsz ) ).get_wstring();
+   //case eTypeNumberString: return gd_std::wstring( m_V.pbsz ).get_wstring();
+   case eTypeNumberWString: return std::wstring( m_V.pwsz, m_V.pwsz + m_uSize );
+   //case eTypeNumberJson: return gd_std::wstring( gd_std::string::utf8( m_V.pbsz ), m_uSize ).get_wstring();
+   //case eTypeNumberXml: return gd_std::wstring( gd_std::string::utf8( m_V.pbsz ), m_uSize ).get_wstring();
    default:                                                                      assert(false);
 
    }
@@ -292,13 +293,13 @@ std::wstring variant_view::get_wstring() const
 
 bool variant_view::is_true() const
 {
-   if( (unsigned int)m_uType & variant_type::eGroupInteger ) { if( m_V.m_uint64 != 0 ) return true; }
-   else if( (unsigned int)m_uType & variant_type::eGroupBoolean ) { return m_V.m_b; }
-   if( (unsigned int)m_uType & variant_type::eGroupDecimal ) { if( m_V.m_f != 0.0 ) return true; }
+   if( (unsigned int)m_uType & variant_type::eGroupInteger ) { if( m_V.uint64 != 0 ) return true; }
+   else if( (unsigned int)m_uType & variant_type::eGroupBoolean ) { return m_V.b; }
+   if( (unsigned int)m_uType & variant_type::eGroupDecimal ) { if( m_V.d != 0.0 ) return true; }
    else if( (unsigned int)m_uType & variant_type::eGroupString ) 
-   {                                                                             assert( m_V.m_pwsz != nullptr );
-      if( type_number() == eTypeNumberWString ) if(m_V.m_pwsz[0] != L'\0') return true; 
-      else if(m_V.m_pbsz[0] != '\0') return true; 
+   {                                                                             assert( m_V.pwsz != nullptr );
+      if( type_number() == eTypeNumberWString ) if(m_V.pwsz[0] != L'\0') return true; 
+      else if(m_V.pbsz[0] != '\0') return true; 
    }
    return false;
 }
