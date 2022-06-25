@@ -220,7 +220,8 @@ public:
          m_unionValue.d = o.m_unionValue.d;
       }
 
-      bool operator==(const argument& o) { return compare_argument_s(*this, o); }
+      bool operator==(const argument& o) const { return compare_argument_s(*this, o); }
+      bool operator==(const gd::variant_view& v) const { return compare_argument_s(*this, v); }
 
 
       bool operator !() { return (type_number() == arguments::eTypeNumberUnknown); }
@@ -636,6 +637,7 @@ public:
    [[nodiscard]] pointer find(std::string_view stringName);
    [[nodiscard]] const_pointer find(std::string_view stringName) const;
    [[nodiscard]] const_pointer find(std::string_view stringName, const_pointer pPosition) const;
+   [[nodiscard]] const_pointer find(const std::pair<std::string_view, gd::variant_view>& pairMatch) const;
    std::vector<const_pointer> find_all(std::string_view stringName) const;
    /// find param value for name
    [[nodiscard]] argument find_argument(std::string_view stringName) const {
@@ -763,6 +765,7 @@ public:
    static bool compare_name_s(const_pointer pPosition, std::string_view stringName);
    /// compare arguments
    static bool compare_argument_s(const argument& argument1, const argument& argument2);
+   static bool compare_argument_s(const argument& a, const gd::variant_view& v);
    static bool compare_argument_group_s(const argument& argument1, const argument& argument2);
    static bool compare_argument_group_s(const argument& a1, const gd::variant_view& v2);
    /// compare if argument type is fixed size, this is useful when setting values in arguments object

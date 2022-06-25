@@ -905,6 +905,18 @@ arguments::const_pointer arguments::find(std::string_view stringName, const_poin
    return nullptr;
 }
 
+arguments::const_pointer arguments::find(const std::pair<std::string_view, gd::variant_view>& pairMatch) const
+{
+   const_pointer pPosition = find(pairMatch.first);
+   if( pPosition != nullptr )
+   {
+      argument argumentFind = get_argument_s(pPosition);
+      if( argumentFind == pairMatch.second ) return pPosition;
+   }
+
+   return nullptr;
+}
+
 /*----------------------------------------------------------------------------- find_all */ /**
  * Find parameters for name, place them in vector and return
  * \param stringName name for parameter
@@ -1225,7 +1237,7 @@ bool arguments::compare_argument_s(const argument& argument1, const argument& ar
    case arguments::eTypeNumberPointer: return argument1.m_unionValue.v_uint64 == argument2.m_unionValue.v_uint64;
       return argument1.m_unionValue.p == argument2.m_unionValue.p;
       break;
-   case arguments::eTypeNumberGuid: return argument1.m_unionValue.v_uint64 == argument2.m_unionValue.v_uint64;
+   case arguments::eTypeNumberGuid: 
       return memcmp(argument1.m_unionValue.p, argument2.m_unionValue.p, 16) == 0;
       break;
    case arguments::eTypeNumberFloat: return argument1.m_unionValue.f == argument2.m_unionValue.f;
@@ -1237,6 +1249,50 @@ bool arguments::compare_argument_s(const argument& argument1, const argument& ar
    case arguments::eTypeNumberWString:
       return wcscmp(argument1.m_unionValue.pwsz, argument2.m_unionValue.pwsz) == 0;
       break;
+   }
+
+   return false;
+}
+
+/*----------------------------------------------------------------------------- compare_argument_s */ /**
+ * Compare argument with variant_view.
+ * \param a argument value compared to variant_view
+ * \param v variant_view value compared to argument
+ * \return bool true if equal, false if not equal
+ */
+bool arguments::compare_argument_s(const argument& a, const gd::variant_view& v)
+{
+   auto eType = a.type_number();
+   if( eType == v.type_number() )
+   {
+      switch( eType )
+      {
+      case arguments::eTypeNumberUnknown: return true;
+      case arguments::eTypeNumberBool: return a.m_unionValue.b == v.m_V.b;
+      case arguments::eTypeNumberInt8: return a.m_unionValue.v_int8 == v.m_V.int8;
+      case arguments::eTypeNumberUInt8: return a.m_unionValue.v_uint8 == v.m_V.uint8;
+      case arguments::eTypeNumberInt16: return a.m_unionValue.v_int16 == v.m_V.int16;
+      case arguments::eTypeNumberUInt16: return a.m_unionValue.v_uint16 == v.m_V.uint16;
+      case arguments::eTypeNumberInt32: return a.m_unionValue.v_int32 == v.m_V.int32;
+      case arguments::eTypeNumberUInt32: return a.m_unionValue.v_uint32 == v.m_V.uint32;
+      case arguments::eTypeNumberInt64: return a.m_unionValue.v_int64 == v.m_V.int64;
+      case arguments::eTypeNumberUInt64: return a.m_unionValue.v_uint64 == v.m_V.uint64;
+      case arguments::eTypeNumberPointer: return a.m_unionValue.v_uint64 == v.m_V.uint64;
+         return a.m_unionValue.p == v.m_V.p;
+         break;
+      case arguments::eTypeNumberGuid: 
+         return memcmp(a.m_unionValue.p, v.m_V.p, 16) == 0;
+         break;
+      case arguments::eTypeNumberFloat: return a.m_unionValue.f == v.m_V.f;
+      case arguments::eTypeNumberDouble: return a.m_unionValue.d == v.m_V.d;
+      case arguments::eTypeNumberString:
+      case arguments::eTypeNumberUtf8String:
+         return strcmp(a.m_unionValue.pbsz, v.m_V.pbsz) == 0;
+         break;
+      case arguments::eTypeNumberWString:
+         return wcscmp(a.m_unionValue.pwsz, v.m_V.pwsz) == 0;
+         break;
+      }
    }
 
    return false;

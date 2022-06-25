@@ -20,9 +20,14 @@ query::table* query::table_add(const std::vector< std::pair<std::string_view, gd
    return &m_vectorTable.back();
 }
 
+/*----------------------------------------------------------------------------- field_add */ /**
+ * Add field to query
+ * \param vectorField vector with field properties, each property has a name and a value
+ * \return gd::sql::query::field* pointer to added field
+ */
 query::field* query::field_add(const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorField)
 {
-   field fieldAdd(table_get(0));
+   field fieldAdd(*table_get(0));
    for( auto it : vectorField )
    {
       fieldAdd.set(it.first, it.second);
@@ -31,6 +36,17 @@ query::field* query::field_add(const std::vector< std::pair<std::string_view, gd
    m_vectorField.push_back(std::move(fieldAdd));
    return &m_vectorField.back();
 }
+
+query::field* query::field_get( const std::pair<std::string_view, gd::variant_view>& pairField )
+{
+   for( auto it = std::begin(m_vectorField); it != std::end(m_vectorField); it++ )
+   {
+      if( it->compare(pairField) == true ) return &(*it);
+   }
+
+   return nullptr;
+}
+
 
 
 /*----------------------------------------------------------------------------- sql_get_select */ /**
@@ -73,14 +89,14 @@ std::string query::sql_get_from() const
 
    if( m_vectorTable.size() == 1 )
    {
-      auto tableFrom = table_get();
-      if( tableFrom.has("schema") == true )
+      auto ptableFrom = table_get();
+      if( ptableFrom->has("schema") == true )
       {
-         stringFrom += tableFrom.schema();
+         stringFrom += ptableFrom->schema();
          stringFrom += ".";
       }
 
-      stringFrom += tableFrom.name();
+      stringFrom += ptableFrom->name();
    }
 
    return stringFrom;

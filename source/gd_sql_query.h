@@ -103,6 +103,7 @@ public:
       template<typename VALUE>
       field& set(std::string_view stringName, const VALUE& v) { m_argumentsField.set(stringName, v); return *this; }
       bool has(std::string_view stringName) const { return (m_argumentsField.find(stringName) != nullptr); }
+      bool compare( const std::pair<std::string_view, gd::variant_view>& pairMatch) const { return m_argumentsField.find(pairMatch) != nullptr; }
 
    
       // attributes
@@ -140,12 +141,14 @@ public:
 
 /** \name TABLE
 *///@{
-   const table& table_get() const { return m_vectorTable[0]; }
-   const table& table_get(unsigned uIndex) const { assert( uIndex < m_vectorTable.size() ); return m_vectorTable[uIndex]; }
+   const table* table_get() const { return &m_vectorTable[0]; }
+   const table* table_get(unsigned uIndex) const { assert( uIndex < m_vectorTable.size() ); return &m_vectorTable[uIndex]; }
    const table* table_get_pointer(unsigned uIndex) const { assert( uIndex < m_vectorTable.size() ); return &m_vectorTable[uIndex]; }
    const table* table_get_for_key(unsigned uTableKey) const;
    table* table_add(std::string_view stringName);
    table* table_add(const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorTable );
+   std::size_t table_size() const { return m_vectorTable.size(); }
+   bool table_empty() const { return m_vectorTable.empty(); }
 
    std::vector<table>::iterator table_begin() { return m_vectorTable.begin(); }
    std::vector<table>::const_iterator table_begin() const { return m_vectorTable.cbegin(); }
@@ -159,6 +162,13 @@ public:
    void field_add(std::string_view stringName);
    void field_add(std::string_view stringName, std::string_view stringAlias);
    field* field_add(const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorField );
+
+   const field* field_get(unsigned uIndex) const { assert(uIndex < m_vectorField.size()); return &m_vectorField[uIndex]; }
+   field* field_get(unsigned uIndex) { assert(uIndex < m_vectorField.size()); return &m_vectorField[uIndex]; }
+   field* field_get( const std::pair<std::string_view, gd::variant_view>& pairField );
+
+   std::size_t field_size() const { return m_vectorField.size(); }
+   bool field_empty() const { return m_vectorField.empty(); }
 
    std::vector<field>::iterator field_begin() { return m_vectorField.begin();  }
    std::vector<field>::const_iterator field_begin() const { return m_vectorField.cbegin();  }
@@ -212,12 +222,12 @@ inline const query::table* query::table_get_for_key(unsigned uTableKey) const {
 
 /// Add field with name
 inline void query::field_add(std::string_view stringName) {                      assert( m_vectorTable.size() > 0 ); // check for table if no table is set adding field, each field need to connect to table
-   m_vectorField.push_back( field( table_get(0), stringName ) );
+   m_vectorField.push_back( field( *table_get(0), stringName ) );
 }
 
 /// Add field with name and alias
 inline void query::field_add(std::string_view stringName, std::string_view stringAlias) { assert( m_vectorTable.size() == 1 );
-   m_vectorField.push_back( field(table_get(0), stringName, stringAlias ) );
+   m_vectorField.push_back( field(*table_get(0), stringName, stringAlias ) );
 }
 
 
