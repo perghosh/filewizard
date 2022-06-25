@@ -2,6 +2,16 @@
 
 _GD_SQL_QUERY_BEGIN
 
+query::table* query::table_get(const std::pair<std::string_view, gd::variant_view>& pairTable)
+{
+   for( auto it = std::begin(m_vectorTable); it != std::end(m_vectorTable); it++ )
+   {
+      if( it->compare(pairTable) == true ) return &(*it);
+   }
+
+   return nullptr;
+}
+
 
 /*----------------------------------------------------------------------------- table_add */ /**
  * Adds table with table properties found in vector

@@ -61,6 +61,7 @@ public:
       table& append(std::string_view stringName, const VALUE& v) { m_argumentsTable.append(stringName, v); return *this; }
       table& set(std::string_view stringName, const gd::variant_view& v) { m_argumentsTable.set(stringName, v); return *this; }
       bool has(std::string_view stringName) const { return m_argumentsTable.find(stringName) != nullptr; }
+      bool compare(const std::pair<std::string_view, gd::variant_view>& pairMatch) const { return m_argumentsTable.find(pairMatch) != nullptr; }
 
       bool compare(unsigned uKey) const { return m_uKey == uKey; }
 
@@ -143,7 +144,7 @@ public:
 *///@{
    const table* table_get() const { return &m_vectorTable[0]; }
    const table* table_get(unsigned uIndex) const { assert( uIndex < m_vectorTable.size() ); return &m_vectorTable[uIndex]; }
-   const table* table_get_pointer(unsigned uIndex) const { assert( uIndex < m_vectorTable.size() ); return &m_vectorTable[uIndex]; }
+   table* table_get( const std::pair<std::string_view, gd::variant_view>& pairField );
    const table* table_get_for_key(unsigned uTableKey) const;
    table* table_add(std::string_view stringName);
    table* table_add(const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorTable );
