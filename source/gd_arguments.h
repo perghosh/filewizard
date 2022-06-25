@@ -754,12 +754,17 @@ public:
    }
    std::string_view get_name(const_pointer pPosition) { return get_name_s( pPosition ); }
 
-   static pointer move_to_value(pointer pPosition);
-   static const_pointer move_to_value(const_pointer pPosition);
+   static pointer move_to_value(pointer pPosition)  { return move_to_value_s( pPosition ); }
+   static const_pointer move_to_value(const_pointer pPosition) { return move_to_value_s( pPosition ); }
 
 
 /** \name INTERNAL FREE FUNCTIONS
 *///@{
+   /// ## Move logic
+   static inline pointer move_to_value_s(pointer pPosition);
+   static inline const_pointer move_to_value_s(const_pointer pPosition);
+
+
    /// ## Compare logic
    /// Compare argument name if argument has name
    static bool compare_name_s(const_pointer pPosition, std::string_view stringName);

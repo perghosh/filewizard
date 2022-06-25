@@ -13,7 +13,15 @@ namespace gd::argument {
 _GD_PARAM_BEGIN
 #endif
 
-arguments::pointer arguments::move_to_value(pointer pPosition)
+/*----------------------------------------------------------------------------- move_to_value */ /**
+ * Moves pointer to value part in argument
+ * If argument has a name and position pointer is at the name, then use this method
+ * to move position to value part.
+ * \note first byte for name part is number identifying parameter name, next byte is name lenght
+ * \param pPosition position that is moved if it is on name
+ * \return arguments::const_pointer returns pointer to value
+ */
+arguments::pointer arguments::move_to_value_s(pointer pPosition)
 {                                                                                assert( pPosition != nullptr );
    enumCType eType = (enumCType)*pPosition;                                      // get section type
    if( eType == eType_ParameterName )
@@ -26,7 +34,15 @@ arguments::pointer arguments::move_to_value(pointer pPosition)
 }
 
 
-arguments::const_pointer arguments::move_to_value(const_pointer pPosition)
+/*----------------------------------------------------------------------------- move_to_value */ /**
+ * Moves pointer to value part in argument
+ * If argument has a name and position pointer is at the name, then use this method
+ * to move position to value part.
+ * \note first byte for name part is number identifying parameter name, next byte is name lenght
+ * \param pPosition position that is moved if it is on name
+ * \return arguments::const_pointer returns pointer to value
+ */
+arguments::const_pointer arguments::move_to_value_s(const_pointer pPosition)
 {
    enumCType eType = (enumCType)*pPosition;                                      // get section type
    if( eType == eType_ParameterName )
