@@ -658,6 +658,8 @@ public:
       if( pPosition ) return get_argument_s(pPosition);
       return argument();
    }
+
+   [[nodiscard]] bool compare(const std::pair<std::string_view, gd::variant_view>& pairMatch) const { return find(pairMatch) != nullptr; }
 //@}
 
    [[nodiscard]] pointer next() { return m_uLength > 0 ? m_pBuffer : nullptr; }
@@ -761,8 +763,8 @@ public:
 /** \name INTERNAL FREE FUNCTIONS
 *///@{
    /// ## Move logic
-   static inline pointer move_to_value_s(pointer pPosition);
-   static inline const_pointer move_to_value_s(const_pointer pPosition);
+   static pointer move_to_value_s(pointer pPosition);
+   static const_pointer move_to_value_s(const_pointer pPosition);
 
 
    /// ## Compare logic

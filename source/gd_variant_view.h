@@ -57,6 +57,8 @@ public:
    variant_view(const char* v) : m_uType(variant_type::eTypeString), m_uSize(strlen(v)) { m_V.pbsz_const = v;  }
    variant_view(const wchar_t* v) : m_uType(variant_type::eTypeWString), m_uSize(wcslen(v)) { m_V.pwsz_const = v; }
    variant_view(const char* v, size_t uLength) : m_uType(variant_type::eTypeString), m_uSize(uLength) { m_V.pbsz_const = v; }
+   variant_view(const std::string& v) : m_uType(variant_type::eTypeString), m_uSize(v.length()) { m_V.pbsz_const = v.c_str(); }
+   variant_view(const std::string_view& v) : m_uType(variant_type::eTypeString), m_uSize(v.length()) { m_V.pbsz_const = v.data(); }
    variant_view( const char* v, size_t uLength, bool ): m_uType(variant_type::eTypeString), m_uSize(uLength) { m_V.pbsz = const_cast<char*>(v); }
    variant_view(const wchar_t* v, size_t uLength) : m_uType(variant_type::eTypeWString), m_uSize(uLength) { m_V.pwsz_const = v; }
    variant_view(const unsigned char* v, size_t uLength) : m_uType(variant_type::eTypeBinary), m_uSize(uLength) { m_V.pb_const = v; }

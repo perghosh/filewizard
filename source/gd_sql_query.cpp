@@ -2,6 +2,26 @@
 
 _GD_SQL_QUERY_BEGIN
 
+const query::table* query::table_get(const gd::variant_view& variantTableIndex) const
+{
+   if( variantTableIndex.is_integer() == true )
+   {
+      unsigned uIndex = variantTableIndex.get_uint();                            assert( uIndex < m_vectorTable.size() );
+      return &m_vectorTable[uIndex];
+   }
+   else
+   {
+      std::string stringTable = variantTableIndex.get_string();
+      for( auto it = std::begin(m_vectorTable); it != std::end(m_vectorTable); it++ )
+      {
+         if( it->get_arguments().compare({ "name", stringTable }) == true ) return &(*it);
+      }
+   }
+
+   return nullptr;
+}
+
+
 query::table* query::table_get(const std::pair<std::string_view, gd::variant_view>& pairTable)
 {
    for( auto it = std::begin(m_vectorTable); it != std::end(m_vectorTable); it++ )
@@ -47,6 +67,11 @@ query::field* query::field_add(const std::vector< std::pair<std::string_view, gd
    return &m_vectorField.back();
 }
 
+/*----------------------------------------------------------------------------- field_get */ /**
+ * return field based on property value for field
+ * \param pairField name and value that are matched for field searched for
+ * \return field* pointer to field if found, nullptr if not found
+ */
 query::field* query::field_get( const std::pair<std::string_view, gd::variant_view>& pairField )
 {
    for( auto it = std::begin(m_vectorField); it != std::end(m_vectorField); it++ )

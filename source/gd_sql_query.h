@@ -51,11 +51,14 @@ public:
       void common_construct( table&& o ) noexcept { m_uKey = o.m_uKey; m_iReferenceCount = o.m_iReferenceCount; m_argumentsTable = std::move( o.m_argumentsTable ); }
 
       operator unsigned() const { return m_uKey;  }
+      
 
       std::string name() const { return m_argumentsTable["name"].get_string(); }
       std::string alias() const { return m_argumentsTable["alias"].get_string(); }
       std::string schema() const { return m_argumentsTable["schema"].get_string(); }
       std::string owner() const { return m_argumentsTable["owner"].get_string(); }
+
+      const arguments& get_arguments() const { return m_argumentsTable; }
 
       template<typename VALUE>
       table& append(std::string_view stringName, const VALUE& v) { m_argumentsTable.append(stringName, v); return *this; }
@@ -143,7 +146,7 @@ public:
 /** \name TABLE
 *///@{
    const table* table_get() const { return &m_vectorTable[0]; }
-   const table* table_get(unsigned uIndex) const { assert( uIndex < m_vectorTable.size() ); return &m_vectorTable[uIndex]; }
+   const table* table_get(const gd::variant_view& variantTable) const;
    table* table_get( const std::pair<std::string_view, gd::variant_view>& pairField );
    const table* table_get_for_key(unsigned uTableKey) const;
    table* table_add(std::string_view stringName);
@@ -161,8 +164,10 @@ public:
 /** \name FIELD
 *///@{
    void field_add(std::string_view stringName);
+   void field_add(const gd::variant_view& variantTable, std::string_view stringName);
    void field_add(std::string_view stringName, std::string_view stringAlias);
    field* field_add(const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorField );
+   void field_add_many(const std::vector< std::vector< std::pair<std::string_view, gd::variant_view> > >& vectorVectorField );
 
    const field* field_get(unsigned uIndex) const { assert(uIndex < m_vectorField.size()); return &m_vectorField[uIndex]; }
    field* field_get(unsigned uIndex) { assert(uIndex < m_vectorField.size()); return &m_vectorField[uIndex]; }
@@ -229,6 +234,10 @@ inline void query::field_add(std::string_view stringName) {                     
 /// Add field with name and alias
 inline void query::field_add(std::string_view stringName, std::string_view stringAlias) { assert( m_vectorTable.size() == 1 );
    m_vectorField.push_back( field(*table_get(0), stringName, stringAlias ) );
+}
+
+inline void query::field_add_many(const std::vector< std::vector< std::pair<std::string_view, gd::variant_view> > >& vectorVectorField) {
+   for( auto it : vectorVectorField ) field_add(it);
 }
 
 
