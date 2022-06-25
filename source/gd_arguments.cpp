@@ -1,4 +1,5 @@
 #include <malloc.h>
+#include <iterator>
 
 #include "gd_utf8.hpp"  
 
@@ -435,7 +436,7 @@ double arguments::argument::get_double() const
 std::string arguments::argument::get_string() const
 {
    std::string s;
-   if( m_eType == (arguments::eTypeNumberString | eValueLength) || m_eType == (arguments::eTypeNumberUtf8String | eValueLength) )
+   if( ctype_s( m_eType ) == (arguments::eTypeNumberString | eValueLength) || ctype_s( m_eType ) == (arguments::eTypeNumberUtf8String | eValueLength) )
    {
       s = std::string_view(m_unionValue.pbsz, length() - 1); // try for string before converting other possible values (remember to not include last zero ending as text)
    }
@@ -807,7 +808,6 @@ arguments& arguments::set(pointer pPosition, param_type uType, const_pointer pBu
    return *this;
 }
 
-
 /*----------------------------------------------------------------------------- count */ /**
  * Count param values for name
  * \param stringName name that is counted
@@ -947,6 +947,70 @@ std::string arguments::print() const
 
       stringPrint += arguments::print_s(pPosition);
    }
+
+   return stringPrint;
+}
+
+std::string arguments::print(std::string_view stringFormat) const
+{
+   char pbszBuffer[256];
+   std::string stringPrint;
+   auto uLength = stringFormat.length();
+
+   auto next = [](auto it, auto itEnd) -> auto {
+      while( it != itEnd )
+      {
+         it++;
+         if( *it == '{' )
+         {
+            it++;
+            return it;
+         }
+      }
+      return it;
+   };
+
+   auto itPosition = std::begin(stringFormat);
+   auto itEnd = std::end(stringFormat);
+   while( itPosition != itEnd )
+   {
+      auto itTo = next( itPosition, itEnd );
+      std::copy(itPosition, itTo, std::back_inserter(stringPrint));
+      if( *itTo != '{' )
+      {
+         *pbszBuffer = '\0';
+         auto pbszPosition = pbszBuffer;
+         while( *itTo != '}' && itTo != itEnd )
+         {
+            *pbszPosition += *itTo;
+            pbszPosition++;
+            itTo++;
+         }
+
+         *pbszPosition += '\0';
+
+         stringPrint += get_argument(pbszBuffer).get_string();
+
+      }
+
+      itPosition = itTo;
+   }
+
+   /*
+   for( auto itPosition = std::begin( stringFormat ); itPosition != std::end( stringFormat ); itPosition++ )
+   {
+      if( *itPosition == '{' )
+      {
+         itPosition++;
+         if( itPosition == std::end(stringFormat) || *(itPosition + 1) == '{' )
+         {
+            stringPrint += '{';
+            if( itPosition != std::end(stringFormat) ) itPosition++;
+            continue;
+         }
+      }
+   }
+   */
 
    return stringPrint;
 }
@@ -1386,6 +1450,12 @@ arguments::const_pointer arguments::next_s(const_pointer pPosition)
          if( uType == eTypeNumberString ||
             uType == eTypeNumberUtf8String ) pPosition += strlen((const char*)pPosition) + 1;
          else if( uType == eTypeNumberString ) pPosition += wcslen((const wchar_t*)pPosition) * 2 + 2;
+         else if( uType == eTypeNumberUtf32String )
+         {
+            unsigned uLength = 0;
+            while( *((const char32_t*)pPosition + uLength) ) uLength++;
+            pPosition += (uLength + 1) * sizeof(char32_t);
+         }
          else assert(false);
       }
    }
@@ -1684,6 +1754,7 @@ arguments::argument arguments::get_argument_s(const gd::variant& variantValue)
       return arguments::argument((double)variantValue);
       break;
    case variant_type::eTypeNumberString:
+   case variant_type::eTypeNumberUtf8String:
       return arguments::argument((const char*)variantValue);
       break;
    case variant_type::eTypeNumberWString:
@@ -1693,6 +1764,58 @@ arguments::argument arguments::get_argument_s(const gd::variant& variantValue)
 
    return arguments::argument();
 }
+
+arguments::argument arguments::get_argument_s(const gd::variant_view& variantValue)
+{
+   switch( variantValue.type_number() )
+   {
+   case variant_type::eTypeNumberBool:
+      return arguments::argument((bool)variantValue);
+      break;
+   case variant_type::eTypeNumberInt8:
+      return arguments::argument((int8_t)variantValue);
+      break;
+   case variant_type::eTypeNumberInt16:
+      return arguments::argument((int16_t)variantValue);
+      break;
+   case variant_type::eTypeNumberInt32:
+      return arguments::argument((int32_t)variantValue);
+      break;
+   case variant_type::eTypeNumberInt64:
+      return arguments::argument((int64_t)variantValue);
+      break;
+   case variant_type::eTypeNumberUInt8:
+      return arguments::argument((uint8_t)variantValue);
+      break;
+   case variant_type::eTypeNumberUInt16:
+      return arguments::argument((uint16_t)variantValue);
+      break;
+   case variant_type::eTypeNumberUInt32:
+      return arguments::argument((uint32_t)variantValue);
+      break;
+   case variant_type::eTypeNumberUInt64:
+      return arguments::argument((uint64_t)variantValue);
+      break;
+   case variant_type::eTypeNumberFloat:
+      return arguments::argument((float)variantValue);
+      break;
+   case variant_type::eTypeNumberDouble:
+      return arguments::argument((double)variantValue);
+      break;
+   case variant_type::eTypeNumberString:
+      return arguments::argument((const char*)variantValue);
+      break;
+   case variant_type::eTypeNumberUtf8String:
+      return arguments::argument(eTypeNumberUtf8String, (const char*)variantValue);
+      break;
+   case variant_type::eTypeNumberWString:
+      return arguments::argument((const wchar_t*)variantValue);
+      break;
+   }
+
+   return arguments::argument();
+}
+
 
 
 } // namespace gd::argument

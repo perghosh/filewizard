@@ -23,7 +23,7 @@ mdtable
 */
 
 
-#pragma warning( disable : 26495 )
+#pragma warning( disable : 26495 26812 )
 
 #ifndef _GD_ARGUMENT_BEGIN
 namespace gd::argument {
@@ -597,6 +597,21 @@ public:
    arguments& set(std::string_view stringName, uint64_t v) { return set(stringName, eTypeNumberUInt64, (const_pointer)&v, sizeof(uint64_t)); }
    arguments& set(std::string_view stringName, std::string_view v) { return set(stringName, (eTypeNumberString | eValueLength), (const_pointer)v.data(), (unsigned int)v.length() + 1); }
 
+   arguments& set(std::string_view stringName, const gd::variant_view& variantValue) {
+      auto argumentValue = get_argument_s(variantValue);
+      const_pointer pData = (argumentValue.type_number() <= eTypeNumberPointer ? (const_pointer)&argumentValue.m_unionValue : (const_pointer)argumentValue.get_raw_pointer());
+      unsigned uType = argumentValue.type_number();
+      unsigned uLength;
+      if( uType > ARGUMENTS_NO_LENGTH ) 
+      { 
+         unsigned uZeroEnd = 0;
+         if( uType == eTypeNumberWString )
+         uType |= eValueLength; 
+         uLength = variantValue.length() + get_string_zero_terminate_length_s( uType );
+      }
+      return set(stringName, uType, pData, uLength);
+   }
+
    arguments& set(std::string_view stringName, param_type uType, const_pointer pBuffer, unsigned int uLength) { return set(stringName.data(), (uint32_t)stringName.length(), uType, pBuffer, uLength); }
    arguments& set(const char* pbszName, uint32_t uNameLength, param_type uType, const_pointer pBuffer, unsigned int uLength);
    arguments& set(pointer pPosition, param_type uType, const_pointer pBuffer, unsigned int uLength);
@@ -623,20 +638,20 @@ public:
    [[nodiscard]] const_pointer find(std::string_view stringName, const_pointer pPosition) const;
    std::vector<const_pointer> find_all(std::string_view stringName) const;
    /// find param value for name
-   [[nodiscard]] argument find_param(std::string_view stringName) const {
+   [[nodiscard]] argument find_argument(std::string_view stringName) const {
       const_pointer pPosition = find(stringName);
       if( pPosition ) return get_argument_s(pPosition);
       return argument();
    }
 
-   [[nodiscard]] argument_edit find_edit_param(std::string_view stringName) {
+   [[nodiscard]] argument_edit find_edit_argument(std::string_view stringName) {
       const_pointer pPosition = find(stringName);
       if( pPosition ) return get_edit_param_s(this, pPosition);
       return argument_edit();
    }
 
    /// find param value for name
-   [[nodiscard]] argument find_param(std::string_view stringName, const_pointer pPosition) const {
+   [[nodiscard]] argument find_argument(std::string_view stringName, const_pointer pPosition) const {
       pPosition = find(stringName, pPosition);
       if( pPosition ) return get_argument_s(pPosition);
       return argument();
@@ -661,15 +676,15 @@ public:
    }
 
    [[nodiscard]] argument get_argument(unsigned int uIndex) const;
-   [[nodiscard]] argument get_argument(std::string_view stringName) const { return find_param(stringName); }
+   [[nodiscard]] argument get_argument(std::string_view stringName) const { return find_argument(stringName); }
    template<class DEFAULT>
    [[nodiscard]] DEFAULT get_argument(std::string_view stringName, DEFAULT defaultValue) const {
-      argument  v = find_param(stringName);
+      argument  v = find_argument(stringName);
       if( v.is_null() ) return defaultValue;
       return static_cast<DEFAULT>(v);
    }
    [[nodiscard]] std::string get_argument(std::string_view stringName, const std::string& defaultValue) const {
-      argument  v = find_param(stringName);
+      argument  v = find_argument(stringName);
       if( v.is_null() ) return defaultValue;
       return v.get_string();
    }
@@ -682,7 +697,7 @@ public:
     */
    template<typename INSERT_VALUE>
    [[nodiscard]] argument get_argument(std::string_view stringName, const INSERT_VALUE& vInsert) { 
-      auto paramV = find_param(stringName); 
+      auto paramV = find_argument(stringName); 
       if( paramV.empty() == true ) {
          auto uOffset = get_buffer_end() - get_buffer_start();
          append(stringName, vInsert);
@@ -702,6 +717,8 @@ public:
    std::string print( const_iterator itBegin, const_iterator itEnd ) const { return print(itBegin, itEnd, ", "); };
    std::string print(const_iterator itBegin, const_iterator itEnd, std::string_view stringSplit) const;
    std::string print_json() const;
+
+   std::string print(std::string_view stringFormat) const;
 //@}
 
    
@@ -830,9 +847,25 @@ public:
    static inline std::string print_s(const_pointer pPosition) { return print_s(pPosition, ePairTypeAll); }
    static std::string print_s(const_pointer pPosition, uint32_t uPairType );
 
-   /// Get raw type for value
-   constexpr static unsigned int type_s(unsigned int uType) { return uType & ~eType_MASK; }
+   /// ## find out type for value
+   constexpr static unsigned int type_s(unsigned int uType) { return uType & ~eType_MASK; } // only type (no size)
+   constexpr static unsigned int ctype_s(unsigned int uType) { return uType & ~eCType_MASK; } // last byte (type and size)
    constexpr static unsigned int type_number_s(unsigned int uType) { return uType & ~eTypeNumber_MASK; }
+
+   /// count zero terminator length in bytes if type is some sort of string
+   constexpr static unsigned int get_string_zero_terminate_length_s(unsigned int uType) { 
+      uType = uType & ~eTypeNumber_MASK;  
+      switch( uType ) {
+         case eTypeNumberString:
+         case eTypeNumberUtf8String:
+            return 1;
+         case eTypeNumberWString:
+            return 2;
+         case eTypeNumberUtf32String:
+            return 4;
+      }
+      return 0;
+   }
    
    /// ## `variant` methods
    /// get argument value as variant
@@ -840,6 +873,8 @@ public:
    static gd::variant get_variant_s(const argument& argumentValue, bool);
    static gd::variant_view get_variant_view_s(const argument& argumentValue);
    static argument get_argument_s(const gd::variant& variantValue);
+   static argument get_argument_s(const gd::variant_view& variantValue);
+
    //static arguments read_json_s(const argument& argumentValue);
 //@}
 
