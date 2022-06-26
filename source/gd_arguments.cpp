@@ -735,6 +735,28 @@ arguments& arguments::append(const char* pbszName, uint32_t uNameLength, param_t
    return *this;
 }
 
+/*----------------------------------------------------------------------------- append_argument */ /**
+ * Add argument from variant_view
+ * \param stringName argument name
+ * \param variantValue argument value added
+ * \return arguments::arguments& reference to this if nested operations is wanted
+ */
+arguments& arguments::append_argument(std::string_view stringName, const gd::variant_view& variantValue)
+{
+   auto argumentValue = get_argument_s(variantValue);
+   const_pointer pData = (argumentValue.type_number() <= eTypeNumberPointer ? (const_pointer)&argumentValue.m_unionValue : (const_pointer)argumentValue.get_raw_pointer());
+   unsigned uType = argumentValue.type_number();
+   unsigned uLength;
+   if( uType > ARGUMENTS_NO_LENGTH )
+   {
+      unsigned uZeroEnd = 0;
+      if( uType == eTypeNumberWString )
+         uType |= eValueLength;
+      uLength = variantValue.length() + get_string_zero_terminate_length_s(uType);
+   }
+   return append(stringName, uType, pData, argumentValue.length());
+}
+
 arguments& arguments::set(const char* pbszName, uint32_t uNameLength, param_type uType, const_pointer pBuffer, unsigned int uLength)
 {
    pointer pPosition = find(std::string_view(pbszName, uNameLength));

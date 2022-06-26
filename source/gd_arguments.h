@@ -579,6 +579,7 @@ public:
       return append(stringName, uType, pData, argumentValue.length());
    }
 
+   arguments& append_argument(std::string_view stringName, const gd::variant_view& variantValue);
 
    arguments& append_argument(const std::pair<std::string_view, gd::variant>& pairArgument) {
       return append_argument(pairArgument.first, pairArgument.second);
