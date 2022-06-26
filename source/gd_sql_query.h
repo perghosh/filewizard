@@ -21,6 +21,21 @@ _GD_SQL_QUERY_BEGIN
 
 using namespace gd::argument;
 
+
+
+/*-----------------------------------------*/ /**
+ * \brief constant values for describing what type of join to use
+ *
+ *
+ */
+enum enumJoin
+{
+   eJoinInner = 0,
+   eJoinLeft,
+   eJoinRight,
+   eJoinFull,
+};
+
 /**
  * \brief 
  *
@@ -41,6 +56,7 @@ public:
    struct table 
    {
       table() {}
+      table( unsigned uTable ): m_uKey(uTable) {}
       table(unsigned uTable, std::string_view stringName): m_uKey(uTable) { append("name", stringName); }
       table( const table& o ) { common_construct( o ); }
       table( table&& o ) noexcept { common_construct( o ); }
@@ -57,6 +73,7 @@ public:
       std::string alias() const { return m_argumentsTable["alias"].get_string(); }
       std::string schema() const { return m_argumentsTable["schema"].get_string(); }
       std::string owner() const { return m_argumentsTable["owner"].get_string(); }
+      std::string join() const { return m_argumentsTable["join"].get_string(); }
 
       const arguments& get_arguments() const { return m_argumentsTable; }
 
@@ -104,6 +121,7 @@ public:
 
       template<typename VALUE>
       field& append(std::string_view stringName, const VALUE& v) { m_argumentsField.append(stringName, v); return *this; }
+      field& append_argument( std::string_view stringName, gd::variant_view v) { m_argumentsField.append_argument(stringName, v); return *this; }
       template<typename VALUE>
       field& set(std::string_view stringName, const VALUE& v) { m_argumentsField.set(stringName, v); return *this; }
       bool has(std::string_view stringName) const { return (m_argumentsField.find(stringName) != nullptr); }
@@ -163,10 +181,11 @@ public:
 
 /** \name FIELD
 *///@{
-   void field_add(std::string_view stringName);
-   void field_add(const gd::variant_view& variantTable, std::string_view stringName);
-   void field_add(std::string_view stringName, std::string_view stringAlias);
-   field* field_add(const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorField );
+   field* field_add(std::string_view stringName) { return field_add(gd::variant_view(0u), stringName, std::string_view()); }
+   field* field_add(const gd::variant_view& variantTable, std::string_view stringName) { return field_add(gd::variant_view(0u), stringName, std::string_view()); }
+   field* field_add(const gd::variant_view& variantTable, std::string_view stringName, std::string_view stringAlias);
+   field* field_add(const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorField) { return field_add( gd::variant_view(0u), vectorField ); }
+   field* field_add(const gd::variant_view& variantTable, const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorField );
    void field_add_many(const std::vector< std::vector< std::pair<std::string_view, gd::variant_view> > >& vectorVectorField );
 
    const field* field_get(unsigned uIndex) const { assert(uIndex < m_vectorField.size()); return &m_vectorField[uIndex]; }
@@ -185,6 +204,7 @@ public:
 
 /** \name OPERATION
 *///@{
+   /// Generate key values for internal data in query
    unsigned next_key() { return ++m_uNextKey; };
    // sql_get_select(), sql_select( iDbType )
    // sql_from(), sql_from( iDbType )
@@ -226,15 +246,8 @@ inline const query::table* query::table_get_for_key(unsigned uTableKey) const {
    return nullptr;
 }
 
-/// Add field with name
-inline void query::field_add(std::string_view stringName) {                      assert( m_vectorTable.size() > 0 ); // check for table if no table is set adding field, each field need to connect to table
-   m_vectorField.push_back( field( *table_get(0), stringName ) );
-}
-
 /// Add field with name and alias
-inline void query::field_add(std::string_view stringName, std::string_view stringAlias) { assert( m_vectorTable.size() == 1 );
-   m_vectorField.push_back( field(*table_get(0), stringName, stringAlias ) );
-}
+
 
 inline void query::field_add_many(const std::vector< std::vector< std::pair<std::string_view, gd::variant_view> > >& vectorVectorField) {
    for( auto it : vectorVectorField ) field_add(it);
