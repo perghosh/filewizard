@@ -30,7 +30,8 @@ using namespace gd::argument;
  */
 enum enumJoin
 {
-   eJoinInner = 0,
+   eJoinUnknown = 0,
+   eJoinInner = 1,
    eJoinLeft,
    eJoinRight,
    eJoinFull,
@@ -228,6 +229,12 @@ public:
    unsigned m_uNextKey = 0;         ///< used to generate keys
    std::vector<table> m_vectorTable;///< list of tables used to generate query
    std::vector<field> m_vectorField;///< list of fields used to generate query
+
+// ## free functions ------------------------------------------------------------------
+public:
+   // ## SQL key words
+   static enumJoin sql_get_join_type_s( std::string_view stringJoin );
+   static std::string_view sql_get_join_text_s( enumJoin eJoinType );
 
 
 };

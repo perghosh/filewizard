@@ -175,16 +175,6 @@ std::string query::sql_get_from() const
 {                                                                                assert( m_vectorTable.empty() == false ); // don't call this if no tables added to query
    std::string stringFrom; // generated from string with tables used in query
 
-   auto fAddJoin = [](enumJoin eJoin, std::string& stringFrom) -> void {
-      switch( eJoin )
-      {
-      case eJoinInner:  stringFrom += " INNER JOIN "; break;
-      case eJoinLeft:   stringFrom += " LEFT JOIN "; break;
-      case eJoinRight:  stringFrom += " RIGHT JOIN "; break;
-      case eJoinFull:   stringFrom += " FULL JOIN "; break;
-      }
-   };
-
    auto fAddTableName = [](const table* ptable, std::string& stringFrom) -> void {
       if( ptable->has("schema") == true )
       {
@@ -209,7 +199,7 @@ std::string query::sql_get_from() const
          stringFrom += "\n";                                                     // new line
 
          enumJoin eJoin = eJoinDefault;
-         fAddJoin(eJoin, stringFrom);
+         stringFrom += sql_get_join_text_s(eJoin);
       }
 
       fAddTableName( &(*itTable), stringFrom);                                   // add table to string
@@ -227,5 +217,52 @@ std::string query::sql_get_from() const
    return stringFrom;
 }
 
+/*----------------------------------------------------------------------------- sql_get_join_type_s */ /**
+ * Get join type (constant value for join) for text
+ * \param stringJoin join text join type is returned for
+ * \return gd::sql::enumJoin type of join that join text is
+ */
+gd::sql::enumJoin query::sql_get_join_type_s(std::string_view stringJoin)
+{
+   auto pbszJoin = stringJoin.data();
+   while( *pbszJoin <= 32 && *pbszJoin != '\0' ) pbszJoin++;
+   switch( *pbszJoin )
+   {
+   case 'i' :
+   case 'I' :
+   case 'j' :
+   case 'J' :
+      return eJoinInner;
+   case 'l':
+   case 'L':
+      return eJoinLeft;
+   case 'r':
+   case 'R':
+      return eJoinRight;
+   case 'f':
+   case 'F':
+      return eJoinFull;
+   }
+
+   return eJoinUnknown;
+}
+
+/*----------------------------------------------------------------------------- sql_get_join_text_s */ /**
+ * Return join string for join type
+ * \param eJoinType type of join text is returned for
+ * \return std::string_view string with join text
+ */
+std::string_view query::sql_get_join_text_s(enumJoin eJoinType)
+{
+   switch( eJoinType )
+   {
+   case eJoinInner: return std::string_view( " INNER JOIN " );
+   case eJoinLeft:  return std::string_view( " LEFT JOIN " );
+   case eJoinRight: return std::string_view( " RIGHT JOIN " );
+   case eJoinFull:  return std::string_view( " FULL JOIN " );
+   }
+                                                                               assert(false);
+   return std::string_view();
+}
 
 _GD_SQL_QUERY_END
