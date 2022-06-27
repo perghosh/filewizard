@@ -395,6 +395,7 @@ public:
    bool is_null() const { return (m_uType == variant_type::eTypeUnknown); }
    bool is_bool() const { return (m_uType & variant_type::eGroupBoolean ? true : false); }
    bool is_int() const { return (m_uType & variant_type::eGroupInteger ? true : false); }
+   bool is_integer() const { return (m_uType & variant_type::eGroupInteger ? true : false); }
    bool is_decimal() const { return (m_uType & variant_type::eGroupDecimal ? true : false); }
    bool is_string() const { return (m_uType & variant_type::eGroupString ? true : false); }
    bool is_binary() const { return (m_uType & variant_type::eGroupBinary ? true : false); }
@@ -403,6 +404,8 @@ public:
    bool is_xml() const { return (m_uType & variant_type::enumFilter::eFilterTypeGroup) == variant_type::eTypeNumberXml ? true : false; }
 
    bool is_true() const;
+
+   bool is_char_string() const { return (m_uType == variant_type::eTypeUtf8String || m_uType == variant_type::eTypeString ? true : false); }
 
    bool is_void() const { return (m_uType & variant_type::enumFilter::eFilterTypeGroup) == variant_type::eTypeNumberVoid ? true : false; }
 

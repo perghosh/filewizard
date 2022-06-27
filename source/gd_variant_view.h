@@ -258,6 +258,8 @@ public:
 
    bool is_true() const;
 
+   bool is_char_string() const { return (m_uType == variant_type::eTypeUtf8String || m_uType == variant_type::eTypeString ? true : false); }
+
 
    void change( variant_type::enumType eType );
 
