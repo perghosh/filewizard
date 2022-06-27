@@ -37,6 +37,51 @@ enum enumJoin
    eJoinFull,
 };
 
+enum enumOperatorTypeNumber
+{
+   eOperatorTypeNumberEqual = 0,        // =
+   eOperatorTypeNumberNotEqual = 1,     // !=
+   eOperatorTypeNumberLess = 2,         // <
+   eOperatorTypeNumberLessEqual = 3,    // <=
+   eOperatorTypeNumberGreater = 4,      // >
+   eOperatorTypeNumberGreaterEqual = 5, // >=
+   eOperatorTypeNumberLike = 6,         // ..=..
+   eOperatorTypeNumberLikeBegin = 7,    // ..=
+   eOperatorTypeNumberLikeEnd = 8,      // =..
+   eOperatorTypeNumberNull = 9,         // IS NULL
+   eOperatorTypeNumberNotNull = 10,     // IS NOT NULL
+   eOperatorTypeNumberIn = 11,          // IN
+   eOperatorTypeNumberNotIn = 12,       // NOT IN
+};
+
+enum enumOperatorGroupType
+{
+   eOperatorGroupTypeBoolean    = 0x00000100,   // boolean value
+   eOperatorGroupTypeNumber     = 0x00000200,   // number value
+   eOperatorGroupTypeDate       = 0x00000400,   // date value
+   eOperatorGroupTypeString     = 0x00000800,   // text value
+   eOperatorGroupTypeBinary     = 0x00001000,   // binary
+};
+
+enum enumOperator
+{
+   eOperatorEqual =                 eOperatorTypeNumberEqual | eOperatorGroupTypeBoolean | eOperatorGroupTypeNumber | eOperatorGroupTypeDate | eOperatorGroupTypeString | eOperatorGroupTypeBinary,
+   eOperatorNotEqual =              eOperatorTypeNumberNotEqual | eOperatorGroupTypeBoolean | eOperatorGroupTypeNumber | eOperatorGroupTypeDate | eOperatorGroupTypeString | eOperatorGroupTypeBinary,
+   eOperatorLess =                  eOperatorTypeNumberLess | eOperatorGroupTypeNumber | eOperatorGroupTypeDate | eOperatorGroupTypeString,
+   eOperatorLessEqual =             eOperatorTypeNumberLessEqual | eOperatorGroupTypeNumber | eOperatorGroupTypeDate | eOperatorGroupTypeString,
+   eOperatorGreater =               eOperatorTypeNumberGreater | eOperatorGroupTypeNumber | eOperatorGroupTypeDate | eOperatorGroupTypeString,
+   eOperatorGreaterEqual =          eOperatorTypeNumberGreaterEqual | eOperatorGroupTypeNumber | eOperatorGroupTypeDate | eOperatorGroupTypeString,
+   eOperatorLike =                  eOperatorTypeNumberLike | eOperatorGroupTypeString,
+   eOperatorLikeBegin =             eOperatorTypeNumberLikeBegin | eOperatorGroupTypeString,
+   eOperatorLikeEnd =               eOperatorTypeNumberLikeEnd | eOperatorGroupTypeString,
+   eOperatorNull =                  eOperatorTypeNumberNull | eOperatorGroupTypeBoolean | eOperatorGroupTypeNumber | eOperatorGroupTypeDate | eOperatorGroupTypeString | eOperatorGroupTypeBinary,
+   eOperatorNotNull =               eOperatorTypeNumberNotNull | eOperatorGroupTypeBoolean | eOperatorGroupTypeNumber | eOperatorGroupTypeDate | eOperatorGroupTypeString | eOperatorGroupTypeBinary,
+   eOperatorIn =                    eOperatorTypeNumberIn | eOperatorGroupTypeBoolean | eOperatorGroupTypeNumber | eOperatorGroupTypeDate | eOperatorGroupTypeString | eOperatorGroupTypeBinary,
+   eOperatorNotIn =                 eOperatorTypeNumberNotIn | eOperatorGroupTypeBoolean | eOperatorGroupTypeNumber | eOperatorGroupTypeDate | eOperatorGroupTypeString | eOperatorGroupTypeBinary,
+
+   eOperatorError =                 0xffffffff,
+};
+
 /**
  * \brief 
  *
@@ -131,8 +176,44 @@ public:
    
       // attributes
       public:
-         unsigned m_uTableKey = 0;
+         unsigned m_uTableKey = 0;   ///< table that owns field
          arguments m_argumentsField; ///< all field properties 
+   };
+
+   /*-----------------------------------------*/ /**
+    * \brief 
+    *
+    *
+    */
+   struct condition 
+   {
+      condition() {}
+      explicit condition(unsigned uTable) : m_uTableKey(uTable) {}
+      condition( const condition& o ) { common_construct( o ); }
+      condition( condition&& o ) noexcept { common_construct( o ); }
+      condition& operator=( const condition& o ) { common_construct( o ); return *this; }
+      condition& operator=( condition&& o ) noexcept { common_construct( o ); return *this; }
+   
+      void common_construct(const condition& o) { m_uTableKey = o.m_uTableKey; m_argumentsCondition = o.m_argumentsCondition; }
+      void common_construct(condition&& o) noexcept { m_uTableKey = o.m_uTableKey; m_argumentsCondition = std::move(o.m_argumentsCondition); }
+
+      std::string name() const { return m_argumentsCondition["name"].get_string(); }
+      std::string value() const { return m_argumentsCondition["value"].get_string(); }
+
+
+      template<typename VALUE>
+      condition& append(std::string_view stringName, const VALUE& v) { m_argumentsCondition.append(stringName, v); return *this; }
+      condition& append_argument(std::string_view stringName, gd::variant_view v) { m_argumentsCondition.append_argument(stringName, v); return *this; }
+      template<typename VALUE>
+      condition& set(std::string_view stringName, const VALUE& v) { m_argumentsCondition.set(stringName, v); return *this; }
+      bool has(std::string_view stringName) const { return (m_argumentsCondition.find(stringName) != nullptr); }
+      bool compare(const std::pair<std::string_view, gd::variant_view>& pairMatch) const { return m_argumentsCondition.find(pairMatch) != nullptr; }
+
+   
+      // attributes
+      public:
+         unsigned m_uTableKey = 0;   ///< table that owns condition
+         arguments m_argumentsCondition; ///< all condition properties 
    };
 
 // ## construction -------------------------------------------------------------
@@ -182,6 +263,7 @@ public:
 
 /** \name FIELD
 *///@{
+   // ## add fields to query
    field* field_add(std::string_view stringName) { return field_add(gd::variant_view(0u), stringName, std::string_view()); }
    field* field_add(const gd::variant_view& variantTable, std::string_view stringName) { return field_add(gd::variant_view(0u), stringName, std::string_view()); }
    field* field_add(const gd::variant_view& variantTable, std::string_view stringName, std::string_view stringAlias);
@@ -189,9 +271,12 @@ public:
    field* field_add(const gd::variant_view& variantTable, const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorField );
    void field_add_many(const std::vector< std::vector< std::pair<std::string_view, gd::variant_view> > >& vectorVectorField );
 
+   // ## get field in query
    const field* field_get(unsigned uIndex) const { assert(uIndex < m_vectorField.size()); return &m_vectorField[uIndex]; }
    field* field_get(unsigned uIndex) { assert(uIndex < m_vectorField.size()); return &m_vectorField[uIndex]; }
    field* field_get( const std::pair<std::string_view, gd::variant_view>& pairField );
+
+   // ## various field operations and iterator
 
    std::size_t field_size() const { return m_vectorField.size(); }
    bool field_empty() const { return m_vectorField.empty(); }
@@ -201,6 +286,14 @@ public:
    std::vector<field>::iterator field_end() { return m_vectorField.end(); }
    std::vector<field>::const_iterator field_end() const { return m_vectorField.cend(); }
 //@}
+
+/** \name CONDITION
+*///@{
+   condition* condition_add(const gd::variant_view& variantTable, std::string_view stringName, const gd::variant_view& variantOperator, const gd::variant_view& variantValue);
+   condition* condition_add(const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorCondition) { return condition_add( gd::variant_view(0u), vectorCondition ); }
+   condition* condition_add(const gd::variant_view& variantTable, const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorCondition );
+//@}
+
 
 
 /** \name OPERATION
@@ -229,12 +322,17 @@ public:
    unsigned m_uNextKey = 0;         ///< used to generate keys
    std::vector<table> m_vectorTable;///< list of tables used to generate query
    std::vector<field> m_vectorField;///< list of fields used to generate query
+   std::vector<condition> m_vectorCondition;///< list of fields used to generate query
 
 // ## free functions ------------------------------------------------------------------
 public:
    // ## SQL key words
    static enumJoin sql_get_join_type_s( std::string_view stringJoin );
    static std::string_view sql_get_join_text_s( enumJoin eJoinType );
+
+   // ## SQL WHERE operator
+   static enumOperator get_where_operator_number_s(std::string_view stringOperator);
+   static enumOperator get_where_operator_number_s(const gd::variant_view& variantOperator);
 
 
 };

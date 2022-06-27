@@ -89,7 +89,7 @@ query::table* query::table_add(const std::vector< std::pair<std::string_view, gd
  */
 query::field* query::field_add(const gd::variant_view& variantTable, std::string_view stringName, std::string_view stringAlias) 
 {
-   auto ptable = table_get(variantTable);                                      assert(ptable != nullptr);
+   auto ptable = table_get(variantTable);                                        assert(ptable != nullptr);
 
    m_vectorField.push_back(field(*ptable, stringName));
 
@@ -107,18 +107,70 @@ query::field* query::field_add(const gd::variant_view& variantTable, std::string
  */
 query::field* query::field_add(const gd::variant_view& variantTable, const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorField)
 {
-   auto ptable = table_get(variantTable);                                      assert(ptable != nullptr);
+   auto ptable = table_get(variantTable);                                        assert(ptable != nullptr);
 
-   field fieldAdd( *ptable );
+   field fieldAdd( *ptable );                                                    // create field object that is added to query
 
    for( auto it : vectorField )
    {  // append values for field added to query
-      fieldAdd.append_argument(it.first, it.second);                                      // first = name, second = value
+      fieldAdd.append_argument(it.first, it.second);                             // first = name, second = value
    }
 
    m_vectorField.push_back(std::move(fieldAdd));                                 // add to list with fields
    return &m_vectorField.back();                                                 // return pointer to added field
 }
+
+/*----------------------------------------------------------------------------- condition_add */ /**
+ * Add condition to query
+ * \param variantTable index to table condition belongs to
+ * \param stringName condition field name
+ * \param variantOperator condition operator
+ * \param variantValue condition value
+ * \return condition* pointer to added condition
+ */
+gd::sql::query::condition* query::condition_add(const gd::variant_view& variantTable, std::string_view stringName, const gd::variant_view& variantOperator, const gd::variant_view& variantValue)
+{
+   auto ptable = table_get(variantTable);                                        assert(ptable != nullptr);
+
+   condition conditionAdd(*ptable);                                              // create condition object that is added to query
+   conditionAdd.append("name", stringName);
+
+
+   enumOperator eOperator = get_where_operator_number_s(variantOperator);        assert( eOperator != eOperatorError );
+   conditionAdd.append("operator", eOperator);
+   conditionAdd.append_argument("value", variantValue);
+
+   m_vectorCondition.push_back(std::move(conditionAdd));                         // add to list with fields
+   return &m_vectorCondition.back();                                             // return pointer to added condition
+}
+
+/*----------------------------------------------------------------------------- condition_add */ /**
+ * Add condition to query
+ * \param variantTable index to table field belongs to
+ * \param vectorField vector with field properties, each property has a name and a value
+ * \return gd::sql::query::field* pointer to added field
+ */
+query::condition* query::condition_add(const gd::variant_view& variantTable, const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorCondition)
+{
+   auto ptable = table_get(variantTable);                                        assert(ptable != nullptr);
+
+   condition conditionAdd( *ptable );                                            // create field object that is added to query
+
+   for( auto it : vectorCondition )
+   {  // append values for field added to query
+      if( it.first[0] == 'o' && it.first == "operator" )
+      {
+         enumOperator eOperator = get_where_operator_number_s(it.second);        assert( eOperator != eOperatorError );
+         conditionAdd.append("operator", eOperator);
+      }
+      else { conditionAdd.append_argument(it.first, it.second); }                // first = name, second = value
+   }
+
+   m_vectorCondition.push_back(std::move(conditionAdd));                         // add condition to list
+   return &m_vectorCondition.back();                                             // return pointer to added condition
+}
+
+
 
 /*----------------------------------------------------------------------------- field_get */ /**
  * return field based on property value for field
@@ -263,6 +315,52 @@ std::string_view query::sql_get_join_text_s(enumJoin eJoinType)
    }
                                                                                assert(false);
    return std::string_view();
+}
+
+/*----------------------------------------------------------------------------- get_where_operator_number_s */ /**
+ * get where operator number
+ * \param stringOperator
+ * \return gd::sql::enumOperator
+ */
+enumOperator query::get_where_operator_number_s(std::string_view stringOperator)
+{                                                                                assert( stringOperator.empty() == false );
+   auto pbszOperator = stringOperator.data();
+   switch( *pbszOperator )
+   {
+   case '=': return eOperatorEqual;
+   case '!': return eOperatorNotEqual;
+   case '<': {
+      if( *(pbszOperator + 1) == '\0' ) return eOperatorLess;
+      else if( *(pbszOperator + 1) == '=' ) return eOperatorLessEqual;
+   }
+   break;
+   case '>': {
+      if( *(pbszOperator + 1) == '\0' ) return eOperatorGreater;
+      else if( *(pbszOperator + 1) == '=' ) return eOperatorGreaterEqual;
+   }
+   break;
+   case 'e': return eOperatorEqual;
+   case 'n': {
+      if( stringOperator == "notequal" ) return eOperatorEqual;                  // !=
+      else if( stringOperator == "null" ) return eOperatorNull;                  // IS NULL
+      else if( stringOperator == "notnull" ) return eOperatorNotNull;            // IS NOT NULL
+      else if( stringOperator == "notin" ) return eOperatorNotIn;                // NOT IN
+   }
+   break;
+
+   }
+                                                                                 assert( false );
+   return eOperatorError;
+}
+
+enumOperator query::get_where_operator_number_s(const gd::variant_view& variantOperator)
+{
+   enumOperator eOperator;
+   if( variantOperator.is_number() ) eOperator = static_cast<enumOperator>(variantOperator.get_uint());
+   else if( variantOperator.is_char_string() ) eOperator = get_where_operator_number_s(std::string_view( variantOperator.c_str() ));
+   else { eOperator = get_where_operator_number_s(std::string_view(variantOperator.get_string())); }
+
+   return eOperator;
 }
 
 _GD_SQL_QUERY_END
