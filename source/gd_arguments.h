@@ -103,7 +103,7 @@ public:
       eTypeNumberWString,        // unicode string
       eTypeNumberUtf32String,    // utf32 string
 
-      eTypeNumberBinary,
+      eTypeNumberBinary,         // binary data
 
       CType_MAX,
 
@@ -647,20 +647,13 @@ public:
       return argument();
    }
 
-   [[nodiscard]] argument_edit find_edit_argument(std::string_view stringName) {
-      const_pointer pPosition = find(stringName);
-      if( pPosition ) return get_edit_param_s(this, pPosition);
-      return argument_edit();
-   }
-
-   /// find param value for name
-   [[nodiscard]] argument find_argument(std::string_view stringName, const_pointer pPosition) const {
-      pPosition = find(stringName, pPosition);
-      if( pPosition ) return get_argument_s(pPosition);
-      return argument();
-   }
+   /// return argument object that can be used to edit value if found
+   [[nodiscard]] argument_edit find_edit_argument(std::string_view stringName);
+   /// find param value for name and start from position to search
+   [[nodiscard]] argument find_argument(std::string_view stringName, const_pointer pPosition) const;
 
    [[nodiscard]] bool compare(const std::pair<std::string_view, gd::variant_view>& pairMatch) const { return find(pairMatch) != nullptr; }
+   [[nodiscard]] bool compare(const std::string_view stringName, const arguments& argumentsCompareTo) const;
 //@}
 
    [[nodiscard]] pointer next() { return m_uLength > 0 ? m_pBuffer : nullptr; }
@@ -901,7 +894,28 @@ public:
 
 };
 
+/// return argument object that can be used to edit value
+inline arguments::argument_edit arguments::find_edit_argument(std::string_view stringName) {
+   const_pointer pPosition = find(stringName);
+   if( pPosition ) return get_edit_param_s(this, pPosition);
+   return argument_edit();
+}
 
+/// Get argument value and start from offset position in buffer, use this if there are multiple values with same name
+inline arguments::argument arguments::find_argument(std::string_view stringName, const_pointer pPosition) const {
+   pPosition = find(stringName, pPosition);
+   if( pPosition ) return get_argument_s(pPosition);
+   return argument();
+}
+
+/// compare if value is equal for specified name
+/// comparing text is faster with this internal compare method because you no object is created on heap holding argument value
+inline bool arguments::compare(const std::string_view stringName, const arguments& argumentsCompareTo) const {
+   const argument argumentCompare = get_argument(stringName);
+   if( argumentCompare.is_null() ) return false;
+   const argument argumentCompareTo = argumentsCompareTo.get_argument(stringName);
+   return compare_argument_s(argumentCompare, argumentCompareTo);
+}
 
 
 } // namespace _GD_PARAM_BEGIN

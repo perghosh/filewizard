@@ -52,6 +52,7 @@ enum enumOperatorTypeNumber
    eOperatorTypeNumberNotNull = 10,     // IS NOT NULL
    eOperatorTypeNumberIn = 11,          // IN
    eOperatorTypeNumberNotIn = 12,       // NOT IN
+   eOperatorTypeNumberEND,              // Used to check for max valid operator number
 };
 
 enum enumOperatorGroupType
@@ -80,6 +81,11 @@ enum enumOperator
    eOperatorNotIn =                 eOperatorTypeNumberNotIn | eOperatorGroupTypeBoolean | eOperatorGroupTypeNumber | eOperatorGroupTypeDate | eOperatorGroupTypeString | eOperatorGroupTypeBinary,
 
    eOperatorError =                 0xffffffff,
+};
+
+enum enumOperatorMask
+{
+   eOperatorMaskNumber = 0x000000ff,
 };
 
 /**
@@ -193,13 +199,18 @@ public:
       condition( condition&& o ) noexcept { common_construct( o ); }
       condition& operator=( const condition& o ) { common_construct( o ); return *this; }
       condition& operator=( condition&& o ) noexcept { common_construct( o ); return *this; }
+
+      operator arguments() const { return m_argumentsCondition; }
    
       void common_construct(const condition& o) { m_uTableKey = o.m_uTableKey; m_argumentsCondition = o.m_argumentsCondition; }
       void common_construct(condition&& o) noexcept { m_uTableKey = o.m_uTableKey; m_argumentsCondition = std::move(o.m_argumentsCondition); }
 
       std::string name() const { return m_argumentsCondition["name"].get_string(); }
       std::string value() const { return m_argumentsCondition["value"].get_string(); }
+      std::string raw() const { return m_argumentsCondition["raw"].get_string(); }
 
+      unsigned get_table_key() const { return m_uTableKey; }
+      unsigned get_operator() const { return m_argumentsCondition["operator"].get_uint(); }
 
       template<typename VALUE>
       condition& append(std::string_view stringName, const VALUE& v) { m_argumentsCondition.append(stringName, v); return *this; }
@@ -208,6 +219,9 @@ public:
       condition& set(std::string_view stringName, const VALUE& v) { m_argumentsCondition.set(stringName, v); return *this; }
       bool has(std::string_view stringName) const { return (m_argumentsCondition.find(stringName) != nullptr); }
       bool compare(const std::pair<std::string_view, gd::variant_view>& pairMatch) const { return m_argumentsCondition.find(pairMatch) != nullptr; }
+      /// compare named value with sent condition, if both condition values for name match return true, otherwise false
+      bool compare(const std::string_view& stringName, const condition* pconditionCompareTo) const { return m_argumentsCondition.compare( stringName, *pconditionCompareTo ); }
+      
 
    
       // attributes
@@ -292,6 +306,7 @@ public:
    condition* condition_add(const gd::variant_view& variantTable, std::string_view stringName, const gd::variant_view& variantOperator, const gd::variant_view& variantValue);
    condition* condition_add(const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorCondition) { return condition_add( gd::variant_view(0u), vectorCondition ); }
    condition* condition_add(const gd::variant_view& variantTable, const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorCondition );
+
 //@}
 
 
@@ -300,14 +315,12 @@ public:
 *///@{
    /// Generate key values for internal data in query
    unsigned next_key() { return ++m_uNextKey; };
-   // sql_get_select(), sql_select( iDbType )
-   // sql_from(), sql_from( iDbType )
-   // sql_where(), sql_where( iDbType )
    // sql_update(), sql_update( iDbType )
    // sql_insert(), sql_insert( iDbType )
 
    std::string sql_get_select() const;
    std::string sql_get_from() const;
+   std::string sql_get_where() const;
    
 //@}
 
@@ -333,7 +346,12 @@ public:
    // ## SQL WHERE operator
    static enumOperator get_where_operator_number_s(std::string_view stringOperator);
    static enumOperator get_where_operator_number_s(const gd::variant_view& variantOperator);
+   static unsigned get_where_operator_text_s(unsigned uOperator, char* pbBuffer);
+   static void print_condition_Values_s( std::string& stringValues,  const std::vector<const condition*>& vectorCondition);
 
+   // ## Condition methods
+   /// Find all conditions for same field and same operator
+   static std::vector<std::size_t> condition_find_all_for_operataor_s(const std::vector<condition>& vectorCondtion, const condition* pconditionMatch, unsigned uBegin);
 
 };
 

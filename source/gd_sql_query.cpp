@@ -227,6 +227,8 @@ std::string query::sql_get_from() const
 {                                                                                assert( m_vectorTable.empty() == false ); // don't call this if no tables added to query
    std::string stringFrom; // generated from string with tables used in query
 
+   // ## Add table to to query, builds information from schema, name and alias if found
+   //    *sample* schema = application, name = TCustomer, alias = Customer1 -> applicaton.TCustomer Customer1
    auto fAddTableName = [](const table* ptable, std::string& stringFrom) -> void {
       if( ptable->has("schema") == true )
       {
@@ -243,7 +245,7 @@ std::string query::sql_get_from() const
    };
 
    enumJoin eJoinDefault = eJoinInner;                                           // default join if join isn't, specified for table
-   unsigned uTableIndex = 0;
+   unsigned uTableIndex = 0;                                                     // active index for current table processed
    for( auto itTable = std::begin(m_vectorTable); itTable != std::end(m_vectorTable); itTable++ )
    {
       if( uTableIndex != 0 )
@@ -251,7 +253,7 @@ std::string query::sql_get_from() const
          stringFrom += "\n";                                                     // new line
 
          enumJoin eJoin = eJoinDefault;
-         stringFrom += sql_get_join_text_s(eJoin);
+         stringFrom += sql_get_join_text_s(eJoin);                               // get join text for active table 
       }
 
       fAddTableName( &(*itTable), stringFrom);                                   // add table to string
@@ -259,7 +261,7 @@ std::string query::sql_get_from() const
       if( uTableIndex != 0 )
       {
          stringFrom += " ON ";
-         std::string stringJoin = itTable->join();
+         std::string stringJoin = itTable->join();                               // get join part for table, here it is stored in data for table
          stringFrom += stringJoin;
       }
 
@@ -268,6 +270,82 @@ std::string query::sql_get_from() const
 
    return stringFrom;
 }
+
+/*----------------------------------------------------------------------------- sql_get_where */ /**
+ * Build "WHERE" text from conditions added to query
+ * \return std::string
+ */
+std::string query::sql_get_where() const
+{
+   std::vector<bool> vectorSkipCondition(m_vectorCondition.size());
+   char pbBuffer[16];       // buffer used for adding where operator and start or end parenthesis
+   std::string stringWhere; // generated where string that gets condition values used to filter query
+
+   unsigned uConditionIndex = 0;
+   for( auto itCondition = std::begin(m_vectorCondition); itCondition != std::end(m_vectorCondition); itCondition++ )
+   {
+      if( vectorSkipCondition[uConditionIndex] == true ) { uConditionIndex++; continue; } // if condition has been processed then skip, this may happen when = or <> are combined
+
+      if( uConditionIndex > 0 )
+      {
+         stringWhere += std::string_view{ " AND " };
+      }
+
+      if( itCondition->has("raw") == true )
+      {
+         stringWhere += itCondition->raw();
+      }
+      else
+      {
+         const table* ptable = table_get_for_key(itCondition->get_table_key());   assert(ptable != nullptr); // no table found for key indicates internal error for query object, this shouldn't happen
+         if( ptable->has("alias") == true )
+         {
+            stringWhere += ptable->alias();
+            stringWhere += ".";
+         }
+
+         stringWhere += itCondition->name();
+
+         enumOperatorTypeNumber eOperator = static_cast<enumOperatorTypeNumber>(itCondition->get_operator() & eOperatorMaskNumber);
+
+         if( eOperator == eOperatorTypeNumberEqual || eOperator == eOperatorTypeNumberNotEqual )
+         {
+            uConditionIndex++;                                                   // increase index
+            auto vectorIndex = condition_find_all_for_operataor_s(m_vectorCondition, &(*itCondition), uConditionIndex);
+            if( vectorIndex.empty() != true )
+            {
+               if( eOperator == eOperatorTypeNumberEqual ) stringWhere += std::string_view{ " IN(" };
+               if( eOperator == eOperatorTypeNumberNotEqual ) stringWhere += std::string_view{ " NOT IN(" };
+
+               std::vector<const condition*> vectorCondition; 
+               vectorCondition.reserve(vectorIndex.size() + 1);
+               vectorCondition.push_back(&(*itCondition));
+               for( auto it : vectorIndex ) { vectorCondition.push_back(&m_vectorCondition[it]); }
+
+               print_condition_Values_s(stringWhere, vectorCondition);           // print condition values that is added to where text
+               
+               stringWhere += ')';
+               
+               for( auto it : vectorIndex ) { vectorSkipCondition[it] = true; }  // mark conditions as processed, this will disable condition next when activated
+
+               continue; // go to loop and continue with next condition
+            }
+            
+         }
+
+         // string gets pointer to buffer, buffer is filled in method get_where_operator_text_s and buffer length is returned
+         std::string_view stringOperator(pbBuffer, get_where_operator_text_s(itCondition->get_operator() & eOperatorMaskNumber, pbBuffer));
+         stringWhere += stringOperator;                                          // add operator text
+         stringWhere += itCondition->value();
+      }
+
+      vectorSkipCondition[uConditionIndex] = true;
+      uConditionIndex++;
+   }
+
+   return stringWhere;
+}
+
 
 /*----------------------------------------------------------------------------- sql_get_join_type_s */ /**
  * Get join type (constant value for join) for text
@@ -332,6 +410,7 @@ enumOperator query::get_where_operator_number_s(std::string_view stringOperator)
    case '<': {
       if( *(pbszOperator + 1) == '\0' ) return eOperatorLess;
       else if( *(pbszOperator + 1) == '=' ) return eOperatorLessEqual;
+      else if( *(pbszOperator + 1) == '>' ) return eOperatorNotEqual;
    }
    break;
    case '>': {
@@ -362,5 +441,75 @@ enumOperator query::get_where_operator_number_s(const gd::variant_view& variantO
 
    return eOperator;
 }
+
+namespace {
+std::string_view set_text(char* pbBuffer, const std::string_view& stringAdd)
+{
+   _memccpy(pbBuffer, stringAdd.data(), 0, (int)stringAdd.length() + 1);
+   return std::string_view(pbBuffer, stringAdd.length());
+}
+}
+
+unsigned query::get_where_operator_text_s(unsigned uOperator, char* pbBuffer)
+{                                                                                assert( uOperator < eOperatorTypeNumberEND );
+   std::string_view stringWhere;
+   switch( uOperator )
+   {
+   case eOperatorTypeNumberEqual: stringWhere = set_text(pbBuffer, std::string_view{ " = " }); break;
+   case eOperatorTypeNumberNotEqual: stringWhere = set_text(pbBuffer, std::string_view{ " <> " }); break;
+   case eOperatorTypeNumberLess: stringWhere = set_text(pbBuffer, std::string_view{ " < " }); break;
+   case eOperatorTypeNumberLessEqual: stringWhere = set_text(pbBuffer, std::string_view{ " <= " }); break;
+   case eOperatorTypeNumberGreater: stringWhere = set_text(pbBuffer, std::string_view{ " > " }); break;
+   case eOperatorTypeNumberGreaterEqual: stringWhere = set_text(pbBuffer, std::string_view{ " >= " }); break;
+   case eOperatorTypeNumberLike: stringWhere = set_text(pbBuffer, std::string_view{ " LIKE " }); break;
+   case eOperatorTypeNumberLikeBegin: stringWhere = set_text(pbBuffer, std::string_view{ " LIKE " }); break;
+   case eOperatorTypeNumberLikeEnd: stringWhere = set_text(pbBuffer, std::string_view{ " LIKE " }); break;
+   case eOperatorTypeNumberNull: stringWhere = set_text(pbBuffer, std::string_view{ " IS NULL " }); break;
+   case eOperatorTypeNumberNotNull: stringWhere = set_text(pbBuffer, std::string_view{ " IS NOT NULL " }); break;
+   case eOperatorTypeNumberIn: stringWhere = set_text(pbBuffer, std::string_view{ " IN " }); break;
+   case eOperatorTypeNumberNotIn: stringWhere = set_text(pbBuffer, std::string_view{ " NOT IN " }); break;
+
+   default:
+      assert(false); *pbBuffer = '\0';
+      break;
+   }
+   
+   return (unsigned)stringWhere.length();
+}
+
+/*----------------------------------------------------------------------------- condition_find_all_for_operataor_s */ /**
+ * 
+ * \param vectorCondtion
+ * \param pconditionMatch
+ * \param uBegin
+ * \return std::vector<std::size_t>
+ */
+std::vector<std::size_t> query::condition_find_all_for_operataor_s(const std::vector<condition>& vectorCondtion, const condition* pconditionMatch, unsigned uBegin)
+{
+   std::vector<std::size_t> vectorCondition;
+   for( auto it = std::begin(vectorCondtion) + uBegin; it != std::end(vectorCondtion); it++ )
+   {
+      if( pconditionMatch->get_table_key() == it->get_table_key() &&
+          pconditionMatch->get_operator() == it->get_operator() &&
+          pconditionMatch->compare(std::string_view{ "name" }, &(*it)) == true )
+      {
+         vectorCondition.push_back( std::distance( std::begin(vectorCondtion), it ) );
+      }
+   }
+
+   return vectorCondition;
+}
+
+void query::print_condition_Values_s( std::string& stringValues, const std::vector<const condition*>& vectorCondition )
+{
+   unsigned uCount = 0;
+   for( auto it : vectorCondition )
+   {
+      if( uCount > 0 ) stringValues += std::string_view{ ", " };
+      stringValues += it->value();
+      uCount++;
+   }
+}
+
 
 _GD_SQL_QUERY_END
