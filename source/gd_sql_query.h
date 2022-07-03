@@ -178,6 +178,7 @@ public:
       field& set(std::string_view stringName, const VALUE& v) { m_argumentsField.set(stringName, v); return *this; }
       bool has(std::string_view stringName) const { return (m_argumentsField.find(stringName) != nullptr); }
       bool compare( const std::pair<std::string_view, gd::variant_view>& pairMatch) const { return m_argumentsField.find(pairMatch) != nullptr; }
+      bool compare(const table* pTable) const { return m_uTableKey == *pTable; }
 
    
       // attributes
@@ -321,6 +322,7 @@ public:
    std::string sql_get_select() const;
    std::string sql_get_from() const;
    std::string sql_get_where() const;
+   std::string sql_get_insert() const;
    
 //@}
 
@@ -347,7 +349,7 @@ public:
    static enumOperator get_where_operator_number_s(std::string_view stringOperator);
    static enumOperator get_where_operator_number_s(const gd::variant_view& variantOperator);
    static unsigned get_where_operator_text_s(unsigned uOperator, char* pbBuffer);
-   static void print_condition_Values_s( std::string& stringValues,  const std::vector<const condition*>& vectorCondition);
+   static void print_condition_values_s( std::string& stringValues,  const std::vector<const condition*>& vectorCondition);
 
    // ## Condition methods
    /// Find all conditions for same field and same operator
@@ -380,4 +382,4 @@ inline void query::field_add_many(const std::vector< std::vector< std::pair<std:
 
 
 
-} // namespace _GD_CALCULATE_PARSE_BEGIN
+_GD_SQL_QUERY_END // namespace _GD_CALCULATE_PARSE_BEGIN

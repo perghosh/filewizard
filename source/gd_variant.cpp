@@ -206,6 +206,12 @@ std::string variant::get_string() const
 
 }
 
+std::string_view variant::get_string(variant_type::no_allocate_tag) const
+{
+   if( is_char_string() == true ) return std::string_view(c_str(), length());
+   return std::string_view();
+}
+
 /*
 std::string variant::get_utf8string() const
 {

@@ -246,7 +246,7 @@ std::string query::sql_get_from() const
 
    enumJoin eJoinDefault = eJoinInner;                                           // default join if join isn't, specified for table
    unsigned uTableIndex = 0;                                                     // active index for current table processed
-   for( auto itTable = std::begin(m_vectorTable); itTable != std::end(m_vectorTable); itTable++ )
+   for( auto itTable = std::begin(m_vectorTable), itEnd = std::end(m_vectorTable); itTable != itEnd; itTable++ )
    {
       if( uTableIndex != 0 )
       {
@@ -322,7 +322,7 @@ std::string query::sql_get_where() const
                vectorCondition.push_back(&(*itCondition));
                for( auto it : vectorIndex ) { vectorCondition.push_back(&m_vectorCondition[it]); }
 
-               print_condition_Values_s(stringWhere, vectorCondition);           // print condition values that is added to where text
+               print_condition_values_s(stringWhere, vectorCondition);           // print condition values that is added to where text
                
                stringWhere += ')';
                
@@ -344,6 +344,46 @@ std::string query::sql_get_where() const
    }
 
    return stringWhere;
+}
+
+
+/*----------------------------------------------------------------------------- sql_get_insert */ /**
+ * 
+ * \return std::string
+ */
+std::string query::sql_get_insert() const
+{
+   std::string stringInsert; // generated insert string with tables used in query
+
+   unsigned uTableIndex = 0;                                                     // active index for current table processed
+   for( auto itTable = std::begin(m_vectorTable), itEnd = std::end(m_vectorTable); itTable != itEnd; itTable++ )
+   {
+      const auto ptable = &(*itTable);
+      if( ptable->has("schema") == true )
+      {
+         stringInsert += ptable->schema();
+         stringInsert += ".";
+         stringInsert += ptable->name();
+
+         unsigned uFieldIndex = 0;
+         for( auto itField = std::begin(m_vectorField), itEndField = std::end(m_vectorField); itField != itEndField; itField++ )
+         {
+            if( itField->compare(ptable) == true )
+            {
+               if( uFieldIndex == 0 ) stringInsert += " (";
+               else if( uFieldIndex > 0 ) stringInsert += ", ";
+               stringInsert += itField->name();
+               uFieldIndex++;
+            }
+         }
+
+         if( uFieldIndex > 0 ) stringInsert += ")";
+      }
+
+
+   }
+
+   return stringInsert;
 }
 
 
@@ -500,7 +540,7 @@ std::vector<std::size_t> query::condition_find_all_for_operataor_s(const std::ve
    return vectorCondition;
 }
 
-void query::print_condition_Values_s( std::string& stringValues, const std::vector<const condition*>& vectorCondition )
+void query::print_condition_values_s( std::string& stringValues, const std::vector<const condition*>& vectorCondition )
 {
    unsigned uCount = 0;
    for( auto it : vectorCondition )

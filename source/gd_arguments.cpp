@@ -7,10 +7,10 @@
 
 #pragma warning( disable : 4996 6054 6387 26812 33010 ) // disable warnings for buffer that might not be zero terminated and 
 
-#ifndef _GD_PARAM_BEGIN
+#ifndef _GD_ARGUMENT_BEGIN
 namespace gd::argument {
 #else
-_GD_PARAM_BEGIN
+_GD_ARGUMENT_BEGIN
 #endif
 
 /*----------------------------------------------------------------------------- move_to_value */ /**
@@ -651,6 +651,20 @@ arguments::arguments(std::initializer_list<std::pair<std::string_view, gd::varia
    for( auto it : listPair ) append_argument(it);
 }
 
+arguments::arguments(const std::string_view& stringName, const gd::variant& variantValue, arguments::no_initializer_list_tag)
+{
+   zero();
+   append_argument(stringName, variantValue);
+}
+
+/*
+arguments::arguments(std::pair<std::string_view, gd::variant> pairArgument, pair_tag)
+{
+   zero();
+   append_argument(pairArgument);
+}
+*/
+
 arguments& arguments::operator=(std::initializer_list<std::pair<std::string_view, gd::variant>> listPair)
 {
    for( auto it : listPair ) append_argument(it);
@@ -736,6 +750,21 @@ arguments& arguments::append(const char* pbszName, uint32_t uNameLength, param_t
 }
 
 /*----------------------------------------------------------------------------- append_argument */ /**
+ * Add argument from variant, this value isn't named
+ * \param variantValue argument value added
+ * \return arguments::arguments& reference to this if nested operations is wanted
+ */
+arguments& arguments::append_argument(const variant& variantValue)
+{
+   auto argumentValue = get_argument_s(variantValue);
+   const_pointer pData = (argumentValue.type_number() <= eTypeNumberPointer ? (const_pointer)&argumentValue.m_unionValue : (const_pointer)argumentValue.get_raw_pointer());
+   unsigned uType = argumentValue.type_number();
+   if( uType > ARGUMENTS_NO_LENGTH ) { uType |= eValueLength; }
+
+   return append(uType, pData, argumentValue.length());
+}
+
+/*----------------------------------------------------------------------------- append_argument */ /**
  * Add argument from variant_view
  * \param stringName argument name
  * \param variantValue argument value added
@@ -806,7 +835,7 @@ arguments& arguments::set(pointer pPosition, param_type uType, const_pointer pBu
 {
    // get current argument
    argument argumentOld = arguments::get_argument_s(pPosition);
-   auto pPositionValue = move_to_value(pPosition);
+   auto pPositionValue = move_to_value_s(pPosition);
    if( arguments::compare_type_s(argumentOld, uType) == true && (uType & (eValueLength | eValueArray)) == 0 )
    {
       memcpy(pPositionValue, pBuffer, uLength);
@@ -1506,7 +1535,7 @@ unsigned int gd::argument::arguments::get_total_param_length_s(std::string_view 
  */
 arguments::pointer arguments::next_s(pointer pPosition) 
 {
-   pPosition = arguments::move_to_value(pPosition);
+   pPosition = arguments::move_to_value_s(pPosition);
    uint8_t uType = *pPosition;                                                   // get value type
    pPosition++;                                                                  // move past type
    if( (uType & eType_MASK) == 0 )
@@ -1533,7 +1562,7 @@ arguments::pointer arguments::next_s(pointer pPosition)
  */
 arguments::const_pointer arguments::next_s(const_pointer pPosition) 
 {
-   pPosition = arguments::move_to_value(pPosition);
+   pPosition = arguments::move_to_value_s(pPosition);
    uint8_t uType = *pPosition;                                                   // get value type
    pPosition++;                                                                  // move past type
    if( (uType & eType_MASK) == 0 )

@@ -26,12 +26,17 @@ mdtable
 #pragma warning( disable : 26495 26812 )
 
 #ifndef _GD_ARGUMENT_BEGIN
-namespace gd::argument {
+#define _GD_ARGUMENT_BEGIN namespace gd::argument {
+#define _GD_ARGUMENT_END }
+_GD_ARGUMENT_BEGIN
 #else
-_GD_PARAM_BEGIN
+_GD_SQL_QUERY_BEGIN
 #endif
 
-struct pair_value { std::string_view m_stringKey; gd::variant m_variantValue; };
+
+// ================================================================================================
+// ================================================================================= arguments
+// ================================================================================================
 
 
 /**
@@ -55,6 +60,9 @@ public:
 
    typedef uint8_t            param_type;
 
+   struct pair_tag {};                                                           // used to select proper method, working with pair items instead of vector
+   struct no_initializer_list_tag {};                                            // do not select initializer_list versions
+
 
 public:
 
@@ -64,11 +72,11 @@ public:
     */
    enum enumGroup
    {
-      eGroupBoolean     = 0x01000000,
-      eGroupInteger     = 0x02000000,
-      eGroupDecimal     = 0x04000000,
-      eGroupString      = 0x08000000,
-      eGroupBinary      = 0x10000000,
+      eGroupBoolean     = 0x01000000,  // boolean type
+      eGroupInteger     = 0x02000000,  // integer types, both unsigned and signed
+      eGroupDecimal     = 0x04000000,  // decimal values
+      eGroupString      = 0x08000000,  // text values, both ascii, unicode, utf-32
+      eGroupBinary      = 0x10000000,  // binary values
    };
 
 
@@ -370,7 +378,7 @@ public:
 
       template<typename ARGUMENT_TYPE>
       argument_edit(arguments* parguments, arguments::const_pointer pPosition, ARGUMENT_TYPE AG): m_pArguments(parguments), m_pPosition(pPosition), argument( AG ) {
-         m_pValue = move_to_value( (pointer)pPosition );
+         m_pValue = move_to_value_s( (pointer)pPosition );
       }
 
       void set(argument argumentSet);
@@ -455,6 +463,8 @@ public:
 
    /** Set buffer and size, use this to avoid heap allocations (if internal data grows over buffer size you will get heap allocation)  */
    arguments(pointer pBuffer, unsigned int uSize) : m_bOwner(false), m_pBuffer(pBuffer), m_uLength(0), m_uBufferLength(uSize) {}
+   arguments(const std::string_view& stringName, const gd::variant& variantValue, no_initializer_list_tag);
+
 
    //explicit arguments(std::string_view stringName, const gd::variant& variantValue ) : m_bOwner(false), m_pBuffer(nullptr), m_uLength(0), m_uBufferLength(0) { append_argument(stringName, variantValue); }
    arguments(std::pair<std::string_view, gd::variant> pairArgument);
@@ -466,7 +476,7 @@ public:
       append_argument(pairArgument.first, _argument);
       append_argument(arguments...);
    }
-   arguments(std::initializer_list<std::pair<std::string_view, gd::variant>> listPair);
+   arguments(std::initializer_list<std::pair<std::string_view, gd::variant>> listPair); // construct arguments with vector like {{},{}}
 
    // copy
    arguments(const arguments& o): m_pBuffer(nullptr), m_uBufferLength(0) { common_construct(o); }
@@ -480,7 +490,7 @@ public:
    ~arguments() { 
       if( m_bOwner ) delete[] m_pBuffer;
    }
-private:
+protected:
    // common copy
    void common_construct(const arguments& o) {
       if( o.m_uLength )
@@ -565,11 +575,14 @@ public:
       return append(pbszName, uNameLength, uType, (const_pointer)pBuffer, uLength);
    }
 
+
    arguments& append_argument(std::string_view stringName, argument argumentValue) {
       auto _l = argumentValue.length();
       const_pointer pData = (argumentValue.type_number() <= eTypeNumberPointer ? (const_pointer)&argumentValue.m_unionValue : (const_pointer)argumentValue.get_raw_pointer());
       return append(stringName, argumentValue.ctype(), pData, argumentValue.length());
    }
+
+   arguments& append_argument(const variant& variantValue);
 
    arguments& append_argument(std::string_view stringName, const gd::variant& variantValue) {
       auto argumentValue = get_argument_s(variantValue);
@@ -750,8 +763,8 @@ public:
    }
    std::string_view get_name(const_pointer pPosition) { return get_name_s( pPosition ); }
 
-   static pointer move_to_value(pointer pPosition)  { return move_to_value_s( pPosition ); }
-   static const_pointer move_to_value(const_pointer pPosition) { return move_to_value_s( pPosition ); }
+//   static pointer move_to_value(pointer pPosition)  { return move_to_value_s( pPosition ); }
+//   static const_pointer move_to_value(const_pointer pPosition) { return move_to_value_s( pPosition ); }
 
 
 /** \name INTERNAL FREE FUNCTIONS
@@ -847,6 +860,13 @@ public:
       return A;
    }
 
+   /// Create arguments object from arguments
+   static arguments create_s(const std::string_view& stringName, const gd::variant& variantValue, no_initializer_list_tag) {
+      arguments A(stringName, variantValue, no_initializer_list_tag{});
+      return A;
+   }
+
+
    /// ## dump information about values
    static inline std::string print_s(const_pointer pPosition) { return print_s(pPosition, ePairTypeAll); }
    static std::string print_s(const_pointer pPosition, uint32_t uPairType );
@@ -894,6 +914,19 @@ public:
 
 };
 
+// ================================================================================================
+// ================================================================================= arguments_return
+// ================================================================================================
+
+class arguments_return : public arguments
+{
+public:
+   arguments_return( std::pair<std::string_view, gd::variant> pairArgument ) {          // construct with pair (useful returning arguments from function)
+      zero();
+      append_argument(pairArgument);
+   }
+};
+
 /// return argument object that can be used to edit value
 inline arguments::argument_edit arguments::find_edit_argument(std::string_view stringName) {
    const_pointer pPosition = find(stringName);
@@ -918,4 +951,4 @@ inline bool arguments::compare(const std::string_view stringName, const argument
 }
 
 
-} // namespace _GD_PARAM_BEGIN
+_GD_ARGUMENT_END // namespace _GD_PARAM_BEGIN

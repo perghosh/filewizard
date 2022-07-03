@@ -21,6 +21,8 @@ _GD_BEGIN
 
 namespace variant_type
 {
+   struct no_allocate_tag {};
+
    enum enumGroup
    {
       eGroupBoolean     = 0x01000000,
@@ -373,6 +375,7 @@ public:
    int64_t get_int64() const;
    double get_decimal() const;
    std::string get_string() const;
+   std::string_view get_string( variant_type::no_allocate_tag ) const;
    std::wstring get_wstring() const;
    //gd_std::_variant get__variant() const { return _variant( this ); }
 
