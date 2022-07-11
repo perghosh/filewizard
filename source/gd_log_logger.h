@@ -72,9 +72,10 @@ enum class enumSeverity
 
 enum class enumMessageType
 {
-   eMessageTypeText = 0,
-   eMessageTypeMethodName = 1,
-   eMessageTypeFileName = 2,
+   eMessageTypeText           = 0,
+   eMessageTypeMethodName     = (1<<1),
+   eMessageTypeFileName       = (1<<2),
+   eMessageTypeTime           = (1<<3),
 };
 
 
@@ -139,9 +140,12 @@ class message
 // ## construction -------------------------------------------------------------
 public:
    message(): m_eSeverity( enumSeverity::eSeverityNone ) {}
-   message( enumSeverity eSeverity ): m_eSeverity( eSeverity ) {}
-   message( enumSeverity eSeverity, const char* pbszText ): m_eSeverity( eSeverity ), m_pbszTextView(pbszText) {}
+   explicit message( enumSeverity eSeverity ): m_eSeverity( eSeverity ) {}
+   explicit message( enumSeverity eSeverity, const char* pbszText ): m_eSeverity( eSeverity ), m_pbszTextView(pbszText) {}
    message( enumSeverity eSeverity, enumMessageType eMessageType, const char* pbszText ): m_eSeverity( eSeverity ), m_eMessageType(eMessageType), m_pbszTextView(pbszText) {}
+
+   message( const char* pbszMessage ): m_eSeverity( enumSeverity::eSeverityNone ), m_pbszTextView( pbszMessage ) {}
+   message( const char8_t* pbszMessage ): m_eSeverity( enumSeverity::eSeverityNone ), m_pbszTextView( (const char*)pbszMessage ) {}
    // copy
    message( const message& o ) { common_construct( o ); }
    message( message&& o ) noexcept { common_construct( o ); }
@@ -217,7 +221,7 @@ public:
    
 // ## free functions ------------------------------------------------------------
 public:
-   static char* new_s(unsigned uSize) { return new char[uSize]; }
+   static char* new_s(std::size_t uSize) { return new char[uSize]; }
    /// clear text if not null
    static void clear_s(char** ppbsz) {
       if( *ppbsz != nullptr ) { delete [] *ppbsz; *ppbsz = nullptr; }
@@ -231,6 +235,13 @@ public:
       strcpy(pbszTemp, pbsz);
       return pbszTemp;
    }
+
+   /// joins two texts and deletes the first text sent, pointer returned is allocated on heap (need to be deleted)
+   char* append_s(char** ppbszText, const std::string_view& stringAdd);
+   /// joins two texts and deletes both, returned text pointer is allocated on heap (need to be deleted)
+   static char* join_s( char** ppbszText, char** ppbszAdd );
+   /// 
+   static char* join_s(char** ppbszText, const std::string_view& stringAdd, char** ppbszAdd);
 
 
 };
@@ -293,6 +304,7 @@ public:
    void append(std::unique_ptr<i_printer> pprinter) { m_vectorPrinter.push_back( std::move(pprinter) ); }
 
    virtual void print( const message& message );
+   virtual void print( std::initializer_list<message> listMessage );
    virtual void flush();
 //@}
 
@@ -339,6 +351,26 @@ void logger<iLoggerKey>::print(const message& message)
       }
    }
 }
+
+/// ----------------------------------------------------------------------------
+/// Sends message list to all attached printers, 
+template<int iLoggerKey>
+void logger<iLoggerKey>::print(std::initializer_list<message> listMessage)
+{
+   auto itBegin = listMessage.begin();
+   //message* pmessage = &(*listMessage.begin());
+   if( itBegin->check_severity(m_eSeverity) )                                   // check first message has severity within bounds for output
+   {
+      // ## print message to all attached printers
+      for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); ++it )
+      {
+         for( auto itMessage: listMessage) (*it)->print(itMessage);
+      }
+   }
+
+   flush();
+}
+
 
 /// ----------------------------------------------------------------------------
 /// Flush all connected printers. 

@@ -13,10 +13,27 @@ void printer_console::print(const message& message)
 {
    std::wstring stringMessage = message.to_wstring();
 
+   if( m_uMessageCounter > 0 ) print(std::wstring_view{ L"  " });                // print separator if there have been more messages before flush method is called
+
+   print( stringMessage );
+}
+
+void printer_console::flush()
+{
+   if( m_uMessageCounter > 0 )                                                   // one or more messages printed?
+   {
+      print(std::wstring_view{ L"\n" });
+   }
+
+   m_uMessageCounter = 0;
+}
+
+void printer_console::print(const std::wstring_view& stringMessage)
+{
 #ifdef _WIN32
    if( m_bConsole == true )
    {
-      ::WriteConsoleW(m_hOutput, stringMessage.c_str(), static_cast<DWORD>(stringMessage.size()), NULL, NULL);
+      ::WriteConsoleW(m_hOutput, stringMessage.data(), static_cast<DWORD>(stringMessage.size()), NULL, NULL);
    }
    else
    {
@@ -25,11 +42,8 @@ void printer_console::print(const message& message)
 #else
    m_outputStream << str << std::flush;
 #endif
-}
 
-void printer_console::flush()
-{
-
+   m_uMessageCounter++;                                                          // add message counter, number of messages before flush is called
 }
 
 

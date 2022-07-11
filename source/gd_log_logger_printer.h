@@ -3,6 +3,7 @@
 #include <mutex>
 #include <iostream>
 #include <corecrt_io.h>
+#include <string_view>
 
 #ifdef _WIN32
 #include "windows.h"
@@ -89,8 +90,10 @@ public:
 
 /** \name OPERATION
 *///@{
-   void print(const message& message);
-   void flush();
+   virtual void print(const message& message);
+   virtual void flush();
+
+   void print(const std::wstring_view& stringMessage);
 //@}
 
 protected:
@@ -108,16 +111,16 @@ public:
 
 // ## attributes ----------------------------------------------------------------
 public:
-   bool m_bConsole;
+   bool     m_bConsole;                ///< if true then write to console output
+   unsigned m_uMessageCounter = 0;     ///< number of messages needed to flush (when flush is called this is reset to 0)
    std::wostream& m_wostreamOutput;
 #ifdef _WIN32
-   HANDLE m_hOutput;
+   HANDLE m_hOutput;                   ///< handle to console in windows
 #endif
    
    
 // ## free functions ------------------------------------------------------------
 public:
-   
 
 
 };
