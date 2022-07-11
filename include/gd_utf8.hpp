@@ -27,10 +27,10 @@ Links: https://github.com/nemtrif/utfcpp
 | method | description |
 | - | - |
 | character | return character number |
-| convert | convert character value and store it in pointer to utf8 buffer |
+| `convert` | convert character value and store it in buffer pointer points to what is also sent to method, returns length in bytes needed to insert utf8 character to buffer |
 | convert_ascii | convert ascii characters to utf8 into byte buffer |
 | copy | copy utf8 character from source buffer to target buffer |
-| size | calculate number of bytes needed to store character in utf8 format |
+| `size` | calculate number of bytes needed to store character in utf8 format, text sent to count needed characters for should not be in utf8 format |
 |  |  |
 
 
@@ -133,6 +133,9 @@ namespace gd {
       }
       /// Convert Unicode buffer to stl string where text is stored in utf8 format
       std::tuple<bool, const uint16_t*> convert_utf16_to_uft8(const uint16_t* pwszUtf16, std::string& stringUtf8);
+
+      /// convert utf8 buffer to stl wstring
+      std::tuple<bool, const uint8_t*> convert_utf8_to_uft16(const uint8_t* pbszUtf8, std::wstring& stringUtf16);
 
       std::pair<bool, const uint8_t*> convert_ascii(const uint8_t* pbszFrom, uint8_t* pbszTo); // - convert_ascii
       template <typename UTF8_TYPE, typename TYPE>

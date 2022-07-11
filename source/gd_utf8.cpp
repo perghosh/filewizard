@@ -272,6 +272,28 @@ namespace gd {
          return { true, pwszPosition };
       }
 
+      /**
+       * @brief convert utf8 text to wstring
+       * @param pbszUtf8 points to test that will be converter to wstring
+       * @param stringUtf16 string object getting converted text
+       * @return pair with true if convert was ok and last position in buffer, otherwise false
+      */
+      std::tuple<bool, const uint8_t*> convert_utf8_to_uft16(const uint8_t* pbszUtf8, std::wstring& stringUtf16)
+      {
+         uint8_t puBuffer[SIZE32_MAX_UTF_SIZE + 1];
+         const uint8_t* pbszPosition = pbszUtf8;
+         while( *pbszPosition )
+         {
+            uint32_t uCharacter = gd::utf8::character(pbszPosition);
+            uint32_t uSize = size(static_cast<uint8_t>(*pbszPosition));
+            pbszPosition += uSize;
+            stringUtf16 += static_cast<wchar_t>(uCharacter);
+         }
+
+         return { true, pbszPosition };
+      }
+
+
 
 
       /**
