@@ -252,9 +252,8 @@ namespace gd {
          while(*pwszPosition)
          {
             uint32_t uCharacter = gd::utf16::character(pwszPosition);
-            uint32_t uSize = size( static_cast<uint16_t>( *pwszPosition ) );
-            pwszPosition += uSize;
-            uSize = convert(uCharacter, pbszUtf8);
+            uint32_t uSize = convert(uCharacter, pbszUtf8);
+            pwszPosition++;
             pbszUtf8 += uSize;
          }
 
@@ -376,7 +375,6 @@ namespace gd {
          const uint16_t* pwszPosition = pwszFrom;
          uint8_t* pbszInsert = pbszTo;
 
-         pbszEnd--; // reserve one character in buffer, some ascii characters will need two bytes
          while(pbszInsert < pbszEnd && *pwszPosition)
          {
             if(*pwszPosition < 0x80) { *pbszInsert = static_cast<uint8_t>(*pwszPosition); pbszInsert++; }

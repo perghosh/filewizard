@@ -93,7 +93,7 @@ namespace gd {
       /// count needed size to store char string as utf8 string
       inline uint32_t size( const char* pbsz ) { // ----------------------------------------------- size
          uint32_t uSize = 0;
-         while( *pbsz++ != 0 ) uSize += size( static_cast<uint8_t>(*pbsz) );
+         for( ; *pbsz != 0; pbsz++ ) while( *pbsz++ != 0 ) uSize += size( static_cast<uint8_t>(*pbsz) );
          return uSize;
       }
       inline uint32_t size(const std::string_view& stringCountSize) { // -------------------------- size
@@ -103,7 +103,7 @@ namespace gd {
       }
       inline uint32_t size(const wchar_t* pwsz) { // ---------------------------------------------- size
          uint32_t uSize = 0;
-         while( *pwsz++ != 0 ) uSize += size(static_cast<wchar_t>(*pwsz));
+         for( ; *pwsz != 0; pwsz++ ) uSize += size(static_cast<wchar_t>(*pwsz));
          return uSize;
       }
       inline uint32_t size(const wchar_t* pwsz, const wchar_t* pwszEnd) { // ---------------------- size
@@ -166,7 +166,14 @@ namespace gd {
          return convert_ascii(reinterpret_cast<const uint8_t*>(pbszFrom), reinterpret_cast<uint8_t*>(pbszTo), reinterpret_cast<const uint8_t*>(pbszEnd));
       }
 
+      /// convert unicode text to utf8
       std::pair<bool, const uint16_t*> convert_unicode(const uint16_t* pbszFrom, uint8_t* pbszTo, const uint8_t* pbszEnd);
+      template <typename UNICODE_TYPE, typename UTF8_TYPE>
+      std::pair<bool, const uint16_t*> convert_unicode(const UNICODE_TYPE* pwszFrom, UTF8_TYPE* pbszTo, UTF8_TYPE* pbszEnd) {
+         static_assert(sizeof(UNICODE_TYPE) == 2, "Value isn't compatible with uint16_t");
+         static_assert(sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
+         return convert_unicode(reinterpret_cast<const uint16_t*>(pwszFrom), reinterpret_cast<uint8_t*>(pbszTo), reinterpret_cast<const uint8_t*>(pbszEnd));
+      }
       ///@}
 
       std::intptr_t distance(const uint8_t* p1, const uint8_t* p2);

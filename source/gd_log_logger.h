@@ -191,17 +191,22 @@ public:
    /// ```
    bool check_severity(enumSeverity eSeverity) const { return eSeverity >= m_eSeverity;  }
 
+   /// return 
+   const char* get_text() const { return m_pbszTextView != nullptr ? m_pbszTextView : m_pbszText.get(); }
    /// returns message text and the priority is 1) TextView, 2) Text, 3) severity text
-   const char* get_text() const { return m_pbszTextView != nullptr ? m_pbszTextView : (m_pbszText != nullptr ? m_pbszText.get() : severity_get_name_g( m_eSeverity )); }
+   const char* get_text_all() const { return m_pbszTextView != nullptr ? m_pbszTextView : (m_pbszText != nullptr ? m_pbszText.get() : severity_get_name_g( m_eSeverity )); }
    /// set ascii texts
    void set_text(std::string_view stringText);
 
    message& printf( const char* pbszFormat, ... );
+   message& printf( const wchar_t* pwszFormat, ...);
    template <typename... ARGUMENTS>
    message& format(std::string_view stringFormat, ARGUMENTS&&... arguments);
+   template <typename... ARGUMENTS>
+   message& format(std::wstring_view stringFormat, ARGUMENTS&&... arguments);
 
    std::string to_string() const;
-   std::wstring to_wstring() const { return to_wstring_s(get_text()); };
+   std::wstring to_wstring() const { return to_wstring_s(get_text_all()); };
 
 //@}
 
@@ -229,9 +234,11 @@ public:
    
 // ## free functions ------------------------------------------------------------
 public:
-   static char* new_s(std::size_t uSize) { return new char[uSize]; }
-   static char* new_s( std::string_view stringUnicode );
-   static char* new_s( std::wstring_view stringUnicode );
+   [[nodiscard]] static char* new_s(std::size_t uSize) { return new char[uSize]; }
+   [[nodiscard]] static char* new_s( std::string_view stringUnicode );
+   [[nodiscard]] static char* new_s( std::wstring_view stringUnicode );
+   [[nodiscard]] static char* new_s( const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::string_view& stringAdd );
+   [[nodiscard]] static char* new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::wstring_view& stringAdd);
 
    /// clear text if not null
    static void clear_s(char** ppbsz) {
@@ -239,14 +246,14 @@ public:
    }
 
    /// convert char string to std::wstring
-   static std::wstring to_wstring_s( const char* pbsz ) { 
+   [[nodiscard]] static std::wstring to_wstring_s( const char* pbsz ) { 
       std::wstring stringReturn;
       gd::utf8::convert_utf8_to_uft16((const uint8_t*)pbsz, stringReturn);
       return stringReturn;
    }
 
    /// clone text into allocated buffer in heap
-   static char* clone_s(char* pbsz) {
+   [[nodiscard]] static char* clone_s(char* pbsz) {
       if( pbsz == nullptr ) return pbsz;
       auto uLength = strlen(pbsz);
       char* pbszTemp = new char[uLength + 1];
@@ -255,11 +262,11 @@ public:
    }
 
    /// joins two texts and deletes the first text sent, pointer returned is allocated on heap (need to be deleted)
-   char* append_s(char** ppbszText, const std::string_view& stringAdd);
+   [[nodiscard]] char* append_s(char** ppbszText, const std::string_view& stringAdd);
    /// joins two texts and deletes both, returned text pointer is allocated on heap (need to be deleted)
-   static char* join_s( char** ppbszText, char** ppbszAdd );
+   [[nodiscard]] static char* join_s( char** ppbszText, char** ppbszAdd );
    /// joins three texts where the second one is just a pointer, good for combining text with separator
-   static char* join_s(char** ppbszText, const std::string_view& stringAdd, char** ppbszAdd);
+   [[nodiscard]] static char* join_s(char** ppbszText, const std::string_view& stringAdd, char** ppbszAdd);
 
    
 };
@@ -275,9 +282,28 @@ message& message::format(std::string_view stringFormat, ARGUMENTS&&... arguments
    // same logic as std::format
    // takes a number of arguments and wraps them into std::format_args that has logic to convert arguments into formated text
    std::string stringResult = std::vformat(stringFormat, std::make_format_args(std::forward<ARGUMENTS>(arguments)...));
-   m_pbszText.reset(new_s(stringResult));
+   // m_pbszText.reset(new_s(stringResult));
+
+   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, stringResult));
+
    return *this;
 }
+
+/*----------------------------------------------------------------------------- format */ /**
+ * See std::format on how to generate text, this member method forwards logic to format
+ * \param stringFormat format string 
+ * \param arguments arguments forwarded to vformat (vformat is used by std::format)
+ * \return gd::log::message& return reference for chaining
+ */
+template <typename... ARGUMENTS>
+message& message::format(std::wstring_view stringFormat, ARGUMENTS&&... arguments) {
+   // same logic as std::format
+   // takes a number of arguments and wraps them into std::format_args that has logic to convert arguments into formated text
+   std::wstring stringResult = std::vformat(stringFormat, std::make_wformat_args(std::forward<ARGUMENTS>(arguments)...));
+   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, stringResult));
+   return *this;
+}
+
 
 
 /*-----------------------------------------*/ /**
