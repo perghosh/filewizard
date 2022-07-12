@@ -133,6 +133,14 @@ namespace gd {
          return 5;
       }
 
+      uint32_t size(wchar_t uCharacter)
+      {
+         if( uCharacter < 0x80 ) return 1;
+         else if( uCharacter < 0x800 ) return 2;
+         return 3;
+      }
+
+
       uint32_t size( const char* pbszText, uint32_t uLength )
       {
          uint32_t uSize = 0;
@@ -154,7 +162,7 @@ namespace gd {
          return pNeededByteCount[ *puCharacter ];
       }
 
-      uint32_t convert( uint8_t uCharacter, uint8_t* pbszTo )
+      uint32_t convert(uint8_t uCharacter, uint8_t* pbszTo)
       {
          if( uCharacter < 0x80 )
          {
@@ -280,7 +288,6 @@ namespace gd {
       */
       std::tuple<bool, const uint8_t*> convert_utf8_to_uft16(const uint8_t* pbszUtf8, std::wstring& stringUtf16)
       {
-         uint8_t puBuffer[SIZE32_MAX_UTF_SIZE + 1];
          const uint8_t* pbszPosition = pbszUtf8;
          while( *pbszPosition )
          {

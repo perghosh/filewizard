@@ -84,16 +84,34 @@ namespace gd {
          return count(reinterpret_cast<const uint8_t*>(pbszText)).first;
       };
 
-      /// calculate needed size to store character as utf8 value
+      /// ## calculate needed size to store character as utf8 value
+
       uint32_t size( uint8_t ch ); // ------------------------------------------------------------- size
       uint32_t size( uint16_t ch ); // ------------------------------------------------------------ size
       uint32_t size( uint32_t ch ); // ------------------------------------------------------------ size
+      uint32_t size( wchar_t ch ); // ------------------------------------------------------------- size
       /// count needed size to store char string as utf8 string
       inline uint32_t size( const char* pbsz ) { // ----------------------------------------------- size
          uint32_t uSize = 0;
          while( *pbsz++ != 0 ) uSize += size( static_cast<uint8_t>(*pbsz) );
          return uSize;
       }
+      inline uint32_t size(const std::string_view& stringCountSize) { // -------------------------- size
+         uint32_t uSize = 0;
+         for( auto it : stringCountSize  ) uSize += size(static_cast<uint8_t>(it));
+         return uSize;
+      }
+      inline uint32_t size(const wchar_t* pwsz) { // ---------------------------------------------- size
+         uint32_t uSize = 0;
+         while( *pwsz++ != 0 ) uSize += size(static_cast<wchar_t>(*pwsz));
+         return uSize;
+      }
+      inline uint32_t size(const wchar_t* pwsz, const wchar_t* pwszEnd) { // ---------------------- size
+         uint32_t uSize = 0;
+         for( ; pwsz != pwszEnd; pwsz++ ) uSize += size(static_cast<wchar_t>(*pwsz));
+         return uSize;
+      }
+
       /// count needed size to store list of char values as utf8 string
       inline uint32_t size( std::initializer_list<char> listString ) { // ------------------------- size
          uint32_t uSize = 0;

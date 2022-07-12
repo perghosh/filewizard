@@ -27,6 +27,7 @@
 #include <cassert>
 #include <string>
 #include <string_view>
+#include <format>
 #include <vector>
 #include <type_traits>
 #include <memory>
@@ -146,6 +147,7 @@ public:
 
    message( const char* pbszMessage ): m_eSeverity( enumSeverity::eSeverityNone ), m_pbszTextView( pbszMessage ) {}
    message( const char8_t* pbszMessage ): m_eSeverity( enumSeverity::eSeverityNone ), m_pbszTextView( (const char*)pbszMessage ) {}
+   message(const wchar_t* pwszMessage) : m_eSeverity(enumSeverity::eSeverityNone), m_pbszText( new_s( pwszMessage ) ) {}
    // copy
    message( const message& o ) { common_construct( o ); }
    message( message&& o ) noexcept { common_construct( o ); }
@@ -153,21 +155,19 @@ public:
    message& operator=( const message& o ) { common_construct( o ); return *this; }
    message& operator=( message&& o ) noexcept { common_construct( o ); return *this; }
    
-   virtual ~message() { clear_s( &m_pbszText ); }
+   virtual ~message() {}
 private:
    // common copy
    void common_construct( const message& o ) {
       m_eSeverity = o.m_eSeverity;
       m_eMessageType = o.m_eMessageType;
       m_pbszTextView = o.m_pbszTextView;
-      clear_s(&m_pbszText);
-      m_pbszText = clone_s(o.m_pbszText);
+      m_pbszText.reset( clone_s(o.m_pbszText.get()) );
    }
    void common_construct( message&& o ) noexcept {
       m_eSeverity = o.m_eSeverity;
       m_eMessageType = o.m_eMessageType;
-      m_pbszText = o.m_pbszText;
-      o.m_pbszText = nullptr;
+      m_pbszText = std::move(o.m_pbszText);
       m_pbszTextView = o.m_pbszTextView;
    }
 
@@ -191,10 +191,17 @@ public:
    /// ```
    bool check_severity(enumSeverity eSeverity) const { return eSeverity >= m_eSeverity;  }
 
+   /// returns message text and the priority is 1) TextView, 2) Text, 3) severity text
+   const char* get_text() const { return m_pbszTextView != nullptr ? m_pbszTextView : (m_pbszText != nullptr ? m_pbszText.get() : severity_get_name_g( m_eSeverity )); }
+   /// set ascii texts
+   void set_text(std::string_view stringText);
+
    message& printf( const char* pbszFormat, ... );
+   template <typename... ARGUMENTS>
+   message& format(std::string_view stringFormat, ARGUMENTS&&... arguments);
 
    std::string to_string() const;
-   std::wstring to_wstring() const;
+   std::wstring to_wstring() const { return to_wstring_s(get_text()); };
 
 //@}
 
@@ -215,16 +222,27 @@ public:
 public:
    enumSeverity m_eSeverity;   ///< type of message severity, used to filter output
    enumMessageType m_eMessageType = enumMessageType::eMessageTypeText;
-   char* m_pbszText = nullptr;
+   //char* m_pbszText = nullptr;
+   std::unique_ptr<char> m_pbszText;
    const char* m_pbszTextView = nullptr;
 
    
 // ## free functions ------------------------------------------------------------
 public:
    static char* new_s(std::size_t uSize) { return new char[uSize]; }
+   static char* new_s( std::string_view stringUnicode );
+   static char* new_s( std::wstring_view stringUnicode );
+
    /// clear text if not null
    static void clear_s(char** ppbsz) {
       if( *ppbsz != nullptr ) { delete [] *ppbsz; *ppbsz = nullptr; }
+   }
+
+   /// convert char string to std::wstring
+   static std::wstring to_wstring_s( const char* pbsz ) { 
+      std::wstring stringReturn;
+      gd::utf8::convert_utf8_to_uft16((const uint8_t*)pbsz, stringReturn);
+      return stringReturn;
    }
 
    /// clone text into allocated buffer in heap
@@ -240,12 +258,26 @@ public:
    char* append_s(char** ppbszText, const std::string_view& stringAdd);
    /// joins two texts and deletes both, returned text pointer is allocated on heap (need to be deleted)
    static char* join_s( char** ppbszText, char** ppbszAdd );
-   /// 
+   /// joins three texts where the second one is just a pointer, good for combining text with separator
    static char* join_s(char** ppbszText, const std::string_view& stringAdd, char** ppbszAdd);
 
-
+   
 };
 
+/*----------------------------------------------------------------------------- format */ /**
+ * See std::format on how to generate text, this member method forwards logic to format
+ * \param stringFormat format string 
+ * \param arguments arguments forwarded to vformat (vformat is used by std::format)
+ * \return gd::log::message& return reference for chaining
+ */
+template <typename... ARGUMENTS>
+message& message::format(std::string_view stringFormat, ARGUMENTS&&... arguments) {
+   // same logic as std::format
+   // takes a number of arguments and wraps them into std::format_args that has logic to convert arguments into formated text
+   std::string stringResult = std::vformat(stringFormat, std::make_format_args(std::forward<ARGUMENTS>(arguments)...));
+   m_pbszText.reset(new_s(stringResult));
+   return *this;
+}
 
 
 /*-----------------------------------------*/ /**
