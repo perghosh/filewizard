@@ -31,8 +31,11 @@
 #include <vector>
 #include <type_traits>
 #include <memory>
+#include <sstream>
+
 
 #include "gd_utf8.hpp"
+#include <iosfwd>
 
 #pragma warning( disable: 4996 )
 
@@ -51,7 +54,8 @@
 
 _GD_LOG_LOGGER_BEGIN
 
-struct tag_text {};
+class message;
+class i_printer;
 
 
 /**
@@ -85,6 +89,49 @@ const char* severity_get_name_g(enumSeverity eSeverity);
 enumSeverity severity_get_number_g(const std::string_view& stringSeverity);
 
 
+/*-----------------------------------------*/ /**
+ * \brief compatible stringstream logic for logger
+ *
+ * *sample*
+ * ```cpp
+ * auto plogger = gd::log::get_s();
+ * plogger->print(message() << "one" << gd::log::stream(std::stringstream() << std::setw(5) << std::setfill('0') << 1 << 2) );
+ * // output = "one  000012"
+ * ```
+ */
+struct stream 
+{
+   stream() {}
+   stream( std::stringstream&& stringstream ): m_stringstream( std::forward<std::stringstream>(stringstream) ) {}
+
+   std::string get_string() const { return m_stringstream.str(); }
+
+   // attributes
+   public:
+      std::stringstream m_stringstream;
+};
+
+/*-----------------------------------------*/ /**
+ * \brief compatible stringstream logic for logger
+ *
+ * *sample*
+ * ```cpp
+ * auto plogger = gd::log::get_s();
+ * plogger->print(message() << L"TWO" << gd::log::wstream(std::wstringstream() << std::setw(5) << std::setfill(L'0') << 111) );
+ * // output = "TWO  00111"
+ * ```
+ */
+struct wstream 
+{
+   wstream() {}
+   wstream( std::wstringstream&& stringstream ): m_stringstream( std::forward<std::wstringstream>(stringstream) ) {}
+
+   std::wstring get_string() const { return m_stringstream.str(); }
+
+   // attributes
+   public:
+      std::wstringstream m_stringstream;
+};
 
 /*-----------------------------------------*/ /**
  * \brief 
@@ -94,38 +141,41 @@ enumSeverity severity_get_number_g(const std::string_view& stringSeverity);
 struct format 
 {
    format() {}
-   format( const format& o ) { common_construct( o ); }
-   format( format&& o ) noexcept { common_construct( o ); }
-   format& operator=( const format& o ) { common_construct( o ); return *this; }
-   format& operator=( format&& o ) noexcept { common_construct( o ); return *this; }
 
-   void common_construct( const format& o ) {}
-   void common_construct( format&& o ) noexcept {}
+   /*----------------------------------------------------------------------------- format */ /**
+    * See std::format on how to generate text, this member method forwards logic to format
+    * \param stringFormat format string 
+    * \param arguments arguments forwarded to vformat (vformat is used by std::format)
+    * \return gd::log::message& return reference for chaining
+    */
+   template <typename... ARGUMENTS>
+   format(std::string_view stringFormat, ARGUMENTS&&... arguments) {
+      // same logic as std::format
+      // takes a number of arguments and wraps them into std::format_args that has logic to convert arguments into formated text
+      std::string stringResult = std::vformat(stringFormat, std::make_format_args(std::forward<ARGUMENTS>(arguments)...));
+      m_pbszText.reset(message::new_s(stringResult));
+   }
+
+   /*----------------------------------------------------------------------------- format */ /**
+    * See std::format on how to generate text, this member method forwards logic to format
+    * \param stringFormat format string 
+    * \param arguments arguments forwarded to vformat (vformat is used by std::format)
+    * \return gd::log::message& return reference for chaining
+    */
+   template <typename... ARGUMENTS>
+   format(std::wstring_view stringFormat, ARGUMENTS&&... arguments) {
+      // same logic as std::format
+      // takes a number of arguments and wraps them into std::format_args that has logic to convert arguments into formated text
+      std::wstring stringResult = std::vformat(stringFormat, std::make_wformat_args(std::forward<ARGUMENTS>(arguments)...));
+      m_pbszText.reset(message::new_s(stringResult));
+   }
+
+   operator const char8_t*() const { return (const char8_t*)m_pbszText.get();  }
 
    // attributes
    public:
+      std::unique_ptr<char> m_pbszText;
 };
-
-/*-----------------------------------------*/ /**
- * \brief 
- *
- *
- */
-struct print 
-{
-   print() {}
-   print( const print& o ) { common_construct( o ); }
-   print( print&& o ) noexcept { common_construct( o ); }
-   print& operator=( const print& o ) { common_construct( o ); return *this; }
-   print& operator=( print&& o ) noexcept { common_construct( o ); return *this; }
-
-   void common_construct( const print& o ) {}
-   void common_construct( print&& o ) noexcept {}
-
-   // attributes
-   public:
-};
-
 
 
 /**
@@ -173,7 +223,22 @@ private:
 
 // ## operator -----------------------------------------------------------------
 public:
-   
+   message& operator<<(const std::string_view& stringAppend) { return append(stringAppend); }
+   message& operator<<(const std::wstring_view& stringAppend) { return append(stringAppend); }
+   message& operator<<(const char8_t* pbszUtf8Append) { return append(pbszUtf8Append); }
+   //message& operator<<(const message& messageAppend) { return append(messageAppend); }
+   message& operator<<(const stream& streamAppend) { return append(streamAppend); }
+   message& operator<<(const wstream& streamAppend) { return append(streamAppend); }
+   message& operator<<(const format& formatAppend) { return append(formatAppend); }
+   //message& operator<<(std::wostream& ) { return append(formatAppend); }
+   template<typename APPEND>
+   message& operator<<(APPEND append) {
+      std::wstringstream SS;
+      SS << append;
+      m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, SS.str().c_str()));
+      return *this;
+   }
+
 
 // ## methods ------------------------------------------------------------------
 public:
@@ -198,12 +263,16 @@ public:
    /// set ascii texts
    void set_text(std::string_view stringText);
 
+   message& append(const std::string_view& stringAppend);
+   message& append(const std::wstring_view& stringAppend);
+   message& append(const char8_t* pbszUtf8Append);
+   message& append(const message& messageAppend);
+   message& append(const stream& streamAppend);
+   message& append(const wstream& streamAppend);
+   message& append(const format& formatAppend);
+
    message& printf( const char* pbszFormat, ... );
    message& printf( const wchar_t* pwszFormat, ...);
-   template <typename... ARGUMENTS>
-   message& format(std::string_view stringFormat, ARGUMENTS&&... arguments);
-   template <typename... ARGUMENTS>
-   message& format(std::wstring_view stringFormat, ARGUMENTS&&... arguments);
 
    std::string to_string() const;
    std::wstring to_wstring() const { return to_wstring_s(get_text_all()); };
@@ -227,18 +296,21 @@ public:
 public:
    enumSeverity m_eSeverity;   ///< type of message severity, used to filter output
    enumMessageType m_eMessageType = enumMessageType::eMessageTypeText;
-   //char* m_pbszText = nullptr;
-   std::unique_ptr<char> m_pbszText;
-   const char* m_pbszTextView = nullptr;
+   std::unique_ptr<char> m_pbszText; ///< when message need to control text it is placed here
+   const char* m_pbszTextView = nullptr; ///< pointer to text 
 
    
 // ## free functions ------------------------------------------------------------
 public:
-   [[nodiscard]] static char* new_s(std::size_t uSize) { return new char[uSize]; }
-   [[nodiscard]] static char* new_s( std::string_view stringUnicode );
+   [[nodiscard]] static char* new_s( std::size_t uSize ) { return new char[uSize]; }
+   [[nodiscard]] static char* new_s( std::string_view stringAscii );
    [[nodiscard]] static char* new_s( std::wstring_view stringUnicode );
-   [[nodiscard]] static char* new_s( const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::string_view& stringAdd );
-   [[nodiscard]] static char* new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::wstring_view& stringAdd);
+   /// creates new string from strings sent to method, if first is null then just create new string from last `stringAdd`
+   [[nodiscard]] static char* new_s( const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::string_view& stringAdd );  // ascii
+   /// creates new string from strings sent to method, if first is null then just create new string from last `stringAdd`
+   [[nodiscard]] static char* new_s( const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::wstring_view& stringAdd ); // unicode
+   /// create new text and add utf8 text sent
+   [[nodiscard]] static char* new_s( const char* pbszUtf8First, const std::string_view& stringIfFirst, const char8_t* pbszUtf8Add ); // unicode
 
    /// clear text if not null
    static void clear_s(char** ppbsz) {
@@ -271,36 +343,8 @@ public:
    
 };
 
-/*----------------------------------------------------------------------------- format */ /**
- * See std::format on how to generate text, this member method forwards logic to format
- * \param stringFormat format string 
- * \param arguments arguments forwarded to vformat (vformat is used by std::format)
- * \return gd::log::message& return reference for chaining
- */
-template <typename... ARGUMENTS>
-message& message::format(std::string_view stringFormat, ARGUMENTS&&... arguments) {
-   // same logic as std::format
-   // takes a number of arguments and wraps them into std::format_args that has logic to convert arguments into formated text
-   std::string stringResult = std::vformat(stringFormat, std::make_format_args(std::forward<ARGUMENTS>(arguments)...));
-   // m_pbszText.reset(new_s(stringResult));
-
-   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, stringResult));
-
-   return *this;
-}
-
-/*----------------------------------------------------------------------------- format */ /**
- * See std::format on how to generate text, this member method forwards logic to format
- * \param stringFormat format string 
- * \param arguments arguments forwarded to vformat (vformat is used by std::format)
- * \return gd::log::message& return reference for chaining
- */
-template <typename... ARGUMENTS>
-message& message::format(std::wstring_view stringFormat, ARGUMENTS&&... arguments) {
-   // same logic as std::format
-   // takes a number of arguments and wraps them into std::format_args that has logic to convert arguments into formated text
-   std::wstring stringResult = std::vformat(stringFormat, std::make_wformat_args(std::forward<ARGUMENTS>(arguments)...));
-   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, stringResult));
+inline message& message::append(const format& formatAppend) {
+   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, formatAppend));
    return *this;
 }
 
@@ -395,6 +439,8 @@ public:
    static logger<iLoggerKey>& get_instance_s();
 };
 
+#ifndef GD_LOG_DISABLE_ALL
+
 /// ----------------------------------------------------------------------------
 /// Sends message to all attached printers, 
 template<int iLoggerKey>
@@ -409,6 +455,12 @@ void logger<iLoggerKey>::print(const message& message)
       }
    }
 }
+#else
+template<int iLoggerKey>
+void logger<iLoggerKey>::print(const message& message)
+{
+}
+#endif
 
 /// ----------------------------------------------------------------------------
 /// Sends message list to all attached printers, 

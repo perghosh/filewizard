@@ -43,6 +43,79 @@ void message::set_text(std::string_view stringText)
 }
 
 
+/*----------------------------------------------------------------------------- append */ /**
+ * append ascii text to message, adds separator if text is already set
+ * \param stringAppend text to add
+ * \return gd::log::message& reference to message for chaining
+ */
+message& message::append(const std::string_view& stringAppend)
+{
+   m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, stringAppend.data()));
+   return *this;
+}
+
+/*----------------------------------------------------------------------------- append */ /**
+ * append ascii text to message, adds separator if text is already set
+ * \param stringAppend text to add
+ * \return message& reference to message for chaining
+ */
+message& message::append(const std::wstring_view& stringAppend)
+{
+   m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, stringAppend.data()));
+   return *this;
+}
+
+/*----------------------------------------------------------------------------- append */ /**
+ * append ascii text to message, adds separator if text is already set
+ * \param pbszUtf8Append text to add
+ * \return message& reference to message for chaining
+ */
+message& message::append(const char8_t* pbszUtf8Append)
+{
+   m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, pbszUtf8Append));
+   return *this;
+}
+
+/*----------------------------------------------------------------------------- append */ /**
+ * append ascii text to message, adds separator if text is already set
+ * \param messageAppend text to add
+ * \return message& reference to message for chaining
+ */
+message& message::append(const message& messageAppend)
+{
+   const char* pbszMessage = messageAppend.get_text();
+   if( pbszMessage != nullptr ) m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, (const char8_t*)pbszMessage));
+   return *this;
+}
+
+/*----------------------------------------------------------------------------- append */ /**
+ * append ascii text to message, adds separator if text is already set
+ * \param streamAppend text to add
+ * \return message& reference to message for chaining
+ */
+message& message::append(const stream& streamAppend)
+{
+   m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, streamAppend.get_string()));
+   return *this;
+}
+
+/*----------------------------------------------------------------------------- append */ /**
+ * append ascii text to message, adds separator if text is already set
+ * \param streamAppend text to add
+ * \return message& reference to message for chaining
+ */
+message& message::append(const wstream& streamAppend)
+{
+   m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, streamAppend.get_string()));
+   return *this;
+}
+
+
+/*----------------------------------------------------------------------------- append */ /**
+ * append ascii text to message, adds separator if text is already set
+ * \param stringAppend text to add
+ * \return gd::log::message& reference to message for chaining
+ */
 gd::log::message& message::printf(const char* pbszFormat, ...)
 {
    va_list va_listArgument;
@@ -214,7 +287,7 @@ char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIf
    uLength += gd::utf8::size( stringAdd.data() );                                // needed space for added unicode text
    uLength++;                                                                    // make room for zero terminator
 
-   char* pbszNew = new char[uLength + 1];
+   char* pbszNew = new char[uLength + 1];                                        // create new buffer on heap where text is placed
 
    if( pbszUtf8First != nullptr )
    {
@@ -226,6 +299,42 @@ char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIf
 
    return pbszNew;
 }
+
+/*----------------------------------------------------------------------------- new_s */ /**
+ * Special method for message combining three text values into one buffer, if first text is nullptr only last Add text is inserted.
+ * This method works like adding text to existing message text if set
+ * \param pbszUtf8First first text (usually text set that will be appended with more text)
+ * \param stringIfFirst test added as separator if first text is set
+ * \param pbszUtf8Add text that is always added
+ * \return char* pointer to new allocaded text with combined text
+ */
+char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const char8_t* pbszUtf8Add )
+{                                                                                assert( pbszUtf8Add != nullptr ); assert( std::strlen((char*)pbszUtf8Add) < 99'999 ); // ok and realistic ?
+   std::size_t uLength = 0;
+   if( pbszUtf8First != nullptr )                                                // if text is already set we need to make room for this text and concatenate all three
+   {
+      uLength = strlen(pbszUtf8First);
+      uLength += stringIfFirst.length();                                         // separator chars should NOT!!! be above 0x80
+   }
+
+   std::size_t uFirstLength = uLength;                                           // store length for later
+   std::size_t uUtf8Length = std::strlen( (char*)pbszUtf8Add );                  // needed space added utf8 text
+   uLength += uUtf8Length;
+   uLength++;                                                                    // make room for zero terminator
+
+   char* pbszNew = new char[uLength + 1];                                        // create new buffer on heap where text is placed
+
+   if( pbszUtf8First != nullptr )                                                // add to text ?
+   {
+      std::memcpy(pbszNew, pbszUtf8First, uFirstLength - stringIfFirst.length());// copy first string to new buffer
+      std::memcpy(pbszNew + (uFirstLength - stringIfFirst.length()), stringIfFirst.data(), stringIfFirst.length());// copy text if first text is set
+   }
+
+   std::memcpy(pbszNew + uFirstLength, pbszUtf8Add, uUtf8Length + 1);            // append utf8 string with zero terminator
+
+   return pbszNew;
+}
+
 
 
 char* message::append_s(char** ppbszText, const std::string_view& stringAdd )
@@ -284,5 +393,6 @@ char* message::join_s(char** ppbszText, const std::string_view& stringAdd, char*
 
    return pbszNew;
 }
+
 
 _GD_LOG_LOGGER_END
