@@ -26,10 +26,10 @@ Links: https://github.com/nemtrif/utfcpp
 
 | method | description |
 | - | - |
-| character | return character number |
+| `character` | return character number |
 | `convert` | convert character value and store it in buffer pointer points to what is also sent to method, returns length in bytes needed to insert utf8 character to buffer |
-| convert_ascii | convert ascii characters to utf8 into byte buffer |
-| copy | copy utf8 character from source buffer to target buffer |
+| `convert_ascii` | convert ascii characters to utf8 into byte buffer |
+| `copy` | copy utf8 character from source buffer to target buffer |
 | `size` | calculate number of bytes needed to store character in utf8 format, text sent to count needed characters for should not be in utf8 format |
 |  |  |
 
@@ -40,13 +40,16 @@ Links: https://github.com/nemtrif/utfcpp
 namespace gd { 
    namespace utf8 {
 
+      // tag dispatch for utf8 if no support for char8_t
+      struct utf8_tag {};
+
       constexpr uint32_t SIZE8_MAX_UTF_SIZE = 2;
       constexpr uint32_t SIZE16_MAX_UTF_SIZE = 3;
       constexpr uint32_t SIZE32_MAX_UTF_SIZE = 6;
 
 
       ///@{ 
-      void normalize( uint32_t uCharacter, char8_t& value );
+      void normalize( uint32_t uCharacter, char& value );
       uint32_t character(const uint8_t* pubszText); // -------------------------------------------- character
       template <typename UTF8_TYPE>
       uint32_t character(const UTF8_TYPE* pbszText) { // ------------------------------------------ character
@@ -134,6 +137,8 @@ namespace gd {
       uint32_t convert(uint8_t uCharacter, uint8_t* pbszTo); // ----------------------------------- convert
       uint32_t convert(uint16_t uCharacter, uint8_t* pbszTo); // ---------------------------------- convert
       uint32_t convert(uint32_t uCharacter, uint8_t* pbszTo); // ---------------------------------- convert
+
+#if defined(__cpp_char8_t)
       inline uint32_t convert(uint32_t uCharacter, char8_t* pbszTo) { return convert(uCharacter, reinterpret_cast<uint8_t*>(pbszTo)); }
 
       /// convert from utf16 to utf8. make sure that buffer is large enough to hold text
@@ -149,6 +154,9 @@ namespace gd {
             reinterpret_cast<UTF8_TYPE*>(std::get<2>(_result))
          );
       }
+#endif
+      std::tuple<bool, const wchar_t*, char*> convert_utf16_to_uft8(const wchar_t* pwszUtf16, char* pbszUtf8, utf8_tag );// convert
+
       /// Convert Unicode buffer to stl string where text is stored in utf8 format
       std::tuple<bool, const uint16_t*> convert_utf16_to_uft8(const uint16_t* pwszUtf16, std::string& stringUtf8);
 

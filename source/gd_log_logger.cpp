@@ -8,33 +8,6 @@
 
 _GD_LOG_LOGGER_BEGIN
 
-const char* severity_get_name_g(enumSeverity eSeverity)
-{
-   switch( eSeverity )
-   {
-   case enumSeverity::eSeverityFatal:    return "FATAL";
-   case enumSeverity::eSeverityError:    return "ERROR";
-   case enumSeverity::eSeverityWarning:  return "WARNING";
-   case enumSeverity::eSeverityInfo:     return "INFO";
-   case enumSeverity::eSeverityDebug:    return "DEBUG";
-   case enumSeverity::eSeverityVerbose:  return "VERBOSE";
-   default:                              return "NONE";
-   }
-}
-
-enumSeverity severity_get_number_g(const std::string_view& stringSeverity)
-{                                                                                assert( stringSeverity.empty() == false );
-   switch( std::toupper( stringSeverity[0] ) )
-   {
-   case 'F': return enumSeverity::eSeverityFatal;
-   case 'E': return enumSeverity::eSeverityError;
-   case 'W': return enumSeverity::eSeverityWarning;
-   case 'I': return enumSeverity::eSeverityInfo;
-   case 'D': return enumSeverity::eSeverityDebug;
-   case 'V': return enumSeverity::eSeverityVerbose;
-   default:  return enumSeverity::eSeverityNone;
-   }
-}
 
 void message::set_text(std::string_view stringText)
 {
@@ -65,6 +38,7 @@ message& message::append(const std::wstring_view& stringAppend)
    return *this;
 }
 
+#if defined(__cpp_char8_t)
 /*----------------------------------------------------------------------------- append */ /**
  * append ascii text to message, adds separator if text is already set
  * \param pbszUtf8Append text to add
@@ -75,6 +49,7 @@ message& message::append(const char8_t* pbszUtf8Append)
    m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, pbszUtf8Append));
    return *this;
 }
+#endif
 
 /*----------------------------------------------------------------------------- append */ /**
  * append ascii text to message, adds separator if text is already set
@@ -84,7 +59,7 @@ message& message::append(const char8_t* pbszUtf8Append)
 message& message::append(const message& messageAppend)
 {
    const char* pbszMessage = messageAppend.get_text();
-   if( pbszMessage != nullptr ) m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, (const char8_t*)pbszMessage));
+   if( pbszMessage != nullptr ) m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, pbszMessage, gd::utf8::utf8_tag{}));
    return *this;
 }
 
@@ -197,6 +172,10 @@ gd::log::message& message::printf(const wchar_t* pwszFormat, ...)
 }
 
 
+/*----------------------------------------------------------------------------- to_string */ /**
+ * get message text as std string object (utf8 formated internally)
+ * \return std::string
+ */
 std::string message::to_string() const
 {
    std::string stringMessage;
@@ -205,6 +184,15 @@ std::string message::to_string() const
 
    return stringMessage;
 }
+
+
+//
+// ## FREE FUNCTIONS -----------------------------------------------------------------------------
+//
+
+// ================================================================================================
+// ================================================================================= STATIC
+// ================================================================================================
 
 
 /*----------------------------------------------------------------------------- new_s */ /**
@@ -216,7 +204,7 @@ char* message::new_s(std::wstring_view stringUnicode)
 {
    auto uLength = gd::utf8::size(stringUnicode.data(), stringUnicode.data() + stringUnicode.length());
    char* pbsz = new char[uLength + 1u];
-   gd::utf8::convert_utf16_to_uft8(stringUnicode.data(), pbsz);
+   gd::utf8::convert_utf16_to_uft8((const wchar_t*)stringUnicode.data(), pbsz, gd::utf8::utf8_tag{});
    return pbsz;
 }
 
@@ -300,6 +288,7 @@ char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIf
    return pbszNew;
 }
 
+#if defined(__cpp_char8_t)
 /*----------------------------------------------------------------------------- new_s */ /**
  * Special method for message combining three text values into one buffer, if first text is nullptr only last Add text is inserted.
  * This method works like adding text to existing message text if set
@@ -334,6 +323,45 @@ char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIf
 
    return pbszNew;
 }
+#endif
+
+/*----------------------------------------------------------------------------- new_s */ /**
+ * Special method for message combining three text values into one buffer, if first text is nullptr only last Add text is inserted.
+ * This method works like adding text to existing message text if set
+ * \param pbszUtf8First first text (usually text set that will be appended with more text)
+ * \param stringIfFirst test added as separator if first text is set
+ * \param pbszUtf8Add text that is always added
+ * \param utf8_tag tag dispatcher 
+ * \return char* pointer to new allocaded text with combined text
+ */
+char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const char* pbszUtf8Add, gd::utf8::utf8_tag)
+{
+   assert(pbszUtf8Add != nullptr); assert(std::strlen((char*)pbszUtf8Add) < 99'999); // ok and realistic ?
+   std::size_t uLength = 0;
+   if( pbszUtf8First != nullptr )                                                // if text is already set we need to make room for this text and concatenate all three
+   {
+      uLength = strlen(pbszUtf8First);
+      uLength += stringIfFirst.length();                                         // separator chars should NOT!!! be above 0x80
+   }
+
+   std::size_t uFirstLength = uLength;                                           // store length for later
+   std::size_t uUtf8Length = std::strlen((char*)pbszUtf8Add);                  // needed space added utf8 text
+   uLength += uUtf8Length;
+   uLength++;                                                                    // make room for zero terminator
+
+   char* pbszNew = new char[uLength + 1];                                        // create new buffer on heap where text is placed
+
+   if( pbszUtf8First != nullptr )                                                // add to text ?
+   {
+      std::memcpy(pbszNew, pbszUtf8First, uFirstLength - stringIfFirst.length());// copy first string to new buffer
+      std::memcpy(pbszNew + (uFirstLength - stringIfFirst.length()), stringIfFirst.data(), stringIfFirst.length());// copy text if first text is set
+   }
+
+   std::memcpy(pbszNew + uFirstLength, pbszUtf8Add, uUtf8Length + 1);            // append utf8 string with zero terminator
+
+   return pbszNew;
+}
+
 
 
 
@@ -393,6 +421,26 @@ char* message::join_s(char** ppbszText, const std::string_view& stringAdd, char*
 
    return pbszNew;
 }
+
+// ================================================================================================
+// ================================================================================= GLOBAL
+// ================================================================================================
+
+
+const char* severity_get_name_g(unsigned uSeverity)
+{
+   switch( uSeverity & eSeverityMaskNumber )
+   {
+   case enumSeverityNumber::eSeverityNumberFatal:        return "FATAL";
+   case enumSeverityNumber::eSeverityNumberError:        return "ERROR";
+   case enumSeverityNumber::eSeverityNumberWarning:      return "WARNING";
+   case enumSeverityNumber::eSeverityNumberInformation:  return "INFORMATION";
+   case enumSeverityNumber::eSeverityNumberDebug:        return "DEBUG";
+   case enumSeverityNumber::eSeverityNumberVerbose:      return "VERBOSE";
+   default:                                              return "NONE";
+   }
+}
+
 
 
 _GD_LOG_LOGGER_END

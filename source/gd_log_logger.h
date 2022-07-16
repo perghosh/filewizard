@@ -21,7 +21,16 @@
  * Using different instance id values creating `logger` object it is possible to have
  * multiple logger items in your code if that is desired.
  * 
+ * ### Tutorial (code samples)
+ * 
  */
+
+// links
+// https://www.reddit.com/r/cpp/comments/p9annk/conditional_compilation_with_constexpr_instead_of/
+// https://stackoverflow.com/questions/57540155/issue-converting-a-macro-with-variable-args-into-constexpr-variadic-templa
+// https://stackoverflow.com/questions/52433953/using-constexpr-to-replace-define-and-ifdef-for-conditional-compilation
+// https://www.sobyte.net/post/2022-03/if-constexpr/
+// https://stackoverflow.com/questions/28596298/is-it-possible-to-compile-out-stream-expressions-in-c
 
 #pragma once
 #include <cassert>
@@ -32,10 +41,10 @@
 #include <type_traits>
 #include <memory>
 #include <sstream>
+#include <iosfwd>
 
 
 #include "gd_utf8.hpp"
-#include <iosfwd>
 
 #pragma warning( disable: 4996 )
 
@@ -60,22 +69,58 @@ class i_printer;
 
 /**
  * \brief message level to print, how severe information sent to printers
- *
- *
- *
+ * 
+ * Using level messages you can set the priority and filter whats written to log
  */
-enum class enumSeverity
+enum enumSeverityNumber
 {
-   eSeverityNone = 0,
-   eSeverityFatal = 1,
-   eSeverityError = 2,
-   eSeverityWarning = 3,
-   eSeverityInfo = 4,
-   eSeverityDebug = 5,
-   eSeverityVerbose = 6,
+   eSeverityNumberNone = 0,
+   eSeverityNumberFatal = 1,
+   eSeverityNumberError = 2,
+   eSeverityNumberWarning = 3,
+   eSeverityNumberInformation = 4,
+   eSeverityNumberDebug = 5,
+   eSeverityNumberVerbose = 6,
 };
 
-enum class enumMessageType
+
+/**
+ * \brief message level to print, how severe information sent to printers
+ * 
+ */
+enum enumSeverityGroup
+{
+   eSeverityGroupNone = 0,
+   //                              3       2 2       1 1
+   //                              1       4 3       6 5       8 7       0       
+   eSeverityGroupFatal =         0b0000'0000'0000'0000'0000'0001'0000'0000,
+   eSeverityGroupError =         0b0000'0000'0000'0000'0000'0010'0000'0000,
+   eSeverityGroupWarning =       0b0000'0000'0000'0000'0000'0100'0000'0000,
+   eSeverityGroupInformation =   0b0000'0000'0000'0000'0000'1000'0000'0000,
+   eSeverityGroupDebug =         0b0000'0000'0000'0000'0001'0000'0000'0000,
+   eSeverityGroupVerbose =       0b0000'0000'0000'0000'0010'0000'0000'0000,
+};
+
+
+enum enumSeverity
+{
+   eSeverityNone =         eSeverityNumberNone,
+   eSeverityFatal =        eSeverityGroupFatal           | eSeverityNumberFatal,
+   eSeverityError =        eSeverityGroupError           | eSeverityNumberError,
+   eSeverityWarning =      eSeverityGroupWarning         | eSeverityNumberNone,
+   eSeverityInformation =  eSeverityGroupInformation     | eSeverityNumberWarning,
+   eSeverityDebug =        eSeverityGroupDebug           | eSeverityNumberDebug,
+   eSeverityVerbose =      eSeverityGroupVerbose         | eSeverityNumberVerbose,
+};
+
+enum enumSeverityMask
+{
+   eSeverityMaskNumber = 0x0000'00FF,
+   eSeverityMaskGroup  = 0x0000'FF00,
+};
+
+
+enum enumMessageType
 {
    eMessageTypeText           = 0,
    eMessageTypeMethodName     = (1<<1),
@@ -85,8 +130,9 @@ enum class enumMessageType
 
 
 
-const char* severity_get_name_g(enumSeverity eSeverity);
-enumSeverity severity_get_number_g(const std::string_view& stringSeverity);
+const char* severity_get_name_g(unsigned uSeverity);
+constexpr static enumSeverity severity_get_number_g(const std::string_view& stringSeverity);
+constexpr static enumSeverityGroup severity_get_group_g(const std::string_view& stringSeverity);
 
 
 /*-----------------------------------------*/ /**
@@ -170,8 +216,10 @@ struct format
       m_pbszText.reset(message::new_s(stringResult));
    }
 
+#  if defined(__cpp_char8_t)
    operator const char8_t*() const { return (const char8_t*)m_pbszText.get();  }
-
+#  endif
+   operator const char*() const { return (const char*)m_pbszText.get();  }
    // attributes
    public:
       std::unique_ptr<char> m_pbszText;
@@ -190,14 +238,17 @@ class message
 {
 // ## construction -------------------------------------------------------------
 public:
-   message(): m_eSeverity( enumSeverity::eSeverityNone ) {}
-   explicit message( enumSeverity eSeverity ): m_eSeverity( eSeverity ) {}
-   explicit message( enumSeverity eSeverity, const char* pbszText ): m_eSeverity( eSeverity ), m_pbszTextView(pbszText) {}
-   message( enumSeverity eSeverity, enumMessageType eMessageType, const char* pbszText ): m_eSeverity( eSeverity ), m_eMessageType(eMessageType), m_pbszTextView(pbszText) {}
+   message(): m_uSeverity( enumSeverity::eSeverityNone ) {}
+   explicit message( unsigned uSeverity ): m_uSeverity( uSeverity ) {}
+   explicit message( unsigned uSeverity, enumMessageType eMessageType ): m_uSeverity( uSeverity ), m_eMessageType(eMessageType) {}
+   explicit message( unsigned uSeverity, const char* pbszText ): m_uSeverity( uSeverity ), m_pbszTextView(pbszText) {}
+   message( unsigned uSeverity, enumMessageType eMessageType, const char* pbszText ): m_uSeverity( uSeverity ), m_eMessageType(eMessageType), m_pbszTextView(pbszText) {}
 
-   message( const char* pbszMessage ): m_eSeverity( enumSeverity::eSeverityNone ), m_pbszTextView( pbszMessage ) {}
-   message( const char8_t* pbszMessage ): m_eSeverity( enumSeverity::eSeverityNone ), m_pbszTextView( (const char*)pbszMessage ) {}
-   message(const wchar_t* pwszMessage) : m_eSeverity(enumSeverity::eSeverityNone), m_pbszText( new_s( pwszMessage ) ) {}
+   message( const char* pbszMessage ): m_uSeverity( enumSeverity::eSeverityNone ), m_pbszTextView( pbszMessage ) {}
+#  if defined(__cpp_char8_t)
+   message( const char8_t* pbszMessage ): m_uSeverity( enumSeverity::eSeverityNone ), m_pbszTextView( (const char*)pbszMessage ) {}
+#  endif
+   message(const wchar_t* pwszMessage) : m_uSeverity(enumSeverity::eSeverityNone), m_pbszText( new_s( pwszMessage ) ) {}
    // copy
    message( const message& o ) { common_construct( o ); }
    message( message&& o ) noexcept { common_construct( o ); }
@@ -209,13 +260,13 @@ public:
 private:
    // common copy
    void common_construct( const message& o ) {
-      m_eSeverity = o.m_eSeverity;
+      m_uSeverity = o.m_uSeverity;
       m_eMessageType = o.m_eMessageType;
       m_pbszTextView = o.m_pbszTextView;
       m_pbszText.reset( clone_s(o.m_pbszText.get()) );
    }
    void common_construct( message&& o ) noexcept {
-      m_eSeverity = o.m_eSeverity;
+      m_uSeverity = o.m_uSeverity;
       m_eMessageType = o.m_eMessageType;
       m_pbszText = std::move(o.m_pbszText);
       m_pbszTextView = o.m_pbszTextView;
@@ -225,17 +276,18 @@ private:
 public:
    message& operator<<(const std::string_view& stringAppend) { return append(stringAppend); }
    message& operator<<(const std::wstring_view& stringAppend) { return append(stringAppend); }
+#  if defined(__cpp_char8_t)
    message& operator<<(const char8_t* pbszUtf8Append) { return append(pbszUtf8Append); }
-   //message& operator<<(const message& messageAppend) { return append(messageAppend); }
+#  endif
    message& operator<<(const stream& streamAppend) { return append(streamAppend); }
    message& operator<<(const wstream& streamAppend) { return append(streamAppend); }
    message& operator<<(const format& formatAppend) { return append(formatAppend); }
    //message& operator<<(std::wostream& ) { return append(formatAppend); }
    template<typename APPEND>
-   message& operator<<(APPEND append) {
-      std::wstringstream SS;
-      SS << append;
-      m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, SS.str().c_str()));
+   message& operator<<(APPEND appendValue) {
+      std::wstringstream wstringstreamAppend;
+      wstringstreamAppend << appendValue;
+      m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, wstringstreamAppend.str().c_str()));
       return *this;
    }
 
@@ -244,28 +296,56 @@ public:
 public:
 /** \name GET/SET
 *///@{
-   enumSeverity get_severity() const { return m_eSeverity; }
-   void set_severity(enumSeverity eSeverity) { m_eSeverity = eSeverity; }
+   // ## getters and setters for severity information
+   unsigned get_severity() const { return m_uSeverity; }
+   enumSeverityNumber get_severity_number() const { return (enumSeverityNumber)(m_uSeverity & eSeverityMaskNumber); }
+   enumSeverityGroup get_severity_group() const { return (enumSeverityGroup)(m_uSeverity & eSeverityMaskGroup); }
+   void set_severity(unsigned uSeverity) { m_uSeverity = uSeverity; }
 //@}
 
 /** \name OPERATION
 *///@{
+   /// check if message has any special type set, these type are used to produce 
+   bool is_message_type_set() const { return m_eMessageType != 0; }
+   bool is_time() const { return m_eMessageType & eMessageTypeTime; }
+
    /// check if message has severity level below or equal to (max) severity sent
    /// ``` cpp
    /// messageItem.is_active( eSeverityError ); // returns true if messageItem is eSeverityError, eSeverityFatal or eSeverityNone
    /// ```
-   bool check_severity(enumSeverity eSeverity) const { return eSeverity >= m_eSeverity;  }
+   bool check_severity(unsigned uSeverity) const { 
+      if( (uSeverity & eSeverityMaskNumber) >= (m_uSeverity & eSeverityMaskNumber) ) return true;
+      else if( (uSeverity & m_uSeverity & eSeverityMaskGroup) != 0 ) return true;
+      return false;
+   }
+   template <typename INTEGER>
+   bool check_severity(INTEGER uSeverity) const {
+      static_assert( std::numeric_limits<INTEGER>::is_integer, "Unable to cast to this type to unsigned in a save way");
+      return check_severity( static_cast<unsigned>( uSeverity ) );
+   }
 
    /// return 
    const char* get_text() const { return m_pbszTextView != nullptr ? m_pbszTextView : m_pbszText.get(); }
    /// returns message text and the priority is 1) TextView, 2) Text, 3) severity text
-   const char* get_text_all() const { return m_pbszTextView != nullptr ? m_pbszTextView : (m_pbszText != nullptr ? m_pbszText.get() : severity_get_name_g( m_eSeverity )); }
+   const char* get_text_all() const { return m_pbszTextView != nullptr ? m_pbszTextView : (m_pbszText != nullptr ? m_pbszText.get() : severity_get_name_g( m_uSeverity )); }
    /// set ascii texts
    void set_text(std::string_view stringText);
 
+   // ## append methods are the main methods to append text.
+   //    There are a number of different techniques adding text.
+   //    - `string_view` adds ascii text
+   //    - `wstring_view` adds unicode text
+   //    - `char8_t` adds utf8 text
+   //    - `message` add text from another message object
+   //    - `stream` works like std::stringstream
+   //    - `wstream` works like std::wstringstream
+   //    - `format` works like std::format
+
    message& append(const std::string_view& stringAppend);
    message& append(const std::wstring_view& stringAppend);
-   message& append(const char8_t* pbszUtf8Append);
+#  if defined(__cpp_char8_t)
+   message& append(const char8_t* pbszUtf8Append);                               // C++20
+#  endif
    message& append(const message& messageAppend);
    message& append(const stream& streamAppend);
    message& append(const wstream& streamAppend);
@@ -294,9 +374,9 @@ public:
 
 // ## attributes ----------------------------------------------------------------
 public:
-   enumSeverity m_eSeverity;   ///< type of message severity, used to filter output
+   unsigned m_uSeverity;               ///< type of message severity, used to filter output
    enumMessageType m_eMessageType = enumMessageType::eMessageTypeText;
-   std::unique_ptr<char> m_pbszText; ///< when message need to control text it is placed here
+   std::unique_ptr<char> m_pbszText;   ///< when message need to control text it is placed here
    const char* m_pbszTextView = nullptr; ///< pointer to text 
 
    
@@ -310,8 +390,11 @@ public:
    /// creates new string from strings sent to method, if first is null then just create new string from last `stringAdd`
    [[nodiscard]] static char* new_s( const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::wstring_view& stringAdd ); // unicode
    /// create new text and add utf8 text sent
-   [[nodiscard]] static char* new_s( const char* pbszUtf8First, const std::string_view& stringIfFirst, const char8_t* pbszUtf8Add ); // unicode
-
+#  if defined(__cpp_char8_t)
+   [[nodiscard]] static char* new_s( const char* pbszUtf8First, const std::string_view& stringIfFirst, const char8_t* pbszUtf8Add ); // utf8 (no conversion)
+#  endif
+   [[nodiscard]] static char* new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const char* pbszUtf8Add, gd::utf8::utf8_tag); // utf8 (no conversion)
+   
    /// clear text if not null
    static void clear_s(char** ppbsz) {
       if( *ppbsz != nullptr ) { delete [] *ppbsz; *ppbsz = nullptr; }
@@ -344,7 +427,7 @@ public:
 };
 
 inline message& message::append(const format& formatAppend) {
-   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, formatAppend));
+   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, (const char*)formatAppend, gd::utf8::utf8_tag{}));
    return *this;
 }
 
@@ -381,7 +464,7 @@ class logger
 {
 // ## construction -------------------------------------------------------------
 public:
-   logger(): m_eSeverity( enumSeverity::eSeverityNone ) {}
+   logger(): m_uSeverity( enumSeverity::eSeverityNone ) {}
    ~logger() {}
 
 private:
@@ -397,8 +480,8 @@ public:
 public:
 /** \name GET/SET
 *///@{
-   enumSeverity get_severity() const { return m_eSeverity;  }
-   void set_severity( enumSeverity eSeverity ) { m_eSeverity = eSeverity;  }
+   unsigned get_severity() const { return m_uSeverity;  }
+   void set_severity( unsigned uSeverity ) { m_uSeverity = uSeverity;  }
 //@}
 
 /** \name OPERATION
@@ -413,6 +496,11 @@ public:
 protected:
 /** \name INTERNAL
 *///@{
+   bool check_severity(unsigned uSeverity) const {
+      if( (m_uSeverity & eSeverityMaskNumber) >= (uSeverity & eSeverityMaskNumber) ) return true;
+      else if( (m_uSeverity & uSeverity & eSeverityMaskGroup) != 0 ) return true;
+      return false;
+   }
    
 //@}
 
@@ -425,14 +513,12 @@ public:
 
 // ## attributes ----------------------------------------------------------------
 public:
-   enumSeverity m_eSeverity;
+   unsigned m_uSeverity;
    std::vector<std::unique_ptr<i_printer>> m_vectorPrinter;
    
    
 // ## free functions ------------------------------------------------------------
 public:
-   static logger<iLoggerKey>& initialize_s(enumSeverity eSeverity, std::string_view stringFileName);
-
    /// return pointer to logger with selected instance number
    static logger<iLoggerKey>* get_s();
    /// get reference to logger for selected instance number
@@ -446,7 +532,8 @@ public:
 template<int iLoggerKey>
 void logger<iLoggerKey>::print(const message& message)
 {
-   if( message.check_severity(m_eSeverity) )                                     // check if message has severity within bounds for output
+//   if( message.check_severity(m_uSeverity) )                                     // check if message has severity within bounds for output
+   if( check_severity(message.get_severity()) )                                                   // check if message has severity within bounds for output
    {
       // ## print message to all attached printers
       for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); ++it )
@@ -469,7 +556,7 @@ void logger<iLoggerKey>::print(std::initializer_list<message> listMessage)
 {
    auto itBegin = listMessage.begin();
    //message* pmessage = &(*listMessage.begin());
-   if( itBegin->check_severity(m_eSeverity) )                                   // check first message has severity within bounds for output
+   if( itBegin->check_severity(m_uSeverity) )                                   // check first message has severity within bounds for output
    {
       // ## print message to all attached printers
       for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); ++it )
@@ -516,11 +603,6 @@ inline logger<GD_LOG_DEFAULT_INSTANCE_ID>* get_s() {
 }
 
 
-template<int iLoggerKey>
-inline logger<iLoggerKey>& logger<iLoggerKey>::initialize_s(enumSeverity eSeverity, std::string_view stringFileName)
-{
-
-}
 
 /// ----------------------------------------------------------------------------
 /// Return reference to logger for instance id. Here is where each logger is created.
@@ -534,5 +616,45 @@ logger<iLoggerKey>& logger<iLoggerKey>::get_instance_s() {
    static logger<iLoggerKey> logger_s;
    return logger_s;
 }
+
+
+constexpr enumSeverity severity_get_number_g(const std::string_view& stringSeverity)
+{                                                                                assert(stringSeverity.empty() == false);
+   // ## convert character to uppercase if lowercase is found
+   constexpr uint8_t LOWER_A = 'a';
+   uint8_t uFirst = (uint8_t)stringSeverity[0];
+   if( uFirst >= LOWER_A ) uFirst -= 32;
+
+   switch( uFirst )
+   {
+   case 'F': return enumSeverity::eSeverityFatal;
+   case 'E': return enumSeverity::eSeverityError;
+   case 'W': return enumSeverity::eSeverityWarning;
+   case 'I': return enumSeverity::eSeverityInformation;
+   case 'D': return enumSeverity::eSeverityDebug;
+   case 'V': return enumSeverity::eSeverityVerbose;
+   default:  return enumSeverity::eSeverityNone;
+   }
+}
+
+constexpr enumSeverityGroup severity_get_group_g(const std::string_view& stringSeverity)
+{                                                                                assert(stringSeverity.empty() == false);
+   // ## convert character to uppercase if lowercase is found
+   constexpr uint8_t LOWER_A = 'a';
+   uint8_t uFirst = (uint8_t)stringSeverity[0];
+   if( uFirst >= LOWER_A ) uFirst -= 32;
+
+   switch( uFirst )
+   {
+   case 'F': return enumSeverityGroup::eSeverityGroupFatal;
+   case 'E': return enumSeverityGroup::eSeverityGroupError;
+   case 'W': return enumSeverityGroup::eSeverityGroupWarning;
+   case 'I': return enumSeverityGroup::eSeverityGroupInformation;
+   case 'D': return enumSeverityGroup::eSeverityGroupDebug;
+   case 'V': return enumSeverityGroup::eSeverityGroupVerbose;
+   default:  return enumSeverityGroup::eSeverityGroupNone;
+   }
+}
+
 
 _GD_LOG_LOGGER_END

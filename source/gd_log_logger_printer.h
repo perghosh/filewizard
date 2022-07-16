@@ -23,6 +23,11 @@ _GD_LOG_LOGGER_BEGIN
 
 extern std::mutex& printer_get_mutex_g();
 
+// ================================================================================================
+// ================================================================================= printer_console
+// ================================================================================================
+
+
 /**
  * \brief 
  *
@@ -125,15 +130,19 @@ public:
 
 };
 
+// ================================================================================================
+// ================================================================================= printer_file
+// ================================================================================================
+
 /**
  * \brief 
  *
- *
+ * note _wsopen_s , ::_write
  *
  \code
  \endcode
  */
-class printer_file 
+class printer_file : public i_printer
 {
 // ## construction -------------------------------------------------------------
 public:
@@ -164,12 +173,15 @@ public:
 
 /** \name OPERATION
 *///@{
-   void test();
+   
 //@}
 
 protected:
 /** \name INTERNAL
 *///@{
+   static std::pair<int, int> open_s(const std::wstring_view& stringFileName);
+   static int write_s(int iFileHandle, const std::string_view& stringText);
+   static int write_s(int iFileHandle, const std::wstring_view& stringText);
    
 //@}
 
@@ -182,6 +194,8 @@ public:
 
 // ## attributes ----------------------------------------------------------------
 public:
+   std::wstring m_stringFileName; ///< file log information is written to
+   int m_iFileHandle = -1;
    
    
 // ## free functions ------------------------------------------------------------

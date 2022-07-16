@@ -34,7 +34,12 @@ namespace gd {
           4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0, /* 0xF0-0xFF */
       };
 
-      void normalize( uint32_t uCharacter, char8_t& value )
+      /**
+       * @brief get the plain ascii character from utf8 sequence for same character
+       * @param uCharacter character in utf8 format that is converted to ascii code
+       * @param value reference to char that get the ascii code from utf8 sequence
+      */
+      void normalize( uint32_t uCharacter, char& value )
       {
          if( uCharacter < 0x80 ) value = static_cast<uint8_t>(uCharacter);
          else if( ((uCharacter >> 8) & 0xc0) == 0xc0 )
@@ -43,7 +48,7 @@ namespace gd {
             value |= static_cast<uint8_t>(uCharacter) & 0x3f;
             
          }
-         throw std::runtime_error("invalid convert  (operation = normalize)");
+         assert(false); throw std::runtime_error("invalid convert  (operation = normalize)");
       }
 
 
@@ -133,6 +138,11 @@ namespace gd {
          return 5;
       }
 
+      /**
+       * @brief count needed size to store unicode character as utf8 text
+       * @param uCharacter unicode character
+       * @return number of bytes needed for buffer to store unicode character
+      */
       uint32_t size(wchar_t uCharacter)
       {
          if( uCharacter < 0x80 ) return 1;
@@ -140,15 +150,20 @@ namespace gd {
          return 3;
       }
 
-
-      uint32_t size( const char* pbszText, uint32_t uLength )
+      /**
+       * @brief count needed buffer size to store ascii text
+       * @param pbszAsciiText pointer to checked text for how big the buffer needs to be if stored in utf8 format
+       * @param uLength length for ascii text that is checked
+       * @return number of bytes needed in buffer to store ascii as utf8
+      */
+      uint32_t size( const char* pbszAsciiText, uint32_t uLength )
       {
          uint32_t uSize = 0;
-         const char* pbszEnd = pbszText + uLength;
-         while( pbszText < pbszEnd )
+         const char* pbszEnd = pbszAsciiText + uLength;
+         while( pbszAsciiText < pbszEnd )
          {
-            uSize += static_cast<uint8_t>(*pbszText) < 0x80 ? 1 : 2;
-            pbszText++;
+            uSize += static_cast<uint8_t>(*pbszAsciiText) < 0x80 ? 1 : 2;
+            pbszAsciiText++;
          }
          return uSize;
       }
@@ -239,7 +254,7 @@ namespace gd {
          }
          return 0;
       }
-
+#if defined(__cpp_char8_t)
       /**
        * @brief convert utf16 to utf8
        * @param pwszUtf16 pointer to utf16 string
@@ -253,6 +268,29 @@ namespace gd {
          {
             uint32_t uCharacter = gd::utf16::character(pwszPosition);
             uint32_t uSize = convert(uCharacter, pbszUtf8);
+            pwszPosition++;
+            pbszUtf8 += uSize;
+         }
+
+         *pbszUtf8 = '\0';
+
+         return { true, pwszPosition, pbszUtf8 };
+      }
+#endif
+
+      /**
+       * @brief convert utf16 to utf8
+       * @param pwszUtf16 pointer to utf16 string
+       * @param pbszUtf8 pointer to buffer where converted characters are stored
+       * @return std::tuple<bool, const char16_t*, char8_t*> true if succeded, false if not. also returns positions where converted pointers ended
+      */
+      std::tuple<bool, const wchar_t*, char*> convert_utf16_to_uft8(const wchar_t* pwszUtf16, char* pbszUtf8, utf8_tag)
+      {
+         const wchar_t* pwszPosition = pwszUtf16;
+         while(*pwszPosition)
+         {
+            uint32_t uCharacter = gd::utf16::character(pwszPosition);
+            uint32_t uSize = convert(uCharacter, (uint8_t*)pbszUtf8);
             pwszPosition++;
             pbszUtf8 += uSize;
          }
