@@ -21,7 +21,28 @@
  * Using different instance id values creating `logger` object it is possible to have
  * multiple logger items in your code if that is desired.
  * 
+ * ### Severity
+ * Severity is used to level log information in some sort of importance. Levels are
+ * from Verbose to Fatal.
+ * All levels: Verbose, Debug, Information, Warning, Error and Fatal.
+ * It is possible to turn on a lesser important level setting it in logger using
+ * `enumSeverityGroup.
+ * 
+ * 
  * ### Tutorial (code samples)
+ * 
+---------------------
+**Geting started** *Sample getting default logger (id=0), adds printer and sets severity filter and prints a message*
+```cpp
+using namespace gd::log;
+
+gd::log::logger<0>* plogger = gd::log::get_s();                             // get pointer to logger 0
+plogger->append( std::make_unique<gd::log::printer_console>() );            // append printer to logger
+plogger->set_severity(eSeverityNumberWarning | eSeverityGroupDebug);        // set severity filter, messages within this filter is printed
+plogger->print(message(eSeverityGroupDebug, eMessageTypeTime).printf("%s", "## MESSAGE ##")); plogger->flush();// write to logger
+```
+
+
  * 
  */
 
@@ -74,9 +95,9 @@ class i_printer;
  */
 enum enumSeverityNumber
 {
-   eSeverityNumberNone = 0,
-   eSeverityNumberFatal = 1,
-   eSeverityNumberError = 2,
+   eSeverityNumberNone = 0,         ///< allways write this, no severity set
+   eSeverityNumberFatal = 1,        ///< most important severity, 
+   eSeverityNumberError = 2,        ///< almost as important as fatal and rest is less important in list
    eSeverityNumberWarning = 3,
    eSeverityNumberInformation = 4,
    eSeverityNumberDebug = 5,
@@ -122,17 +143,21 @@ enum enumSeverityMask
 
 enum enumMessageType
 {
-   eMessageTypeText           = 0,
-   eMessageTypeMethodName     = (1<<1),
-   eMessageTypeFileName       = (1<<2),
-   eMessageTypeTime           = (1<<3),
+   eMessageTypeText = 0,
+   eMessageTypeMethodName = (1 << 1),
+   eMessageTypeFileName = (1 << 2),
+   eMessageTypeSeverity = (1 << 3),
+   eMessageTypeTime = (1 << 4),
+   eMessageTypeDate = (1 << 5),
+
+   eMessageTypeAll = eMessageTypeMethodName | eMessageTypeFileName | eMessageTypeSeverity | eMessageTypeTime | eMessageTypeDate,
 };
 
 
 
 const char* severity_get_name_g(unsigned uSeverity);
-constexpr static enumSeverity severity_get_number_g(const std::string_view& stringSeverity);
-constexpr static enumSeverityGroup severity_get_group_g(const std::string_view& stringSeverity);
+//constexpr static enumSeverityNumber severity_get_number_g(const std::string_view& stringSeverity);
+//constexpr static enumSeverityGroup severity_get_group_g(const std::string_view& stringSeverity);
 
 
 /*-----------------------------------------*/ /**
@@ -307,7 +332,9 @@ public:
 *///@{
    /// check if message has any special type set, these type are used to produce 
    bool is_message_type_set() const { return m_eMessageType != 0; }
+   bool is_severity() const { return (m_eMessageType & eMessageTypeSeverity); }
    bool is_time() const { return m_eMessageType & eMessageTypeTime; }
+   bool is_date() const { return m_eMessageType & eMessageTypeDate; }
 
    /// check if message has severity level below or equal to (max) severity sent
    /// ``` cpp
@@ -422,6 +449,9 @@ public:
    [[nodiscard]] static char* join_s( char** ppbszText, char** ppbszAdd );
    /// joins three texts where the second one is just a pointer, good for combining text with separator
    [[nodiscard]] static char* join_s(char** ppbszText, const std::string_view& stringAdd, char** ppbszAdd);
+
+   static std::wstring get_now_date_as_wstring_s();
+   static std::wstring get_now_time_as_wstring_s();
 
    
 };

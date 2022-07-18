@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cstdarg>
+#include <chrono>
 #include <stdarg.h>
 
 #include "gd_log_logger.h"
@@ -422,6 +423,28 @@ char* message::join_s(char** ppbszText, const std::string_view& stringAdd, char*
    return pbszNew;
 }
 
+std::wstring message::get_now_date_as_wstring_s()
+{
+   enum { eBufferSize = 30 };
+   auto time_pointNow = std::chrono::system_clock::now();
+   std::time_t timeNow = std::chrono::system_clock::to_time_t(time_pointNow);
+   wchar_t pBuffer[eBufferSize];
+   std::wcsftime(pBuffer, eBufferSize, L"%H:%M:%S", std::localtime(&timeNow));
+   return std::wstring(pBuffer);
+}
+
+std::wstring message::get_now_time_as_wstring_s()
+{
+   enum { eBufferSize = 30 };
+   auto time_pointNow = std::chrono::system_clock::now();
+   std::time_t timeNow = std::chrono::system_clock::to_time_t(time_pointNow);
+   wchar_t pBuffer[eBufferSize];
+   std::wcsftime(pBuffer, eBufferSize, L"%Y-%m-%d %H:%M:%S", std::localtime(&timeNow));
+   return std::wstring(pBuffer);
+}
+
+
+
 // ================================================================================================
 // ================================================================================= GLOBAL
 // ================================================================================================
@@ -440,7 +463,6 @@ const char* severity_get_name_g(unsigned uSeverity)
    default:                                              return "NONE";
    }
 }
-
 
 
 _GD_LOG_LOGGER_END

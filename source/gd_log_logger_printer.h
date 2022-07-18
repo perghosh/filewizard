@@ -146,7 +146,8 @@ class printer_file : public i_printer
 {
 // ## construction -------------------------------------------------------------
 public:
-   printer_file() {}
+   printer_file() : m_stringSplit(L"  ") {}
+   printer_file( const std::wstring_view& stringFileName ): m_stringFileName(stringFileName), m_stringSplit(L"  ") {}
    // copy
    printer_file( const printer_file& o ) { common_construct( o ); }
    printer_file( printer_file&& o ) noexcept { common_construct( o ); }
@@ -154,7 +155,7 @@ public:
    printer_file& operator=( const printer_file& o ) { common_construct( o ); return *this; }
    printer_file& operator=( printer_file&& o ) noexcept { common_construct( o ); return *this; }
    
-	~printer_file() {}
+   ~printer_file() { if( m_iFileHandle >= 0 ) file_close_s(m_iFileHandle); }
 private:
    // common copy
    void common_construct( const printer_file& o ) {}
@@ -168,20 +169,27 @@ public:
 public:
 /** \name GET/SET
 *///@{
-   
+   void set_split_text(const std::wstring_view& stringSplitText) { m_stringSplit = stringSplitText;  }
 //@}
 
 /** \name OPERATION
 *///@{
+   /// checks if valid file handle, if handle is valid (above 0) then the file is open
+   bool is_open() const { return m_iFileHandle >= 0; }
+
+   virtual void print(const message& message);
+
    
 //@}
 
 protected:
 /** \name INTERNAL
 *///@{
+   /*
    static std::pair<int, int> open_s(const std::wstring_view& stringFileName);
    static int write_s(int iFileHandle, const std::string_view& stringText);
    static int write_s(int iFileHandle, const std::wstring_view& stringText);
+   */
    
 //@}
 
@@ -194,12 +202,17 @@ public:
 
 // ## attributes ----------------------------------------------------------------
 public:
-   std::wstring m_stringFileName; ///< file log information is written to
-   int m_iFileHandle = -1;
+   std::wstring m_stringFileName;   ///< file log information is written to
+   std::wstring m_stringSplit;      ///< text put between messages.
+   int m_iFileHandle = -1;          ///< used as file handle to log file that is written to
    
    
 // ## free functions ------------------------------------------------------------
 public:
+   static std::pair<int, std::string> file_open_s(const std::wstring_view& stringFileName);
+   static std::pair<bool, std::string> file_write_s(int iFileHandle, const std::string_view& stringText);
+   static std::pair<bool, std::string> file_write_s(int iFileHandle, const std::wstring_view& stringText, gd::utf8::utf8_tag );
+   static void file_close_s(int iFileHandle);
    
 
 
