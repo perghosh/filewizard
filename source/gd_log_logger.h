@@ -3,6 +3,18 @@
  * 
  * \brief Core file for logger functionality
  * 
+   |  |  |
+   | - | - |
+   | `stream` |  |
+   | `wstream` |  |
+   | `format` |  |
+   | `message` |  |
+   | `` |  |
+   | `` |  |
+   | `` |  |
+   | `` |  |
+ * 
+ * 
  * ### Important classes
  * - `logger`: logger is the instance (singleton) used when log messages are generated. 
  *    Generated log text is sent to logger instance where logger spread the message 
@@ -32,7 +44,7 @@
  * ### Tutorial (code samples)
  * 
 ---------------------
-**Geting started** *Sample getting default logger (id=0), adds printer and sets severity filter and prints a message*
+*Geting started** *Sample getting default logger (id=0), adds printer and sets severity filter and prints a message*
 ```cpp
 using namespace gd::log;
 
@@ -41,10 +53,33 @@ plogger->append( std::make_unique<gd::log::printer_console>() );            // a
 plogger->set_severity(eSeverityNumberWarning | eSeverityGroupDebug);        // set severity filter, messages within this filter is printed
 plogger->print(message(eSeverityGroupDebug, eMessageTypeTime).printf("%s", "## MESSAGE ##")); plogger->flush();// write to logger
 ```
+*Macro sample, two macros named to LOG_ and LOG. *
+```cpp
+#define LOG_( uLogger, uSeverity, expression ) gd::log::get_g<uLogger>()->print( gd::log::message( uSeverity, gd::log::eMessageTypeAll ) << __FILE__ << __func__ << expression )
+#define LOG( uSeverity, expression ) LOG_( 0, gd::log::severity_get_g( uSeverity ), expression )
 
+// Use macros
+
+auto plogger = gd::log::get_s();                               // create default logger
+plogger->append(std::make_unique<gd::log::printer_console>()); // append console printer 
+plogger->append(std::make_unique<gd::log::printer_file>(L"testlog.txt"));// append file printer and set file
+
+plogger->set_severity(gd::log::eSeverityVerbose);              // set severity
+
+LOG( gd::log::eSeverityWarning, L"testing this message" );     // print log text
+LOG("WARNING", L"WARNING");                                    // print log text
+
+plogger->set_severity(gd::log::eSeverityError);                // change severity filter
+
+LOG("WARNING", L"WARNING 02");                                 // not printed, warning is higher compared to error
+LOG("FATAL", L"FATAL");                                        // this is printed
+
+
+```
 
  * 
  */
+
 
 // links
 // https://www.reddit.com/r/cpp/comments/p9annk/conditional_compilation_with_constexpr_instead_of/
@@ -67,7 +102,7 @@ plogger->print(message(eSeverityGroupDebug, eMessageTypeTime).printf("%s", "## M
 
 #include "gd_utf8.hpp"
 
-#pragma warning( disable: 4996 )
+#pragma warning( disable: 4996 26812 )
 
 #ifndef GD_LOG_DEFAULT_INSTANCE_ID
 #   define GD_LOG_DEFAULT_INSTANCE_ID 0
@@ -123,32 +158,63 @@ enum enumSeverityGroup
 };
 
 
+/**
+ * \brief final severity types, combines severity number and severity bit
+ * 
+ */
 enum enumSeverity
 {
    eSeverityNone =         eSeverityNumberNone,
    eSeverityFatal =        eSeverityGroupFatal           | eSeverityNumberFatal,
    eSeverityError =        eSeverityGroupError           | eSeverityNumberError,
-   eSeverityWarning =      eSeverityGroupWarning         | eSeverityNumberNone,
-   eSeverityInformation =  eSeverityGroupInformation     | eSeverityNumberWarning,
+   eSeverityWarning =      eSeverityGroupWarning         | eSeverityNumberWarning,
+   eSeverityInformation =  eSeverityGroupInformation     | eSeverityNumberInformation,
    eSeverityDebug =        eSeverityGroupDebug           | eSeverityNumberDebug,
    eSeverityVerbose =      eSeverityGroupVerbose         | eSeverityNumberVerbose,
 };
 
-enum enumSeverityMask
+/**
+ * \brief severity bits, 16 bits available for custom severity group settings to filter messages
+ * 
+ */
+enum enumSeverityBit
+{
+   eSeverityBit01 = (1 << (15 +  1)),
+   eSeverityBit02 = (1 << (15 +  2)),
+   eSeverityBit03 = (1 << (15 +  3)),
+   eSeverityBit04 = (1 << (15 +  4)),
+   eSeverityBit05 = (1 << (15 +  5)),
+   eSeverityBit06 = (1 << (15 +  6)),
+   eSeverityBit07 = (1 << (15 +  7)),
+   eSeverityBit08 = (1 << (15 +  8)),
+   eSeverityBit09 = (1 << (15 +  9)),
+   eSeverityBit10 = (1 << (15 + 10)),
+   eSeverityBit11 = (1 << (15 + 11)),
+   eSeverityBit12 = (1 << (15 + 12)),
+   eSeverityBit13 = (1 << (15 + 13)),
+   eSeverityBit14 = (1 << (15 + 14)),
+   eSeverityBit15 = (1 << (15 + 15)),
+   eSeverityBit16 = (1 << (15 + 16)),
+};
+
+
+enum class enumSeverityMask : uint32_t
 {
    eSeverityMaskNumber = 0x0000'00FF,
    eSeverityMaskGroup  = 0x0000'FF00,
+   eSeverityMaskFlag   = 0xFFFF'0000,
+   eSeverityMaskFlagAndGroup = eSeverityMaskGroup | eSeverityMaskFlag,
 };
 
 
 enum enumMessageType
 {
    eMessageTypeText = 0,
-   eMessageTypeMethodName = (1 << 1),
-   eMessageTypeFileName = (1 << 2),
-   eMessageTypeSeverity = (1 << 3),
-   eMessageTypeTime = (1 << 4),
-   eMessageTypeDate = (1 << 5),
+   eMessageTypeMethodName =   (1 << 1),
+   eMessageTypeFileName =     (1 << 2),
+   eMessageTypeSeverity =     (1 << 3),
+   eMessageTypeTime =         (1 << 4),
+   eMessageTypeDate =         (1 << 5),
 
    eMessageTypeAll = eMessageTypeMethodName | eMessageTypeFileName | eMessageTypeSeverity | eMessageTypeTime | eMessageTypeDate,
 };
@@ -156,12 +222,28 @@ enum enumMessageType
 
 
 const char* severity_get_name_g(unsigned uSeverity);
-//constexpr static enumSeverityNumber severity_get_number_g(const std::string_view& stringSeverity);
-//constexpr static enumSeverityGroup severity_get_group_g(const std::string_view& stringSeverity);
+
+// ================================================================================================
+// ================================================================================= stream
+// ================================================================================================
+
+/*-----------------------------------------*/ /**
+ * \brief holds pointer to text, may be used for __FILE__ and similar
+ *
+ *
+ */
+struct view 
+{
+   view(const std::string_view&& stringView) : m_stringView(stringView) {}
+
+   // attributes
+   public:
+      std::string_view m_stringView;
+};
 
 
 /*-----------------------------------------*/ /**
- * \brief compatible stringstream logic for logger
+ * \brief helper to enable compatibility between stringstream and logger
  *
  * *sample*
  * ```cpp
@@ -182,8 +264,13 @@ struct stream
       std::stringstream m_stringstream;
 };
 
+// ================================================================================================
+// ================================================================================= wstream
+// ================================================================================================
+
+
 /*-----------------------------------------*/ /**
- * \brief compatible stringstream logic for logger
+ * \brief helper to enable compatibility between wstringstream and logger
  *
  * *sample*
  * ```cpp
@@ -204,8 +291,13 @@ struct wstream
       std::wstringstream m_stringstream;
 };
 
+// ================================================================================================
+// ================================================================================= format
+// ================================================================================================
+
+
 /*-----------------------------------------*/ /**
- * \brief 
+ * \brief implements std::format functionality to generate log text
  *
  *
  */
@@ -250,6 +342,9 @@ struct format
       std::unique_ptr<char> m_pbszText;
 };
 
+// ================================================================================================
+// ================================================================================= message
+// ================================================================================================
 
 /**
  * \brief 
@@ -265,9 +360,9 @@ class message
 public:
    message(): m_uSeverity( enumSeverity::eSeverityNone ) {}
    explicit message( unsigned uSeverity ): m_uSeverity( uSeverity ) {}
-   explicit message( unsigned uSeverity, enumMessageType eMessageType ): m_uSeverity( uSeverity ), m_eMessageType(eMessageType) {}
+   explicit message( unsigned uSeverity, unsigned uMessageType ): m_uSeverity( uSeverity ), m_uMessageType(uMessageType) {}
    explicit message( unsigned uSeverity, const char* pbszText ): m_uSeverity( uSeverity ), m_pbszTextView(pbszText) {}
-   message( unsigned uSeverity, enumMessageType eMessageType, const char* pbszText ): m_uSeverity( uSeverity ), m_eMessageType(eMessageType), m_pbszTextView(pbszText) {}
+   message( unsigned uSeverity, enumMessageType eMessageType, const char* pbszText ): m_uSeverity( uSeverity ), m_uMessageType(eMessageType), m_pbszTextView(pbszText) {}
 
    message( const char* pbszMessage ): m_uSeverity( enumSeverity::eSeverityNone ), m_pbszTextView( pbszMessage ) {}
 #  if defined(__cpp_char8_t)
@@ -286,13 +381,13 @@ private:
    // common copy
    void common_construct( const message& o ) {
       m_uSeverity = o.m_uSeverity;
-      m_eMessageType = o.m_eMessageType;
+      m_uMessageType = o.m_uMessageType;
       m_pbszTextView = o.m_pbszTextView;
       m_pbszText.reset( clone_s(o.m_pbszText.get()) );
    }
    void common_construct( message&& o ) noexcept {
       m_uSeverity = o.m_uSeverity;
-      m_eMessageType = o.m_eMessageType;
+      m_uMessageType = o.m_uMessageType;
       m_pbszText = std::move(o.m_pbszText);
       m_pbszTextView = o.m_pbszTextView;
    }
@@ -322,31 +417,31 @@ public:
 /** \name GET/SET
 *///@{
    // ## getters and setters for severity information
-   unsigned get_severity() const { return m_uSeverity; }
-   enumSeverityNumber get_severity_number() const { return (enumSeverityNumber)(m_uSeverity & eSeverityMaskNumber); }
-   enumSeverityGroup get_severity_group() const { return (enumSeverityGroup)(m_uSeverity & eSeverityMaskGroup); }
+   [[nodiscard]] unsigned get_severity() const { return m_uSeverity; }
+   [[nodiscard]] enumSeverityNumber get_severity_number() const { return (enumSeverityNumber)(m_uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskNumber)); }
+   [[nodiscard]] enumSeverityGroup get_severity_group() const { return (enumSeverityGroup)(m_uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskFlagAndGroup)); }
    void set_severity(unsigned uSeverity) { m_uSeverity = uSeverity; }
 //@}
 
 /** \name OPERATION
 *///@{
    /// check if message has any special type set, these type are used to produce 
-   bool is_message_type_set() const { return m_eMessageType != 0; }
-   bool is_severity() const { return (m_eMessageType & eMessageTypeSeverity); }
-   bool is_time() const { return m_eMessageType & eMessageTypeTime; }
-   bool is_date() const { return m_eMessageType & eMessageTypeDate; }
+   [[nodiscard]] bool is_message_type_set() const { return m_uMessageType != 0; }
+   [[nodiscard]] bool is_severity() const { return (m_uMessageType & eMessageTypeSeverity); }
+   [[nodiscard]] bool is_time() const { return m_uMessageType & eMessageTypeTime; }
+   [[nodiscard]] bool is_date() const { return m_uMessageType & eMessageTypeDate; }
 
    /// check if message has severity level below or equal to (max) severity sent
    /// ``` cpp
    /// messageItem.is_active( eSeverityError ); // returns true if messageItem is eSeverityError, eSeverityFatal or eSeverityNone
    /// ```
-   bool check_severity(unsigned uSeverity) const { 
-      if( (uSeverity & eSeverityMaskNumber) >= (m_uSeverity & eSeverityMaskNumber) ) return true;
-      else if( (uSeverity & m_uSeverity & eSeverityMaskGroup) != 0 ) return true;
+   [[nodiscard]] bool check_severity(unsigned uSeverity) const { 
+      if( (uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskNumber)) >= (m_uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskNumber)) ) return true;
+      else if( (uSeverity & m_uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskFlagAndGroup)) != 0 ) return true;
       return false;
    }
    template <typename INTEGER>
-   bool check_severity(INTEGER uSeverity) const {
+   [[nodiscard]] bool check_severity(INTEGER uSeverity) const {
       static_assert( std::numeric_limits<INTEGER>::is_integer, "Unable to cast to this type to unsigned in a save way");
       return check_severity( static_cast<unsigned>( uSeverity ) );
    }
@@ -402,13 +497,15 @@ public:
 // ## attributes ----------------------------------------------------------------
 public:
    unsigned m_uSeverity;               ///< type of message severity, used to filter output
-   enumMessageType m_eMessageType = enumMessageType::eMessageTypeText;
+   unsigned m_uMessageType = enumMessageType::eMessageTypeText;///< Type of message, setting type affects type of information generated in printer
    std::unique_ptr<char> m_pbszText;   ///< when message need to control text it is placed here
    const char* m_pbszTextView = nullptr; ///< pointer to text 
 
    
 // ## free functions ------------------------------------------------------------
 public:
+
+   // ## allocators 
    [[nodiscard]] static char* new_s( std::size_t uSize ) { return new char[uSize]; }
    [[nodiscard]] static char* new_s( std::string_view stringAscii );
    [[nodiscard]] static char* new_s( std::wstring_view stringUnicode );
@@ -427,6 +524,7 @@ public:
       if( *ppbsz != nullptr ) { delete [] *ppbsz; *ppbsz = nullptr; }
    }
 
+   // ## string converters
    /// convert char string to std::wstring
    [[nodiscard]] static std::wstring to_wstring_s( const char* pbsz ) { 
       std::wstring stringReturn;
@@ -434,6 +532,7 @@ public:
       return stringReturn;
    }
 
+   // ## copy
    /// clone text into allocated buffer in heap
    [[nodiscard]] static char* clone_s(char* pbsz) {
       if( pbsz == nullptr ) return pbsz;
@@ -443,6 +542,7 @@ public:
       return pbszTemp;
    }
 
+   // ## appenders
    /// joins two texts and deletes the first text sent, pointer returned is allocated on heap (need to be deleted)
    [[nodiscard]] char* append_s(char** ppbszText, const std::string_view& stringAdd);
    /// joins two texts and deletes both, returned text pointer is allocated on heap (need to be deleted)
@@ -450,6 +550,10 @@ public:
    /// joins three texts where the second one is just a pointer, good for combining text with separator
    [[nodiscard]] static char* join_s(char** ppbszText, const std::string_view& stringAdd, char** ppbszAdd);
 
+   // ## wrappers
+   [[nodiscard]] static std::wstring wrap_s(wchar_t chBefore, const std::wstring_view& stringText, wchar_t chAfter);
+
+   // ## value generators
    static std::wstring get_now_date_as_wstring_s();
    static std::wstring get_now_time_as_wstring_s();
 
@@ -461,6 +565,9 @@ inline message& message::append(const format& formatAppend) {
    return *this;
 }
 
+// ================================================================================================
+// ================================================================================= printer_file
+// ================================================================================================
 
 
 /*-----------------------------------------*/ /**
@@ -474,17 +581,38 @@ class i_printer
 public:
    virtual ~i_printer() {}
 
-   virtual void print(const message& message) {};
-   virtual void flush() {};
+   /// This is called when logger send (prints) message to attached printers.
+   /// Each printer needs to implement this in order to print something.
+   /// \return true if ok, false if error (get error information from error method)
+   virtual bool print(const message& message) { return true; };
+
+   /// may be called occasionally and printer should here finish jobs that are
+   /// pending, may be some sort of heavy write to media.
+   /// \return true if ok, false if error (get error information from error method)
+   virtual bool flush() { return true; };
+
+   /// Collect error information, if printer has some internal error then call
+   /// error to get information about internal error if there is any
+   /// \param message gets error information
+   /// \return number of errors left to get
+   virtual unsigned error( message& message ) { return 0; };
 };
 
 
+// ================================================================================================
+// ================================================================================= logger
+// ================================================================================================
 
 
 /**
- * \brief 
+ * \brief logger is the meat in log functionality, use this to send log messages to printers
  *
- *
+ * logger is a tiny class, it only has two members, one array holding pointer to printers
+ * and selected filter. Filter is used to filter what type of messages to print.
+ * 
+ * logger is a template and by setting a new logger id compiler will generate a new
+ * logger class. logger are singletons so this is necessary in order to have different
+ * loggers.
  *
  \code
  \endcode
@@ -518,7 +646,9 @@ public:
 *///@{
    void append(std::unique_ptr<i_printer> pprinter) { m_vectorPrinter.push_back( std::move(pprinter) ); }
 
-   virtual void print( const message& message );
+   void print(const message& message) { print(message, true); }
+
+   virtual void print( const message& message, bool bFlush );
    virtual void print( std::initializer_list<message> listMessage );
    virtual void flush();
 //@}
@@ -527,8 +657,8 @@ protected:
 /** \name INTERNAL
 *///@{
    bool check_severity(unsigned uSeverity) const {
-      if( (m_uSeverity & eSeverityMaskNumber) >= (uSeverity & eSeverityMaskNumber) ) return true;
-      else if( (m_uSeverity & uSeverity & eSeverityMaskGroup) != 0 ) return true;
+      if( (m_uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskNumber)) >= (uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskNumber)) ) return true;
+      else if( (m_uSeverity & uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskFlagAndGroup) ) != 0 ) return true;
       return false;
    }
    
@@ -555,21 +685,22 @@ public:
    static logger<iLoggerKey>& get_instance_s();
 };
 
-#ifndef GD_LOG_DISABLE_ALL
+#ifndef GD_LOG_DISABLE_ALL                                                       // GD_LOG_DISABLE_ALL {
 
 /// ----------------------------------------------------------------------------
 /// Sends message to all attached printers, 
 template<int iLoggerKey>
-void logger<iLoggerKey>::print(const message& message)
+void logger<iLoggerKey>::print(const message& message, bool bFlush)
 {
-//   if( message.check_severity(m_uSeverity) )                                     // check if message has severity within bounds for output
-   if( check_severity(message.get_severity()) )                                                   // check if message has severity within bounds for output
+   if( check_severity(message.get_severity()) )                                  // check if message has severity within bounds for output
    {
       // ## print message to all attached printers
       for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); ++it )
       {
          (*it)->print(message);
       }
+
+      if( bFlush == true ) flush();
    }
 }
 #else
@@ -577,7 +708,7 @@ template<int iLoggerKey>
 void logger<iLoggerKey>::print(const message& message)
 {
 }
-#endif
+#endif                                                                           // } GD_LOG_DISABLE_ALL 
 
 /// ----------------------------------------------------------------------------
 /// Sends message list to all attached printers, 
@@ -685,6 +816,17 @@ constexpr enumSeverityGroup severity_get_group_g(const std::string_view& stringS
    default:  return enumSeverityGroup::eSeverityGroupNone;
    }
 }
+
+
+template<typename TYPE>
+constexpr enumSeverity severity_get_g(TYPE typeSeverity)
+{
+   if constexpr( std::is_pointer<TYPE>::value )
+      return severity_get_number_g(typeSeverity);
+   else
+      return typeSeverity;
+}
+
 
 
 _GD_LOG_LOGGER_END

@@ -95,8 +95,8 @@ public:
 
 /** \name OPERATION
 *///@{
-   virtual void print(const message& message);
-   virtual void flush();
+   virtual bool print(const message& message);
+   virtual bool flush();
 
    void print(const std::wstring_view& stringMessage);
 //@}
@@ -144,10 +144,10 @@ public:
  */
 class printer_file : public i_printer
 {
-// ## construction -------------------------------------------------------------
+   // ## construction -------------------------------------------------------------
 public:
-   printer_file() : m_stringSplit(L"  ") {}
-   printer_file( const std::wstring_view& stringFileName ): m_stringFileName(stringFileName), m_stringSplit(L"  ") {}
+   printer_file() : m_stringSplit{ L"  " }, m_stringNewLine{ L"\n" } {}
+   printer_file(const std::wstring_view& stringFileName) : m_stringFileName(stringFileName), m_stringSplit{ L"  " }, m_stringNewLine{ L"\n" } {}
    // copy
    printer_file( const printer_file& o ) { common_construct( o ); }
    printer_file( printer_file&& o ) noexcept { common_construct( o ); }
@@ -163,7 +163,13 @@ private:
 
 // ## operator -----------------------------------------------------------------
 public:
-   
+
+
+// ## override -----------------------------------------------------------------
+public:
+   virtual bool print(const message& message);
+   virtual bool flush();
+
 
 // ## methods ------------------------------------------------------------------
 public:
@@ -177,7 +183,10 @@ public:
    /// checks if valid file handle, if handle is valid (above 0) then the file is open
    bool is_open() const { return m_iFileHandle >= 0; }
 
-   virtual void print(const message& message);
+   // ## operations used to cover (wrap) text like "text" -> "[text]"
+   void cover_text( std::wstring& stringText ) const;
+   std::wstring get_cover_text( const std::wstring_view& stringText ) const;
+
 
    
 //@}
@@ -204,6 +213,9 @@ public:
 public:
    std::wstring m_stringFileName;   ///< file log information is written to
    std::wstring m_stringSplit;      ///< text put between messages.
+   std::wstring m_stringNewLine;    ///< Text inserted at end of message (newline maybe ?)
+   wchar_t m_wchBeginWrap = L'[';   ///< if text is wrapped then add this before text
+   wchar_t m_wchEndWrap  = L']';    ///< If text is wrapped then add this after text
    int m_iFileHandle = -1;          ///< used as file handle to log file that is written to
    
    

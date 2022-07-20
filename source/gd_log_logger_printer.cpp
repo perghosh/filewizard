@@ -1,3 +1,32 @@
+/**
+ * \file gd_log_logger_printer.h
+ * 
+ * \brief Modify logger output by selecting one or some of the "Printer" classes found here.
+ * 
+ * Generate log output needs one or more printers used to transform log messages
+ * to some sort of readable log information. 
+ * Each logger created can have one or more printers attached. Messages sent to
+ * logger is spread to these attached printers.
+ * 
+ */
+
+/*
+
+|  |  |
+| - | - |
+|  |  |
+|  |  |
+
+
+
+
+
+
+*/
+
+
+
+
 #include <chrono>
 #include "io.h"
 #include <fcntl.h>
@@ -25,7 +54,7 @@ std::mutex& printer_get_mutex_g()
  * to attached printers. Here `printer_console` converts information to text and sends it to the console.
  * \param message printed message
  */
-void printer_console::print(const message& message)
+bool printer_console::print(const message& message)
 {
    std::wstring stringMessage;
 
@@ -56,9 +85,11 @@ void printer_console::print(const message& message)
    if( m_uMessageCounter > 0 ) print(std::wstring_view{ L"  " });                // print separator if there have been more messages before flush method is called
 
    print( stringMessage );
+
+   return true;
 }
 
-void printer_console::flush()
+bool printer_console::flush()
 {
    if( m_uMessageCounter > 0 )                                                   // one or more messages printed?
    {
@@ -66,6 +97,7 @@ void printer_console::flush()
    }
 
    m_uMessageCounter = 0;
+   return true;
 }
 
 void printer_console::print(const std::wstring_view& stringMessage)
@@ -99,11 +131,11 @@ void printer_console::print(const std::wstring_view& stringMessage)
  * to attached printers. Here `printer_console` converts information to text and sends it to the console.
  * \param message printed message
  */
-void printer_file::print(const message& message)
+bool printer_file::print(const message& message)
 {
    std::wstring stringMessage;
 
-   if( is_open() == false )
+   if( is_open() == false )                                                      // check if file has been opened, if not then open file
    {
       auto [iFileHandle, stringError] = file_open_s(m_stringFileName);
       m_iFileHandle = iFileHandle;
@@ -111,31 +143,34 @@ void printer_file::print(const message& message)
       if( is_open() == false )                                                   // still not open? then internal error
       {
          // TODO: manage error, get information from string and 
-         return;
+         return false;
       }
    }
 
-   if( message.is_message_type_set() == true )
+   if( message.is_message_type_set() == true )                                   // check message "if type of message" is set, then go through message settings to add fixed information
    {
-      if( message.is_severity() == true )
+      if( message.is_severity() == true )                                        // is severity set ?
       {
          gd::utf8::convert_utf8_to_uft16((const uint8_t*)severity_get_name_g(message.get_severity_number()), stringMessage);
+         cover_text( stringMessage );
          stringMessage += m_stringSplit;
       }
 
-      if( message.is_time() == true )
+      if( message.is_time() == true )                                            // add time ?
       {
          std::wstring stringTime = message::get_now_time_as_wstring_s();
-         stringMessage += stringTime;
+         stringMessage += get_cover_text(stringTime);
+         stringMessage += m_stringSplit;
       }
-      else if( message.is_date() == true )
+      else if( message.is_date() == true )                                       // add date ?
       {
          std::wstring stringDate = message::get_now_date_as_wstring_s();
-         stringMessage += stringDate;
+         stringMessage += get_cover_text(stringDate);
+         stringMessage += m_stringSplit;
       }
-
-      if( stringMessage.empty() == false ) { stringMessage += m_stringSplit; }   // if text then add split section to divide for next text in log message
    }
+
+   // ## write message text to file there is any text to write
 
    if( stringMessage.empty() == false )
    {
@@ -143,7 +178,7 @@ void printer_file::print(const message& message)
       if( bOk == false )
       {
          // TODO: manage error, get information from string and 
-         return;
+         return false;
       }
    }
 
@@ -154,11 +189,50 @@ void printer_file::print(const message& message)
    if( bOk == false )
    {
       // TODO: manage error, get information from string and 
-      return;
+      return false;
    }
 
-
+   return true;
 }
+
+bool printer_file::flush()
+{
+   char pbsz[3];
+   if( is_open() == true && m_stringNewLine.empty() == false )
+   {
+      if( m_stringNewLine.length() < 3 )
+      {
+         pbsz[0] = (char)m_stringNewLine[0];
+         pbsz[1] = (char)m_stringNewLine[1];
+         pbsz[2] = 0;
+         file_write_s(m_iFileHandle, pbsz);
+      }
+   }
+
+   return true;
+}
+
+
+/*----------------------------------------------------------------------------- cover_text */ /**
+ * cover or wrap text within characters to make it nicer to view
+ * \param stringText text to wrap within start and end character
+ */
+void printer_file::cover_text(std::wstring& stringText) const
+{
+   stringText = message::wrap_s(m_wchBeginWrap, stringText, m_wchEndWrap);
+}
+
+/*----------------------------------------------------------------------------- get_cover_text */ /**
+ * cover or wrap text within characters to make it nicer to view
+ * \param stringText text to wrap within start and end character
+ * \return std::wstring wrapped text
+ */
+std::wstring printer_file::get_cover_text(const std::wstring_view& stringText) const
+{
+   std::wstring stringWrappedText = message::wrap_s(m_wchBeginWrap, stringText, m_wchEndWrap);
+   return stringWrappedText;
+}
+
 
 
 /*----------------------------------------------------------------------------- open_s */ /**
@@ -235,5 +309,6 @@ void printer_file::file_close_s(int iFileHandle)
 {
    ::_close( iFileHandle );
 }
+
 
 _GD_LOG_LOGGER_END

@@ -443,6 +443,15 @@ std::wstring message::get_now_time_as_wstring_s()
    return std::wstring(pBuffer);
 }
 
+std::wstring message::wrap_s(wchar_t chBefore, const std::wstring_view& stringText, wchar_t chAfter)
+{
+   std::wstring stringWrapped;
+
+   stringWrapped += chBefore;
+   stringWrapped.append(stringText);
+   stringWrapped += chAfter;
+   return stringWrapped;
+}
 
 
 // ================================================================================================
@@ -450,9 +459,14 @@ std::wstring message::get_now_time_as_wstring_s()
 // ================================================================================================
 
 
+/*----------------------------------------------------------------------------- severity_get_name_g */ /**
+ * return pointer to name for selected severity type
+ * \param uSeverity severity number for requested severity name
+ * \return const char* pointer to name
+ */
 const char* severity_get_name_g(unsigned uSeverity)
 {
-   switch( uSeverity & eSeverityMaskNumber )
+   switch( uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskNumber) )
    {
    case enumSeverityNumber::eSeverityNumberFatal:        return "FATAL";
    case enumSeverityNumber::eSeverityNumberError:        return "ERROR";
