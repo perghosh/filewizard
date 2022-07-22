@@ -137,12 +137,17 @@ bool printer_file::print(const message& message)
 
    if( is_open() == false )                                                      // check if file has been opened, if not then open file
    {
+      if( is_error(eErrorOpenFile) == true ) return true;
+
       auto [iFileHandle, stringError] = file_open_s(m_stringFileName);
       m_iFileHandle = iFileHandle;
        
       if( is_open() == false )                                                   // still not open? then internal error
       {
-         // TODO: manage error, get information from string and 
+         // ## Failed to open log file, generate error message for `logger`, `logger` may fetch this using `error` method
+         m_uInternalError |= eErrorOpenFile;                                     // set internal error state
+         m_messageError.set_severity(eSeverityError);                            // mark message as **error**
+         m_messageError << "failed to create or open log file. log file name is \"" << m_stringFileName << "\""; // error message
          return false;
       }
    }
@@ -211,6 +216,17 @@ bool printer_file::flush()
 
    return true;
 }
+
+unsigned printer_file::error(message& message)
+{
+   if( m_messageError.empty() == false )
+   {
+      message = std::move(m_messageError);
+      return 1;
+   }
+   return 0;
+}
+
 
 
 /*----------------------------------------------------------------------------- cover_text */ /**

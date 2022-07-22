@@ -13,8 +13,8 @@
 
 #ifndef _GD_LOG_LOGGER_BEGIN
 
-#  define _GD_LOG_LOGGER_BEGIN namespace gd::log {
-#  define _GD_LOG_LOGGER_END }
+#  define _GD_LOG_LOGGER_BEGIN namespace gd { log {
+#  define _GD_LOG_LOGGER_END } }
 
 #endif
 
@@ -135,7 +135,7 @@ public:
 // ================================================================================================
 
 /**
- * \brief 
+ * \brief prints log information to specified file
  *
  * note _wsopen_s , ::_write
  *
@@ -144,7 +144,11 @@ public:
  */
 class printer_file : public i_printer
 {
-   // ## construction -------------------------------------------------------------
+// ## constants ----------------------------------------------------------------
+public:
+   enum enumError { eErrorOpenFile = 0x0000'0001, };
+
+// ## construction -------------------------------------------------------------
 public:
    printer_file() : m_stringSplit{ L"  " }, m_stringNewLine{ L"\n" } {}
    printer_file(const std::wstring_view& stringFileName) : m_stringFileName(stringFileName), m_stringSplit{ L"  " }, m_stringNewLine{ L"\n" } {}
@@ -169,6 +173,7 @@ public:
 public:
    virtual bool print(const message& message);
    virtual bool flush();
+   virtual unsigned error( message& message );
 
 
 // ## methods ------------------------------------------------------------------
@@ -194,12 +199,9 @@ public:
 protected:
 /** \name INTERNAL
 *///@{
-   /*
-   static std::pair<int, int> open_s(const std::wstring_view& stringFileName);
-   static int write_s(int iFileHandle, const std::string_view& stringText);
-   static int write_s(int iFileHandle, const std::wstring_view& stringText);
-   */
-   
+   /// check if internal error
+   /// \param uErrorCode code to check, usually a bit that is tested
+   bool is_error(unsigned uErrorCode) const { return ((uErrorCode & m_uInternalError) != 0); }
 //@}
 
 public:
@@ -211,16 +213,19 @@ public:
 
 // ## attributes ----------------------------------------------------------------
 public:
+   unsigned m_uInternalError = 0;   ///< internal error states
    std::wstring m_stringFileName;   ///< file log information is written to
    std::wstring m_stringSplit;      ///< text put between messages.
    std::wstring m_stringNewLine;    ///< Text inserted at end of message (newline maybe ?)
    wchar_t m_wchBeginWrap = L'[';   ///< if text is wrapped then add this before text
    wchar_t m_wchEndWrap  = L']';    ///< If text is wrapped then add this after text
    int m_iFileHandle = -1;          ///< used as file handle to log file that is written to
+   gd::log::message m_messageError; ///< temporary storage for internal error information
    
    
 // ## free functions ------------------------------------------------------------
 public:
+   // ## File operations (open, write and close)
    static std::pair<int, std::string> file_open_s(const std::wstring_view& stringFileName);
    static std::pair<bool, std::string> file_write_s(int iFileHandle, const std::string_view& stringText);
    static std::pair<bool, std::string> file_write_s(int iFileHandle, const std::wstring_view& stringText, gd::utf8::utf8_tag );

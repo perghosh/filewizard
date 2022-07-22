@@ -55,7 +55,7 @@ plogger->print(message(eSeverityGroupDebug, eMessageTypeTime).printf("%s", "## M
 ```
 *Macro sample, two macros named to LOG_ and LOG. *
 ```cpp
-#define LOG_( uLogger, uSeverity, expression ) gd::log::get_g<uLogger>()->print( gd::log::message( uSeverity, gd::log::eMessageTypeAll ) << __FILE__ << __func__ << expression )
+#define LOG_( uLogger, uSeverity, expression ) gd::log::get_g<uLogger>()->print( gd::log::message( gd::log::severity_get_g( uSeverity ), gd::log::eMessageTypeAll ) << __FILE__ << __func__ << expression )
 #define LOG( uSeverity, expression ) LOG_( 0, gd::log::severity_get_g( uSeverity ), expression )
 
 // Use macros
@@ -66,14 +66,27 @@ plogger->append(std::make_unique<gd::log::printer_file>(L"testlog.txt"));// appe
 
 plogger->set_severity(gd::log::eSeverityVerbose);              // set severity
 
-LOG( gd::log::eSeverityWarning, L"testing this message" );     // print log text
-LOG("WARNING", L"WARNING");                                    // print log text
+LOG( gd::log::eSeverityWarning, L"testing this message" );     // print log text (set severity with constant)
+LOG("WARNING", L"WARNING");                                    // print log text (set severity with text)
 
 plogger->set_severity(gd::log::eSeverityError);                // change severity filter
 
-LOG("WARNING", L"WARNING 02");                                 // not printed, warning is higher compared to error
-LOG("FATAL", L"FATAL");                                        // this is printed
+LOG("WARNING", L"warning message");                            // not printed, warning is higher compared to error () not printed
+LOG("FATAL", L"fatal message");                                // this is printed
+```
 
+*ID macros, uses LOG_ in previous sample*
+```cpp
+#define LOG_IF_(uLogger, uSeverity, condition, expression)  if(!(condition)) {;} else LOG_(uLogger, uSeverity, expression)
+#define LOG_IF(uSeverity, condition, expression)  LOG_IF_(0, uSeverity, condition, expression)
+
+#define LOG_ERROR_IF(condition, expression) LOG_IF("ERROR", condition, expression)
+#define LOG_FATAL_IF(condition, expression) LOG_IF("FATAL", condition, expression)
+
+// in code
+LOG_IF_(0, "FATAL", 1 == 1, "1 == 1");  // printed, condition is true
+LOG_IF( "FATAL", 10 > 5, "10 > 5");     // printed, condition is true
+LOG_FATAL_IF( false, "fatal message");  // not printed, condition is false
 
 ```
 
@@ -130,7 +143,7 @@ class i_printer;
  */
 enum enumSeverityNumber
 {
-   eSeverityNumberNone = 0,         ///< allways write this, no severity set
+   eSeverityNumberNone = 0,         ///< always write this, no severity set
    eSeverityNumberFatal = 1,        ///< most important severity, 
    eSeverityNumberError = 2,        ///< almost as important as fatal and rest is less important in list
    eSeverityNumberWarning = 3,
@@ -387,13 +400,19 @@ private:
    }
    void common_construct( message&& o ) noexcept {
       m_uSeverity = o.m_uSeverity;
+      o.m_uSeverity = enumSeverity::eSeverityNone;                               // reset severity type
       m_uMessageType = o.m_uMessageType;
+      o.m_uMessageType = enumMessageType::eMessageTypeText;                      // reset to text
       m_pbszText = std::move(o.m_pbszText);
       m_pbszTextView = o.m_pbszTextView;
+      o.m_pbszTextView = nullptr;
    }
 
 // ## operator -----------------------------------------------------------------
 public:
+   /// if empty empty string is returned, if text then return text as stl string. internally text should be stored as utf8
+   operator std::string() const { return empty() == false ? std::string( get_text() ) : std::string(); }
+
    message& operator<<(const std::string_view& stringAppend) { return append(stringAppend); }
    message& operator<<(const std::wstring_view& stringAppend) { return append(stringAppend); }
 #  if defined(__cpp_char8_t)
@@ -479,6 +498,8 @@ public:
    std::string to_string() const;
    std::wstring to_wstring() const { return to_wstring_s(get_text_all()); };
 
+   bool empty() const;
+
 //@}
 
 protected:
@@ -559,6 +580,12 @@ public:
 
    
 };
+
+/// check if message is "empty", it is empty if there isn't any text attached
+inline bool message::empty() const { 
+   if( m_pbszTextView == nullptr && m_pbszText == nullptr ) return true; 
+   return false;
+}
 
 inline message& message::append(const format& formatAppend) {
    m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, (const char*)formatAppend, gd::utf8::utf8_tag{}));
@@ -651,6 +678,11 @@ public:
    virtual void print( const message& message, bool bFlush );
    virtual void print( std::initializer_list<message> listMessage );
    virtual void flush();
+
+   void error_push(const message& messageError) { m_vectorError.push_back( messageError ); }
+   std::string error_pop();
+   size_t error_size() const { return m_vectorError.size(); }
+
 //@}
 
 protected:
@@ -673,8 +705,9 @@ public:
 
 // ## attributes ----------------------------------------------------------------
 public:
-   unsigned m_uSeverity;
-   std::vector<std::unique_ptr<i_printer>> m_vectorPrinter;
+   unsigned m_uSeverity;                     ///< severity filter, used to filter log messages
+   std::vector<std::unique_ptr<i_printer>> m_vectorPrinter;///< list of connected printers
+   std::vector<std::string> m_vectorError;   ///< list of internal errors stored as text
    
    
 // ## free functions ------------------------------------------------------------
@@ -697,7 +730,15 @@ void logger<iLoggerKey>::print(const message& message, bool bFlush)
       // ## print message to all attached printers
       for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); ++it )
       {
-         (*it)->print(message);
+         if( (*it)->print(message) == true ) continue;
+
+         // ## if print returned false there we have one internal error in printer
+         {
+            gd::log::message messageError;
+            (*it)->error(messageError);
+            if( messageError.empty() == false ) error_push( messageError );
+
+         }
       }
 
       if( bFlush == true ) flush();
@@ -722,7 +763,13 @@ void logger<iLoggerKey>::print(std::initializer_list<message> listMessage)
       // ## print message to all attached printers
       for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); ++it )
       {
-         for( auto itMessage: listMessage) (*it)->print(itMessage);
+         for( auto itMessage : listMessage )
+         {
+            if( (*it)->print(itMessage) == false )                               // sen message to printer
+            {
+
+            }
+         }
       }
    }
 
@@ -740,6 +787,19 @@ void logger<iLoggerKey>::flush()
    {
       (*it)->flush();
    }
+}
+
+template<int iLoggerKey>
+std::string logger<iLoggerKey>::error_pop()
+{
+   if( m_vectorError.empty() == false )
+   {
+      std::string stringReturn(std::move(m_vectorError.back()));
+      m_vectorError.pop_back();
+      return stringReturn;
+   }
+
+   return std::string();
 }
 
 

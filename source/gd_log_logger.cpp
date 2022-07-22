@@ -395,7 +395,6 @@ char* message::join_s(char** ppbszText, char** ppbszAdd)
    // ## insert texts to allocated buffer
    std::memcpy(pbszNew, *ppbszText, uLengthText);
    std::memcpy(pbszNew + uLengthText, *ppbszAdd, uLengthAdd + 1);
-
    // ## delete memory
    clear_s(ppbszText);
    clear_s(ppbszAdd);
