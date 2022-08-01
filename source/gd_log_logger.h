@@ -43,7 +43,7 @@
  * 
  * ### Tutorial (code samples)
  * 
----------------------
+-------------------------------------------------
 *Geting started** *Sample getting default logger (id=0), adds printer and sets severity filter and prints a message*
 ```cpp
 using namespace gd::log;
@@ -53,6 +53,7 @@ plogger->append( std::make_unique<gd::log::printer_console>() );            // a
 plogger->set_severity(eSeverityNumberWarning | eSeverityGroupDebug);        // set severity filter, messages within this filter is printed
 plogger->print(message(eSeverityGroupDebug, eMessageTypeTime).printf("%s", "## MESSAGE ##")); plogger->flush();// write to logger
 ```
+-------------------------------------------------
 *Macro sample, two macros named to LOG_ and LOG. *
 ```cpp
 #define LOG_( uLogger, uSeverity, expression ) gd::log::get_g<uLogger>()->print( gd::log::message( gd::log::severity_get_g( uSeverity ), gd::log::eMessageTypeAll ) << __FILE__ << __func__ << expression )
@@ -74,7 +75,7 @@ plogger->set_severity(gd::log::eSeverityError);                // change severit
 LOG("WARNING", L"warning message");                            // not printed, warning is higher compared to error () not printed
 LOG("FATAL", L"fatal message");                                // this is printed
 ```
-
+-------------------------------------------------
 *ID macros, uses LOG_ in previous sample*
 ```cpp
 #define LOG_IF_(uLogger, uSeverity, condition, expression)  if(!(condition)) {;} else LOG_(uLogger, uSeverity, expression)
@@ -87,8 +88,38 @@ LOG("FATAL", L"fatal message");                                // this is printe
 LOG_IF_(0, "FATAL", 1 == 1, "1 == 1");  // printed, condition is true
 LOG_IF( "FATAL", 10 > 5, "10 > 5");     // printed, condition is true
 LOG_FATAL_IF( false, "fatal message");  // not printed, condition is false
+```
+-------------------------------------------------
+*retrieve internal error from connected printer*
+```cpp
+using namespace gd::log;
+auto plogger = get_s();
+
+plogger->append(std::make_unique<printer_file>(L"C:\\invalid\\<>:\"/\\|?*.txt"));// filename with invalid file name
+plogger->set_severity(eSeverityVerbose);  // set filter
+plogger->print(message(severity_get_g("VERBOSE"), gd::log::eMessageTypeAll)
+   << __FILE__
+   << __func__
+   << "This will generate error, filename is invalid");
+
+while( plogger->error_size() != 0 )
+{
+   auto stringError = plogger->error_pop(); 
+   std::cout << stringError << std::endl;
+}
+```
+
+-------------------------------------------------
+*generate multiple loggers*
+```cpp
+// logger is a singelton class but it is also a template, it is possible to create
+// multiple loggers using integer values. for each new number a new logger is created.
+// with numbers it is possible to create any number of loggers if needed.
+using namespace gd::log;
+auto plogger = get_s();            // default logger
 
 ```
+
 
  * 
  */
@@ -125,8 +156,8 @@ LOG_FATAL_IF( false, "fatal message");  // not printed, condition is false
 
 #ifndef _GD_LOG_LOGGER_BEGIN
 
-#  define _GD_LOG_LOGGER_BEGIN namespace gd::log {
-#  define _GD_LOG_LOGGER_END }
+#  define _GD_LOG_LOGGER_BEGIN namespace gd { namespace  log {
+#  define _GD_LOG_LOGGER_END } }
 
 #endif
 
@@ -232,6 +263,8 @@ enum enumMessageType
    eMessageTypeAll = eMessageTypeMethodName | eMessageTypeFileName | eMessageTypeSeverity | eMessageTypeTime | eMessageTypeDate,
 };
 
+///
+const size_t MESSAGE_BUFFER_START_SIZE = 96;
 
 
 const char* severity_get_name_g(unsigned uSeverity);
@@ -329,7 +362,7 @@ struct format
       // same logic as std::format
       // takes a number of arguments and wraps them into std::format_args that has logic to convert arguments into formated text
       std::string stringResult = std::vformat(stringFormat, std::make_format_args(std::forward<ARGUMENTS>(arguments)...));
-      m_pbszText.reset(message::new_s(stringResult));
+      m_pbszText.reset(message::new_s(stringResult, m_pbszText.release()));
    }
 
    /*----------------------------------------------------------------------------- format */ /**
@@ -343,7 +376,7 @@ struct format
       // same logic as std::format
       // takes a number of arguments and wraps them into std::format_args that has logic to convert arguments into formated text
       std::wstring stringResult = std::vformat(stringFormat, std::make_wformat_args(std::forward<ARGUMENTS>(arguments)...));
-      m_pbszText.reset(message::new_s(stringResult));
+      m_pbszText.reset(message::new_s(stringResult, m_pbszText.release()));
    }
 
 #  if defined(__cpp_char8_t)
@@ -426,7 +459,7 @@ public:
    message& operator<<(APPEND appendValue) {
       std::wstringstream wstringstreamAppend;
       wstringstreamAppend << appendValue;
-      m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, wstringstreamAppend.str().c_str()));
+      m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, wstringstreamAppend.str().c_str(), m_pbszText.release()));
       return *this;
    }
 
@@ -444,19 +477,22 @@ public:
 
 /** \name OPERATION
 *///@{
-   /// check if message has any special type set, these type are used to produce 
+   // ## check if message has any special type set, these type are used to produce 
+   //    message can be marked with different flags to produce info like time etc in log
+
+   /// check if message has any specific type set, if set then use other `is_` to test what to do
    [[nodiscard]] bool is_message_type_set() const { return m_uMessageType != 0; }
-   [[nodiscard]] bool is_severity() const { return (m_uMessageType & eMessageTypeSeverity); }
-   [[nodiscard]] bool is_time() const { return m_uMessageType & eMessageTypeTime; }
-   [[nodiscard]] bool is_date() const { return m_uMessageType & eMessageTypeDate; }
+   [[nodiscard]] bool is_severity() const { return (m_uMessageType & eMessageTypeSeverity); } // print severity ?
+   [[nodiscard]] bool is_time() const { return m_uMessageType & eMessageTypeTime; } // print time ?
+   [[nodiscard]] bool is_date() const { return m_uMessageType & eMessageTypeDate; } // print date ?
 
    /// check if message has severity level below or equal to (max) severity sent
    /// ``` cpp
    /// messageItem.is_active( eSeverityError ); // returns true if messageItem is eSeverityError, eSeverityFatal or eSeverityNone
    /// ```
    [[nodiscard]] bool check_severity(unsigned uSeverity) const { 
-      if( (uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskNumber)) >= (m_uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskNumber)) ) return true;
-      else if( (uSeverity & m_uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskFlagAndGroup)) != 0 ) return true;
+      if( (m_uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskNumber)) >= (uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskNumber)) ) return true;
+      else if( (m_uSeverity & uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskFlagAndGroup)) != 0 ) return true;
       return false;
    }
    template <typename INTEGER>
@@ -524,21 +560,33 @@ public:
 
    
 // ## free functions ------------------------------------------------------------
+private:
+   // ## main allocator
+   [[nodiscard]] static char* allocate_s(std::size_t uSize);
+   [[nodiscard]] static char* allocate_s(std::size_t uSize, char* pbszCurrent );
+   
 public:
 
    // ## allocators 
-   [[nodiscard]] static char* new_s( std::size_t uSize ) { return new char[uSize]; }
-   [[nodiscard]] static char* new_s( std::string_view stringAscii );
-   [[nodiscard]] static char* new_s( std::wstring_view stringUnicode );
-   /// creates new string from strings sent to method, if first is null then just create new string from last `stringAdd`
-   [[nodiscard]] static char* new_s( const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::string_view& stringAdd );  // ascii
-   /// creates new string from strings sent to method, if first is null then just create new string from last `stringAdd`
-   [[nodiscard]] static char* new_s( const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::wstring_view& stringAdd ); // unicode
+   [[nodiscard]] static char* new_s( std::size_t uSize ) { return allocate_s(uSize, nullptr ); }
+   [[nodiscard]] static char* new_s( std::size_t uSize, char* pbszCurrent ) { return allocate_s(uSize, pbszCurrent); }
+   [[nodiscard]] static char* new_s( const std::string_view& stringAscii) { return new_s(stringAscii, nullptr); }
+   [[nodiscard]] static char* new_s( const std::string_view& stringAscii, char* pbszCurrent );
+   [[nodiscard]] static char* new_s( const std::wstring_view& stringUnicode) { return new_s(stringUnicode, nullptr); }
+   [[nodiscard]] static char* new_s( const std::wstring_view& stringUnicode, char* pbszCurrent );
+   /// creates new string from strings sent to method, if first is null then just create new string from last `stringAdd`, ascii version
+   [[nodiscard]] static char* new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::string_view& stringAdd) { return new_s( pbszUtf8First, stringIfFirst, stringAdd, nullptr ); }
+   [[nodiscard]] static char* new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::string_view& stringAdd, char* pbszCurrent);  // ascii
+   /// creates new string from strings sent to method, if first is null then just create new string from last `stringAdd` (unicode)
+   [[nodiscard]] static char* new_s( const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::wstring_view& stringAdd ) { return new_s( pbszUtf8First, stringIfFirst, stringAdd, nullptr ); }
+   [[nodiscard]] static char* new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::wstring_view& stringAdd, char* pbszCurrent); // unicode
    /// create new text and add utf8 text sent
 #  if defined(__cpp_char8_t)
-   [[nodiscard]] static char* new_s( const char* pbszUtf8First, const std::string_view& stringIfFirst, const char8_t* pbszUtf8Add ); // utf8 (no conversion)
+   [[nodiscard]] static char* new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const char8_t* pbszUtf8Add) { return new_s( pbszUtf8First, stringIfFirst, pbszUtf8Add, nullptr); }
+   [[nodiscard]] static char* new_s( const char* pbszUtf8First, const std::string_view& stringIfFirst, const char8_t* pbszUtf8Add, char* pbszCurrent ); // utf8 (no conversion)
 #  endif
-   [[nodiscard]] static char* new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const char* pbszUtf8Add, gd::utf8::utf8_tag); // utf8 (no conversion)
+   [[nodiscard]] static char* new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const char* pbszUtf8Add, gd::utf8::utf8_tag) { return new_s(pbszUtf8First, stringIfFirst, pbszUtf8Add, nullptr, gd::utf8::utf8_tag{}); }
+   [[nodiscard]] static char* new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const char* pbszUtf8Add, char* pbszCurrent, gd::utf8::utf8_tag); // utf8 (no conversion)
    
    /// clear text if not null
    static void clear_s(char** ppbsz) {
@@ -558,14 +606,15 @@ public:
    [[nodiscard]] static char* clone_s(char* pbsz) {
       if( pbsz == nullptr ) return pbsz;
       auto uLength = strlen(pbsz);
-      char* pbszTemp = new char[uLength + 1];
+      char* pbszTemp = allocate_s( uLength );
       strcpy(pbszTemp, pbsz);
       return pbszTemp;
    }
 
    // ## appenders
    /// joins two texts and deletes the first text sent, pointer returned is allocated on heap (need to be deleted)
-   [[nodiscard]] char* append_s(char** ppbszText, const std::string_view& stringAdd);
+   [[nodiscard]] char* append_s(char** ppbszText, const std::string_view& stringAdd) { return append_s(ppbszText, stringAdd, nullptr); }
+   [[nodiscard]] char* append_s(char** ppbszText, const std::string_view& stringAdd, char* pbszCurrent);
    /// joins two texts and deletes both, returned text pointer is allocated on heap (need to be deleted)
    [[nodiscard]] static char* join_s( char** ppbszText, char** ppbszAdd );
    /// joins three texts where the second one is just a pointer, good for combining text with separator
@@ -587,9 +636,27 @@ inline bool message::empty() const {
    return false;
 }
 
+/// append text from format object (format has logic for same as C++20 format in standard template library)
 inline message& message::append(const format& formatAppend) {
-   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, (const char*)formatAppend, gd::utf8::utf8_tag{}));
+   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, (const char*)formatAppend, m_pbszText.release(), gd::utf8::utf8_tag{}));
    return *this;
+}
+
+/// standard allocator for text messages, this will always allocate
+inline char* message::allocate_s(std::size_t uSize) {
+   uSize++;                                                                      // add one for zero terminator
+   if( uSize < MESSAGE_BUFFER_START_SIZE) uSize = MESSAGE_BUFFER_START_SIZE;
+   return new char[uSize];
+}
+
+/// standard allocator for text messages, this will only allocate if pointer is null or size is over defined start size
+inline char* message::allocate_s(std::size_t uSize, char* pbszCurrent) {
+   uSize++;                                                                      // add one for zero terminator
+   if( pbszCurrent != nullptr && uSize < MESSAGE_BUFFER_START_SIZE ) return pbszCurrent;
+   if( uSize < MESSAGE_BUFFER_START_SIZE) uSize = MESSAGE_BUFFER_START_SIZE;
+   char* pbszNew = new char[uSize];
+   delete[] pbszCurrent;
+   return pbszNew;
 }
 
 // ================================================================================================
@@ -606,7 +673,24 @@ inline message& message::append(const format& formatAppend) {
 class i_printer
 {
 public:
+   i_printer() {}
+   i_printer( unsigned uSeverity ) : m_uSeverity( uSeverity ) {}
+
+   i_printer( const i_printer& o ): m_uSeverity( o.m_uSeverity ) {}
+
+   i_printer& operator=(const i_printer& o) { m_uSeverity = o.m_uSeverity; return *this; }
+
    virtual ~i_printer() {}
+
+protected:
+   void common_construct(const i_printer& o) { m_uSeverity = o.m_uSeverity; }
+
+public:
+   /** \name GET/SET
+   *///@{
+   unsigned get_severity() const { return m_uSeverity; }
+   void set_severity(unsigned uSeverity) { m_uSeverity = uSeverity; }
+   //@}
 
    /// This is called when logger send (prints) message to attached printers.
    /// Each printer needs to implement this in order to print something.
@@ -623,6 +707,8 @@ public:
    /// \param message gets error information
    /// \return number of errors left to get
    virtual unsigned error( message& message ) { return 0; };
+public:
+   unsigned m_uSeverity = 0;     ///< setting severity filter for printer
 };
 
 
@@ -679,8 +765,16 @@ public:
    virtual void print( std::initializer_list<message> listMessage );
    virtual void flush();
 
+   /// remove all printers
+   void clear() { m_vectorPrinter.clear(); }
+
+   // ## error methods used to manage printer errors
+
+   /// add error from message (is converted to string)
    void error_push(const message& messageError) { m_vectorError.push_back( messageError ); }
+   /// pop error from list of internal errors
    std::string error_pop();
+   /// count number of internal printer errors
    size_t error_size() const { return m_vectorError.size(); }
 
 //@}
@@ -688,6 +782,11 @@ public:
 protected:
 /** \name INTERNAL
 *///@{
+   /// check severity against internal severity filter
+   /// two checks:
+   ///   first is to check param severity level against member severity level.
+   ///   if param severity level is lower compared to member severity level return true (logger is above and should take action)
+   ///   second test check bit, if bit is matched then take action (return true)
    bool check_severity(unsigned uSeverity) const {
       if( (m_uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskNumber)) >= (uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskNumber)) ) return true;
       else if( (m_uSeverity & uSeverity & static_cast<unsigned>(enumSeverityMask::eSeverityMaskFlagAndGroup) ) != 0 ) return true;
@@ -728,16 +827,23 @@ void logger<iLoggerKey>::print(const message& message, bool bFlush)
    if( check_severity(message.get_severity()) )                                  // check if message has severity within bounds for output
    {
       // ## print message to all attached printers
-      for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); ++it )
+      for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); it++ )
       {
-         if( (*it)->print(message) == true ) continue;
+         // check printer severity filter compared to message severity
+         // if printer has 0 as severity then it will always print
+         // if severity is set to printer then check against message severity
+         //    it will print if severity in printer is lower or equal to message.
+         //    if printer severity is set to FATAL, then it will only print FATAL messages.
+         if( (*it).get()->get_severity() == 0 || message.check_severity((*it).get()->get_severity()) == true )
+         {
+            if( (*it)->print(message) == true ) continue;
+         }
 
          // ## if print returned false there we have one internal error in printer
          {
             gd::log::message messageError;
             (*it)->error(messageError);
             if( messageError.empty() == false ) error_push( messageError );
-
          }
       }
 
@@ -767,7 +873,10 @@ void logger<iLoggerKey>::print(std::initializer_list<message> listMessage)
          {
             if( (*it)->print(itMessage) == false )                               // sen message to printer
             {
-
+               // ## collect error information and store it in logger
+               gd::log::message messageError;
+               (*it)->error(messageError);
+               if( messageError.empty() == false ) error_push(messageError);     // push error text to logger error stack
             }
          }
       }

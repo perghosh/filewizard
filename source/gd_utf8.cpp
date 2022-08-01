@@ -451,10 +451,10 @@ namespace gd {
       }
 
       /**
-       * @brief 
-       * @param p1 
-       * @param p2 
-       * @return 
+       * @brief calculate distance in utf8 characters between two positions in a stream of utf8 characters
+       * @param p1 first position in utf8 stream
+       * @param p2 second position in utf8 stream
+       * @return distance in number of utf8 characters
       */
       std::intptr_t distance(const uint8_t* p1, const uint8_t* p2)
       {
@@ -565,7 +565,7 @@ namespace gd {
             do
             {
                pubszPosition = pubzNext;
-               if( *pubszPosition >= CHARACTER_SPACE ) return pubszPosition;
+               if( *pubszPosition > CHARACTER_SPACE ) return pubszPosition;
                pubzNext = next( pubszPosition );
             } while( pubzNext != pubszPosition );
 
@@ -623,6 +623,13 @@ namespace gd {
             return find_character( pubszPosition, puBuffer, uLength );
          }
 
+         /**
+          * @brief converts character to utf8 sequence and tries to find it within range
+          * @param pubszPosition start position to start search
+          * @param pubszEnd end position end search
+          * @param uCharacter character to search for
+          * @return position where character was found or nullptr if not found
+         */
          const uint8_t* find( const uint8_t* pubszPosition, const uint8_t* pubszEnd, uint32_t uCharacter )
          {
             uint8_t puBuffer[SIZE32_MAX_UTF_SIZE + 1];
@@ -632,6 +639,14 @@ namespace gd {
             return find_character( pubszPosition, pubszEnd, puBuffer, uLength );
          }
 
+         /**
+          * @brief finds character where utf8 character length is specified. 
+          * This method is optimized to avoid to calculate the utf8 character length befor trying to find character
+          * @param pubszPosition start position to start search
+          * @param pubszCharacter character to find
+          * @param ulength character length
+          * @return 
+         */
          const uint8_t* find_character( const uint8_t* pubszPosition, const uint8_t* pubszCharacter, uint32_t ulength ) 
          {                                                                                         assert( ulength < 6 );
             auto pubszFind = pubszPosition;

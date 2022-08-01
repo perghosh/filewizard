@@ -28,10 +28,12 @@ Links: https://github.com/nemtrif/utfcpp
 | - | - |
 | `character` | return character number |
 | `convert` | convert character value and store it in buffer pointer points to what is also sent to method, returns length in bytes needed to insert utf8 character to buffer |
+
+| `convert_utf16_to_uft8` | converts unicode to utf8 |
 | `convert_ascii` | convert ascii characters to utf8 into byte buffer |
 | `copy` | copy utf8 character from source buffer to target buffer |
 | `size` | calculate number of bytes needed to store character in utf8 format, text sent to count needed characters for should not be in utf8 format |
-|  |  |
+| `` |  |
 
 
 
@@ -199,6 +201,17 @@ namespace gd {
 
          /** \name NEXT OPERATIONS
          moves to next...
+*move operations*
+| name | description |
+| - | - |
+| `advance` | advance specified number of characters (if negative move backwards |
+| `end` | moves to end of text |
+| `find` | tries to find character within the selected range of characters |
+| `find_character` | tries to find utf8 character within the selected range of characters |
+| `next` | moves to next character or to specified amount of characters|
+| `next_space` | moves to first space character (space = space, tab or carriage return) |
+| `next_non_space` | moves to next character |
+| `previous` | move backwards |
          *///@{ 
 
          // move to next utf8 character in buffer pointer points at
@@ -265,9 +278,6 @@ namespace gd {
          ///@}
 
 
-         ///@{ 
-         ///@}
-
 
          ///@{ 
          // move to previous utf8 character in buffer pointer points at
@@ -296,11 +306,13 @@ namespace gd {
          ///@}
 
          ///@{
+         /// advance specified number of characters (if negative move backwards)
          inline const uint8_t* advance(const uint8_t* pubszPosition, int iOffset) {
             if(iOffset > 0) return next(pubszPosition, iOffset);
             else if(iOffset < 0) return previous(pubszPosition, -iOffset);
             return pubszPosition;
          }
+         /// advance specified number of characters (if negative move backwards)
          inline uint8_t* advance(uint8_t* pubszPosition, int iOffset) {
             if(iOffset > 0) return next(pubszPosition, iOffset);
             else if(iOffset < 0) return previous(pubszPosition, -iOffset);
@@ -359,7 +371,6 @@ namespace gd {
       };
 
       uint32_t size(uint16_t ch);
-
    }
 
 }

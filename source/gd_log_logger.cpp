@@ -5,6 +5,7 @@
 
 #include "gd_log_logger.h"
 
+
 #pragma warning(disable: 26451)
 
 _GD_LOG_LOGGER_BEGIN
@@ -76,7 +77,7 @@ message& message::append(const stream& streamAppend)
 }
 
 /*----------------------------------------------------------------------------- append */ /**
- * append ascii text to message, adds separator if text is already set
+ * append unicode text to message, adds separator if text is already set
  * \param streamAppend text to add
  * \return message& reference to message for chaining
  */
@@ -89,7 +90,7 @@ message& message::append(const wstream& streamAppend)
 
 /*----------------------------------------------------------------------------- append */ /**
  * append ascii text to message, adds separator if text is already set
- * \param stringAppend text to add
+ * \param pbszFormat format string with information how to format added text
  * \return gd::log::message& reference to message for chaining
  */
 gd::log::message& message::printf(const char* pbszFormat, ...)
@@ -97,7 +98,7 @@ gd::log::message& message::printf(const char* pbszFormat, ...)
    va_list va_listArgument;
    va_start(va_listArgument, pbszFormat);                                        // initialize va_list (where to start)
 
-   char* pbszOldText = nullptr;
+   char* pbszOldText = nullptr;                                                  // if text is set then keep pointer to old text to apend la
 
    // if text is set, then store it and append this later
    if( m_pbszText != nullptr ) pbszOldText = m_pbszText.release();
@@ -133,6 +134,11 @@ gd::log::message& message::printf(const char* pbszFormat, ...)
    return *this;
 }
 
+/*----------------------------------------------------------------------------- append */ /**
+ * append unicode text to message, adds separator if text is already set
+ * \param pwszFormat format string with information how to format added text
+ * \return gd::log::message& reference to message for chaining
+ */
 gd::log::message& message::printf(const wchar_t* pwszFormat, ...)
 {
    va_list va_listArgument;
@@ -199,12 +205,13 @@ std::string message::to_string() const
 /*----------------------------------------------------------------------------- new_s */ /**
  * Allocates text on heap and inserts text in utf8 format from string sent 
  * \param stringUnicode text copied as utf8 to allocated buffer
+ * \param pbszCurrent pointer to old buffer if one is allocated
  * \return char* heap ponter to buffer, remember to handle this otherwise it is a memory leak
  */
-char* message::new_s(std::wstring_view stringUnicode)
+char* message::new_s(const std::wstring_view& stringUnicode, char* pbszCurrent)
 {
    auto uLength = gd::utf8::size(stringUnicode.data(), stringUnicode.data() + stringUnicode.length());
-   char* pbsz = new char[uLength + 1u];
+   char* pbsz = allocate_s(uLength, pbszCurrent);
    gd::utf8::convert_utf16_to_uft8((const wchar_t*)stringUnicode.data(), pbsz, gd::utf8::utf8_tag{});
    return pbsz;
 }
@@ -212,12 +219,13 @@ char* message::new_s(std::wstring_view stringUnicode)
 /*----------------------------------------------------------------------------- new_s */ /**
  * Allocates text on heap and inserts text in utf8 format from string sent 
  * \param stringAscii text copied as utf8 to allocated buffer
+ * \param pbszCurrent pointer to old buffer if one is allocated
  * \return char* heap ponter to buffer, remember to handle this otherwise it is a memory leak
  */
-char* message::new_s(std::string_view stringAscii )
+char* message::new_s(const std::string_view& stringAscii, char* pbszCurrent )
 {
    auto uLength = gd::utf8::size(stringAscii);
-   char* pbsz = new char[uLength + 1u];
+   char* pbsz = allocate_s(uLength, pbszCurrent);
    gd::utf8::convert_ascii(stringAscii.data(), pbsz);
    return pbsz;
 }
@@ -228,9 +236,10 @@ char* message::new_s(std::string_view stringAscii )
  * \param pbszUtf8First first text (usually text set that will be appended with more text)
  * \param stringIfFirst test added as separator if first text is set
  * \param stringAdd text that is always added
+ * \param pbszCurrent pointer to old buffer if one is allocated
  * \return char* pointer to new allocaded text with combined text
  */
-char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::string_view& stringAdd)
+char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::string_view& stringAdd, char* pbszCurrent)
 {
    std::size_t uLength = 0;
    if( pbszUtf8First != nullptr )
@@ -242,7 +251,7 @@ char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIf
    std::size_t uFirstLength = uLength;
    uLength += gd::utf8::size( stringAdd.data() );
 
-   char* pbszNew = new char[uLength + 1];
+   char* pbszNew = allocate_s(uLength, pbszCurrent);
 
    if( pbszUtf8First != nullptr )
    {
@@ -261,9 +270,10 @@ char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIf
  * \param pbszUtf8First first text (usually text set that will be appended with more text)
  * \param stringIfFirst test added as separator if first text is set
  * \param stringAdd text that is always added
+ * \param pbszCurrent pointer to old buffer if one is allocated
  * \return char* pointer to new allocaded text with combined text
  */
-char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::wstring_view& stringAdd)
+char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const std::wstring_view& stringAdd, char* pbszCurrent)
 {
    std::size_t uLength = 0;
    if( pbszUtf8First != nullptr )                                                // if text is already set we need to make room for this text and concatenate all three
@@ -276,7 +286,7 @@ char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIf
    uLength += gd::utf8::size( stringAdd.data() );                                // needed space for added unicode text
    uLength++;                                                                    // make room for zero terminator
 
-   char* pbszNew = new char[uLength + 1];                                        // create new buffer on heap where text is placed
+   char* pbszNew = allocate_s( uLength, pbszCurrent );                           // create new buffer on heap where text is placed
 
    if( pbszUtf8First != nullptr )
    {
@@ -296,9 +306,10 @@ char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIf
  * \param pbszUtf8First first text (usually text set that will be appended with more text)
  * \param stringIfFirst test added as separator if first text is set
  * \param pbszUtf8Add text that is always added
+ * \param pbszCurrent pointer to old buffer if one is allocated
  * \return char* pointer to new allocaded text with combined text
  */
-char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const char8_t* pbszUtf8Add )
+char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const char8_t* pbszUtf8Add, char* pbszCurrent )
 {                                                                                assert( pbszUtf8Add != nullptr ); assert( std::strlen((char*)pbszUtf8Add) < 99'999 ); // ok and realistic ?
    std::size_t uLength = 0;
    if( pbszUtf8First != nullptr )                                                // if text is already set we need to make room for this text and concatenate all three
@@ -312,7 +323,7 @@ char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIf
    uLength += uUtf8Length;
    uLength++;                                                                    // make room for zero terminator
 
-   char* pbszNew = new char[uLength + 1];                                        // create new buffer on heap where text is placed
+   char* pbszNew = allocate_s(uLength, pbszCurrent);                             // create new buffer on heap where text is placed
 
    if( pbszUtf8First != nullptr )                                                // add to text ?
    {
@@ -333,9 +344,10 @@ char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIf
  * \param stringIfFirst test added as separator if first text is set
  * \param pbszUtf8Add text that is always added
  * \param utf8_tag tag dispatcher 
+ * \param pbszCurrent pointer to old buffer if one is allocated
  * \return char* pointer to new allocaded text with combined text
  */
-char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const char* pbszUtf8Add, gd::utf8::utf8_tag)
+char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIfFirst, const char* pbszUtf8Add, char* pbszCurrent, gd::utf8::utf8_tag)
 {
    assert(pbszUtf8Add != nullptr); assert(std::strlen((char*)pbszUtf8Add) < 99'999); // ok and realistic ?
    std::size_t uLength = 0;
@@ -350,7 +362,7 @@ char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIf
    uLength += uUtf8Length;
    uLength++;                                                                    // make room for zero terminator
 
-   char* pbszNew = new char[uLength + 1];                                        // create new buffer on heap where text is placed
+   char* pbszNew = allocate_s(uLength, pbszCurrent);                             // create new buffer on heap where text is placed
 
    if( pbszUtf8First != nullptr )                                                // add to text ?
    {
@@ -366,7 +378,15 @@ char* message::new_s(const char* pbszUtf8First, const std::string_view& stringIf
 
 
 
-char* message::append_s(char** ppbszText, const std::string_view& stringAdd )
+/*----------------------------------------------------------------------------- append_s */ /**
+ * appends text to existing buffer, buffer is sent as reference because it is possible
+ * that relocation is done and therefore we need to be able to set new pointer
+ * \param ppbszText pointer to pointer for text
+ * \param stringAdd text to add
+ * \param pbszCurrent current text
+ * \return char* pointer to new allocaded text with combined text
+ */
+char* message::append_s(char** ppbszText, const std::string_view& stringAdd, char* pbszCurrent )
 {
    // ## count lengths to speed up join for the two texts sent to method
    auto uLengthText = std::strlen(*ppbszText);
