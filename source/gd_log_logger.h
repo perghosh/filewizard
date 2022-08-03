@@ -3,13 +3,15 @@
  * 
  * \brief Core file for logger functionality
  * 
+ * 
    |  |  |
    | - | - |
-   | `stream` |  |
-   | `wstream` |  |
-   | `format` |  |
-   | `message` |  |
-   | `` |  |
+   | `stream` | stream ascii text into message |
+   | `wstream` | stream unicode text into message |
+   | `format` | use std::format syntax to stream text into message |
+   | `printf` | use printf format to format text and stream it to into message |
+   | `message` | main text object when building log text, here all text is collected before print is called in logger |
+   | `logger` | core log object holding printers that are used to process message items holding text to log |
    | `` |  |
    | `` |  |
    | `` |  |
@@ -242,6 +244,9 @@ enum enumSeverityBit
 };
 
 
+/**
+ * \brief mask numbers are used to extract different parts from severity, use mask to zero out and keep whats requested 
+ */
 enum class enumSeverityMask : uint32_t
 {
    eSeverityMaskNumber = 0x0000'00FF,
@@ -251,6 +256,13 @@ enum class enumSeverityMask : uint32_t
 };
 
 
+/**
+ * \brief type flags to generate typed information parts
+ * 
+ * Set message type flags will automatically generate information flag represent without
+ * stream text to message. This types are common information part that may be usable 
+ * producing log information.
+ */
 enum enumMessageType
 {
    eMessageTypeText = 0,
@@ -388,6 +400,30 @@ struct format
       std::unique_ptr<char> m_pbszText;
 };
 
+/*-----------------------------------------*/ /**
+ * \brief 
+ *
+ *
+ */
+struct printf 
+{
+   printf() {}
+
+   printf(const char* pbszFormat, ...);
+   printf(const wchar_t* pwszFormat, ...);
+
+
+#  if defined(__cpp_char8_t)
+   operator const char8_t* () const { return (const char8_t*)(m_pbszText.get() ? m_pbszText.get() : ""); }
+#  endif
+   operator const char* () const { return (const char*)(m_pbszText.get() ? m_pbszText.get() : ""); }
+
+
+   // attributes
+public:
+   std::unique_ptr<char> m_pbszText;
+};
+
 // ================================================================================================
 // ================================================================================= message
 // ================================================================================================
@@ -454,6 +490,7 @@ public:
    message& operator<<(const stream& streamAppend) { return append(streamAppend); }
    message& operator<<(const wstream& streamAppend) { return append(streamAppend); }
    message& operator<<(const format& formatAppend) { return append(formatAppend); }
+   message& operator<<(const printf& printfAppend) { return append(printfAppend); }
    //message& operator<<(std::wostream& ) { return append(formatAppend); }
    template<typename APPEND>
    message& operator<<(APPEND appendValue) {
@@ -527,6 +564,7 @@ public:
    message& append(const stream& streamAppend);
    message& append(const wstream& streamAppend);
    message& append(const format& formatAppend);
+   message& append(const printf& printfAppend);
 
    message& printf( const char* pbszFormat, ... );
    message& printf( const wchar_t* pwszFormat, ...);
@@ -622,6 +660,10 @@ public:
 
    // ## wrappers
    [[nodiscard]] static std::wstring wrap_s(wchar_t chBefore, const std::wstring_view& stringText, wchar_t chAfter);
+
+   // ## format text
+   [[nodiscard]] static std::unique_ptr<char> printf_s(const char* pbszFormat, va_list va_listArgument);
+   [[nodiscard]] static std::unique_ptr<char> printf_s(const wchar_t* pwszFormat, va_list va_listArgument);
 
    // ## value generators
    static std::wstring get_now_date_as_wstring_s();

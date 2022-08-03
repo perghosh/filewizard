@@ -171,12 +171,13 @@ std::pair<bool, std::string> backup_history::file_write_date_name_s(const std::s
  * \param stringFileName file to backup
  * \return std::string name of backup file, keep for later if restore is needed or to delete if everything went well
  */
-std::string backup_history::file_backup_as_temporary(const std::string_view& stringFileName)
+std::string backup_history::file_backup_as_temporary_s(const std::string_view& stringFileName)
 {
    const char* pbszTemporaryFileName = std::tmpnam(nullptr);                     // generate temporary file name
    if( pbszTemporaryFileName != nullptr )
    {
-      auto bOk = std::filesystem::copy_file(stringFileName, pbszTemporaryFileName);// create clone as generated temp file
+      auto bOk = true;
+      // TODO: remove above and restore this auto bOk = std::filesystem::copy_file(stringFileName, pbszTemporaryFileName);// create clone as generated temp file
       return bOk ? pbszTemporaryFileName : "";                                   //
    }
                                                                                  assert( false );
@@ -188,13 +189,29 @@ std::string backup_history::file_backup_as_temporary(const std::string_view& str
  * \param stringFileName name of file to be removed
  * \return bool true if file was removed, false if not
  */
-bool backup_history::file_delete_backup(const std::string_view& stringFileName)
+bool backup_history::file_delete_backup_s(const std::string_view& stringFileName)
 {
    int iResult = std::remove( stringFileName.data() );
    if( iResult == 0 ) return true;
    return false;
 }
 
+/*----------------------------------------------------------------------------- file_delete_backup_s */ /**
+ * Delete files and items in vector if over keep count
+ * \param vectorBackup list of files
+ * \param uKeepCount how many to keep
+ */
+void backup_history::file_delete_backup_s(std::vector< std::pair< std::string, std::string> >& vectorBackup, unsigned uKeepCount)
+{
+   if( vectorBackup.size() <= uKeepCount ) return;                               // if less items compare dot number of items to keep then do not delete any
+
+   for( auto it = std::begin(vectorBackup) + uKeepCount, itEnd = std::end(vectorBackup); it != itEnd; it++ )
+   {
+      std::remove( it->second.c_str() );
+   }
+
+   vectorBackup.erase( std::begin(vectorBackup) + uKeepCount, std::end(vectorBackup) ); // erase item from vector
+}
 
 /*----------------------------------------------------------------------------- find_max_index */ /**
  * find max index for file names in vector, check the second string value in pair for index in file name
@@ -228,41 +245,133 @@ int backup_history::find_max_index(const std::vector< std::pair< std::string, st
    {
       const auto& stringFile = it.second;
       int iIndex = _get_index( stringFile );
-      if( iIndex > iMax ) iMax = iIndex;צה---
+      if( iIndex > iMax ) iMax = iIndex;
    }
    return iMax;
 }
 
-/*----------------------------------------------------------------------------- file_backup_log */ /**
- * Backup log file, generates a new name for log and copies the main log file to the new generated name
- * \param stringFileName log file that is backed up
- * \param stringBackupName name for backup'ed log file, this name is modified with index and time before copy is done
- * \param uIndex new index for backup log
+/*----------------------------------------------------------------------------- file_backup_log_s */ /**
+ * Backup log file, generates a new name for log and copies the main log file to the new file with generated name
+ * ## steps
+ * - test if log file to backup exists
+ * - test if "backup to name" is not a full path (has folders)
+ *   - no folders then copy path from file to backup
+ * - if directory is extracted then set it to file to backup to, if no directory then assign to same directory as file to backup
+ * - fix extension, if extension is found in backup name then use that, default is ".txt"
+ * 
+ * \param stringLogFileName log file that is backed up
+ * \param stringBackupName name for backup log file, this name is modified with index and time before copy is done
+ * \param uBackupIndex new index for backup log
+ * \param uOptions flags on how to generate backup file name
  * \return std::pair<bool, std::string> true and name if ok, false and error information if error
  */
-std::pair<bool, std::string> backup_history::file_backup_log(const std::string_view& stringFileName, const std::string_view& stringBackupName, unsigned uIndex, unsigned uOptions )
-{
+std::pair<bool, std::string> backup_history::file_backup_log_s(const std::string_view& stringLogFileName, const std::string_view& stringBackupName, unsigned uBackupIndex, unsigned uOptions )
+{                                                                                assert( uBackupIndex < 1000000 ); // realistic !!
+   enum { eMaxExtensionLength = 12, eMaxIndexTextLength = 7 };
+
    // ## check if file exists
-   bool bExist = std::filesystem::exists(stringFileName);
-   if( bExist == false )
+   bool bExist = std::filesystem::exists(stringLogFileName);                        
+   if( bExist == false )                                                         // check if file to backup exists, if not then return (nothing to backup)
    {
       std::string stringError{ "file not found: log file with name \"" };
-      stringError += stringFileName;
+      stringError += stringLogFileName;
       stringError += "\" is missing";
-      return { false, string };
+      return { false, stringError };
    }
 
-   // ## build new file name 
+   // ## build new file name that specified log file is copied to
 
-   std::string stringDirectory;
-   const size_t uSlashPosition = stringFileName.rfind('\\');
-   if( std::string::npos != uSlashPosition ) { stringDirectory = stringFileName.substr(0, uSlashPosition); }
+   std::string stringBackupToName; // generated backup file name
+   std::string stringDirectory; // directory to file that should be backed up
 
-   std::string stringBackupLog = 
-   auto bOk = std::filesystem::copy_file(stringFileName, pbszTemporaryFileName);// create clone as generated temp file
+   // ### check if backup file only is a name (don't has the full path)
+   if( gd::utf8::is_found(stringBackupName.find_first_of("\\/")) == false )      // if no slash character in file backup file, the extract path from log file
+   {  // no path in backup file name, extract path from  log file name
+      size_t uSlashPosition = stringLogFileName.rfind('\\');
+      if( gd::utf8::is_found(uSlashPosition) == false ) { uSlashPosition = stringLogFileName.rfind('/'); }
+
+      stringDirectory = stringLogFileName.substr(0, uSlashPosition + 1);         // copy directory (bring the slash)
+   }
 
 
+   if( stringDirectory.empty() == false ) { stringBackupToName = stringDirectory; } // if extracted directory, then assign to generated backup file
 
+   // ## append core name to generated backup file name, if name has file extension
+   //    then just take the name part and add file extension later
+
+   std::string_view stringExtension{ ".txt" };
+   std::string_view::size_type uStopSearch = stringBackupName.length() > eMaxExtensionLength ? eMaxExtensionLength : stringBackupName.length();
+
+   // ### append name, if name contains file extension then save that for later
+   auto uDotPosition = stringBackupName.rfind('.', uStopSearch);
+   if( gd::utf8::is_found(uDotPosition) == true )                                // found a dot in backup name? if found then name has extension and that is added later
+   {
+      stringBackupToName += stringBackupName.substr( 0, uDotPosition );          // extract name from backup name that also have extension
+      stringExtension = stringBackupName.data() + uDotPosition;                  // save file extension for later
+   }
+   else
+   {
+      stringBackupToName += stringBackupName;                                    // add name (name here has no extension)
+   }
+
+   if( has_flag_s(uOptions, eOptionIndex) )                                      // add index number to file name ?
+   {
+      // ## generate index string, pads index with zeros
+      std::string stringIndex = std::to_string(uBackupIndex);
+      char pbszNumber[eMaxIndexTextLength] = { '0','0','0','0','0','0','\0' };
+
+      if( stringIndex.length() < eMaxIndexTextLength )
+      {
+         unsigned uIndex = eMaxIndexTextLength - 2;
+         for( auto it = std::rbegin(stringIndex); it != std::rend(stringIndex); it++ )
+         {
+            pbszNumber[uIndex] = *it;
+            uIndex--;
+         }
+      }
+      else { return { false, "index value for backup file is to large" }; }
+
+      stringBackupToName += pbszNumber;                                          // append backup index to file
+   }
+
+   if( has_flag_s( uOptions, eOptionExtension ) ) stringBackupToName += stringExtension; // add file extension
+
+   if( has_flag_s(uOptions, eOptionCopy) )
+   {
+      bool bOk = false;
+      try
+      {
+         bOk = std::filesystem::copy_file(stringLogFileName, stringBackupToName);// create clone as generated temp file
+      }
+      catch( ... ) { bOk = false; }
+
+      if( bOk == false )
+      {
+         std::string stringError{ "copy failed - from \"" };
+         stringError += stringLogFileName;
+         stringError += {"\" to \""};
+         stringError += stringBackupToName;
+         stringError += {"\""};
+         return { bOk, stringError };
+      }
+   }
+
+
+   return { true, stringBackupToName };
+}
+
+/*----------------------------------------------------------------------------- datetime_now_s */ /**
+ * Generate date time value in ISO 8601 format
+ * \return std::string current time in as text
+ */
+std::string backup_history::datetime_now_s()
+{
+   time_t uCurrentTime;                                                          // has current time
+   time(&uCurrentTime);                                                          // get current time
+   char pbszTime[sizeof "2000-01-01T01:01:01Z"];                                 // buffer storing date and time value as text
+   strftime(pbszTime, sizeof(pbszTime), "%FT%TZ", gmtime(&uCurrentTime));        // format date and time as text
+
+   return pbszTime;
 }
 
 _GD_FILE_ROTATE_END

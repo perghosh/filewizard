@@ -10,6 +10,33 @@
 
 _GD_LOG_LOGGER_BEGIN
 
+// ================================================================================================
+// ================================================================================= printf
+// ================================================================================================
+
+
+printf::printf(const char* pbszFormat, ...)
+{
+   va_list va_listArgument;
+   va_start(va_listArgument, pbszFormat);                                        // initialize va_list (where to start)
+
+   m_pbszText = message::printf_s(pbszFormat, va_listArgument);
+   va_end(va_listArgument);
+}
+
+printf::printf(const wchar_t* pwszFormat, ...)
+{
+   va_list va_listArgument;
+   va_start(va_listArgument, pwszFormat);                                        // initialize va_list (where to start)
+
+   m_pbszText = message::printf_s(pwszFormat, va_listArgument);
+   va_end(va_listArgument);
+}
+
+
+// ================================================================================================
+// ================================================================================= message
+// ================================================================================================
 
 void message::set_text(std::string_view stringText)
 {
@@ -87,13 +114,18 @@ message& message::append(const wstream& streamAppend)
    return *this;
 }
 
+message& message::append(const gd::log::printf& printfAppend)
+{
+   m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, printfAppend));
+   return *this;
+}
 
 /*----------------------------------------------------------------------------- append */ /**
  * append ascii text to message, adds separator if text is already set
  * \param pbszFormat format string with information how to format added text
  * \return gd::log::message& reference to message for chaining
  */
-gd::log::message& message::printf(const char* pbszFormat, ...)
+message& message::printf(const char* pbszFormat, ...)
 {
    va_list va_listArgument;
    va_start(va_listArgument, pbszFormat);                                        // initialize va_list (where to start)
@@ -103,32 +135,38 @@ gd::log::message& message::printf(const char* pbszFormat, ...)
    // if text is set, then store it and append this later
    if( m_pbszText != nullptr ) pbszOldText = m_pbszText.release();
 
+   auto pbszPrintfText = printf_s(pbszFormat, va_listArgument);
 
-   int iLength = _vscprintf(pbszFormat, va_listArgument);                        // calculate needed length for buffer
-   if( iLength < 0 ) { assert(false); return *this; }
-   iLength++;                                                                    // add zero terminator
 
-   m_pbszText.reset( new_s( iLength ) );
-   char* pbszText = m_pbszText.get();
-   pbszText[0] = '\0';
-
-   int iReturn = _vsnprintf_s(pbszText, iLength, size_t(iLength) - 1, pbszFormat, va_listArgument); // generate message text
-   va_end(va_listArgument);
-
-   // ## convert to utf8 if needed, text is stored in internally in utf8 format
-   auto uUtf8Length = gd::utf8::size(pbszText) + 1;                              assert( uUtf8Length >= (uint32_t)iLength ); // if less something is seriously wrong
-   if( uUtf8Length > (uint32_t)iLength )                                         // do we need to convert to utf8
-   {
-      char* pbsz = new_s( uUtf8Length );                                         // create new buffer
-      gd::utf8::convert_ascii(pbszText, pbsz);                                   // convert to utf8
-      m_pbszText.reset( pbsz );                                                  // set to new buffer
-   }
+//    int iLength = _vscprintf(pbszFormat, va_listArgument);                        // calculate needed length for buffer
+//    if( iLength < 0 ) { assert(false); return *this; }
+//    iLength++;                                                                    // add zero terminator
+// 
+//    m_pbszText.reset( new_s( iLength ) );
+//    char* pbszText = m_pbszText.get();
+//    pbszText[0] = '\0';
+// 
+//    int iReturn = _vsnprintf_s(pbszText, iLength, size_t(iLength) - 1, pbszFormat, va_listArgument); // generate message text
+//    va_end(va_listArgument);
+// 
+//    // ## convert to utf8 if needed, text is stored in internally in utf8 format
+//    auto uUtf8Length = gd::utf8::size(pbszText) + 1;                              assert( uUtf8Length >= (uint32_t)iLength ); // if less something is seriously wrong
+//    if( uUtf8Length > (uint32_t)iLength )                                         // do we need to convert to utf8
+//    {
+//       char* pbsz = new_s( uUtf8Length );                                         // create new buffer
+//       gd::utf8::convert_ascii(pbszText, pbsz);                                   // convert to utf8
+//       m_pbszText.reset( pbsz );                                                  // set to new buffer
+//    }
 
    if( pbszOldText != nullptr )
    {
-      auto pbszText = m_pbszText.release();
+      auto pbszText = pbszPrintfText.release();
       m_pbszText.reset( join_s(&pbszOldText, std::string_view{"  "}, &pbszText) );
       clear_s(&pbszOldText);
+   }
+   else
+   {
+      m_pbszText = std::move(pbszPrintfText);
    }
 
    return *this;
@@ -137,9 +175,9 @@ gd::log::message& message::printf(const char* pbszFormat, ...)
 /*----------------------------------------------------------------------------- append */ /**
  * append unicode text to message, adds separator if text is already set
  * \param pwszFormat format string with information how to format added text
- * \return gd::log::message& reference to message for chaining
+ * \return message& reference to message for chaining
  */
-gd::log::message& message::printf(const wchar_t* pwszFormat, ...)
+message& message::printf(const wchar_t* pwszFormat, ...)
 {
    va_list va_listArgument;
    va_start(va_listArgument, pwszFormat);                                        // initialize va_list (where to start)
@@ -149,31 +187,46 @@ gd::log::message& message::printf(const wchar_t* pwszFormat, ...)
    // if text is set, then store it and append this later
    if( m_pbszText != nullptr ) pbszOldText = m_pbszText.release();
 
+   auto pbszPrintfText = printf_s(pwszFormat, va_listArgument);
 
-   int iLength = _vscwprintf(pwszFormat, va_listArgument);                       // calculate needed length for buffer
-   if( iLength < 0 ) { assert(false); return *this; }
-   iLength++;                                                                    // add zero terminator
 
-   //m_pbszText.reset(new_s(iLength));
-   //char* pbszText = m_pbszText.get();
-   //pbszText[0] = '\0';
-   wchar_t* pwszText = (wchar_t*)_alloca(iLength * sizeof(wchar_t));
 
-   int iReturn = _vsnwprintf_s(pwszText, iLength, size_t(iLength) - 1, pwszFormat, va_listArgument); // generate message text
-   va_end(va_listArgument);
-
-   // ## convert to utf8 if needed, text is stored in internally in utf8 format
-   auto uUtf8Length = gd::utf8::size(pwszText) + 1;                              assert(uUtf8Length >= (uint32_t)iLength); // if less something is seriously wrong
-   m_pbszText.reset( new_s(uUtf8Length) );
-   char* pbsz = m_pbszText.get();
-   gd::utf8::convert_unicode(pwszText, pbsz, pbsz + uUtf8Length);
+//    int iLength = _vscwprintf(pwszFormat, va_listArgument);                       // calculate needed length for buffer
+//    if( iLength < 0 ) { assert(false); return *this; }
+//    iLength++;                                                                    // add zero terminator
+// 
+//    //m_pbszText.reset(new_s(iLength));
+//    //char* pbszText = m_pbszText.get();
+//    //pbszText[0] = '\0';
+//    wchar_t* pwszText = (wchar_t*)_alloca(iLength * sizeof(wchar_t));
+// 
+//    int iReturn = _vsnwprintf_s(pwszText, iLength, size_t(iLength) - 1, pwszFormat, va_listArgument); // generate message text
+//    va_end(va_listArgument);
+// 
+//    // ## convert to utf8 if needed, text is stored in internally in utf8 format
+//    auto uUtf8Length = gd::utf8::size(pwszText) + 1;                              assert(uUtf8Length >= (uint32_t)iLength); // if less something is seriously wrong
+//    m_pbszText.reset( new_s(uUtf8Length) );
+//    char* pbsz = m_pbszText.get();
+//    gd::utf8::convert_unicode(pwszText, pbsz, pbsz + uUtf8Length);
+// 
+//    if( pbszOldText != nullptr )
+//    {
+//       auto pbszText = m_pbszText.release();
+//       m_pbszText.reset(join_s(&pbszOldText, std::string_view{ "  " }, &pbszText));
+//       clear_s(&pbszOldText);
+//    }
 
    if( pbszOldText != nullptr )
    {
-      auto pbszText = m_pbszText.release();
+      auto pbszText = pbszPrintfText.release();
       m_pbszText.reset(join_s(&pbszOldText, std::string_view{ "  " }, &pbszText));
       clear_s(&pbszOldText);
    }
+   else
+   {
+      m_pbszText = std::move(pbszPrintfText);
+   }
+
 
    return *this;
 }
@@ -472,6 +525,68 @@ std::wstring message::wrap_s(wchar_t chBefore, const std::wstring_view& stringTe
    return stringWrapped;
 }
 
+/*----------------------------------------------------------------------------- printf_s */ /**
+ * printf text as normal printf c method and returns string as unique pointer
+ * \param pbszFormat format information for how text is generated
+ * \param va_listArgument variable argument list to populate string
+ * \return std::unique_ptr<char> generated text
+ */
+std::unique_ptr<char> message::printf_s(const char* pbszFormat, va_list va_listArgument)
+{
+   std::unique_ptr<char> pbszReturnText;
+
+   char* pbszOldText = nullptr;                                                  // if text is set then keep pointer to old text to apend la
+
+   int iLength = _vscprintf(pbszFormat, va_listArgument);                        // calculate needed length for buffer
+   if( iLength < 0 ) { assert(false); return pbszReturnText; }
+   iLength++;                                                                    // add zero terminator
+
+   pbszReturnText.reset(new_s(iLength));
+   char* pbszText = pbszReturnText.get();
+   pbszText[0] = '\0';
+
+   int iReturn = _vsnprintf_s(pbszText, iLength, size_t(iLength) - 1, pbszFormat, va_listArgument); // generate message text
+
+   // ## convert to utf8 if needed, text is stored in internally in utf8 format
+   auto uUtf8Length = gd::utf8::size(pbszText) + 1;                              assert(uUtf8Length >= (uint32_t)iLength); // if less something is seriously wrong
+   if( uUtf8Length > (uint32_t)iLength )                                         // do we need to convert to utf8
+   {
+      char* pbsz = new_s(uUtf8Length);                                           // create new buffer
+      gd::utf8::convert_ascii(pbszText, pbsz);                                   // convert to utf8
+      pbszReturnText.reset(pbsz);                                                // set to new buffer
+   }
+
+   return std::move(pbszReturnText);
+}
+
+/*----------------------------------------------------------------------------- printf_s */ /**
+ * printf text as normal printf c method and returns string as unique pointer
+ * \param pwszFormat format information for how text is generated
+ * \param va_listArgument variable argument list to populate string
+ * \return std::unique_ptr<char> generated text
+ */
+std::unique_ptr<char> message::printf_s(const wchar_t* pwszFormat, va_list va_listArgument)
+{
+   std::unique_ptr<char> pbszReturnText;
+
+   int iLength = _vscwprintf(pwszFormat, va_listArgument);                       // calculate needed length for buffer
+   if( iLength < 0 ) { assert(false); return pbszReturnText; }
+   iLength++;                                                                    // add zero terminator
+
+   wchar_t* pwszText = (wchar_t*)_alloca(iLength * sizeof(wchar_t));
+
+   int iReturn = _vsnwprintf_s(pwszText, iLength, size_t(iLength) - 1, pwszFormat, va_listArgument); // generate message text
+
+   // ## convert to utf8 if needed, text is stored in internally in utf8 format
+   auto uUtf8Length = gd::utf8::size(pwszText) + 1;                              assert(uUtf8Length >= (uint32_t)iLength); // if less something is seriously wrong
+   pbszReturnText.reset(new_s(uUtf8Length));
+   char* pbsz = pbszReturnText.get();
+   gd::utf8::convert_unicode(pwszText, pbsz, pbsz + uUtf8Length);
+
+   return std::move(pbszReturnText);
+}
+
+
 
 // ================================================================================================
 // ================================================================================= GLOBAL
@@ -496,6 +611,7 @@ const char* severity_get_name_g(unsigned uSeverity)
    default:                                              return "NONE";
    }
 }
+
 
 
 _GD_LOG_LOGGER_END

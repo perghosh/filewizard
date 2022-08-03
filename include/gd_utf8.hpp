@@ -60,6 +60,23 @@ namespace gd {
       };
       ///@}
 
+      // ## is* methods
+
+      /// check if size value is any `npos` value returned from string search methods that returns position or `npos` if not found
+      template<typename SIZE>
+      bool is_npos(const SIZE uSize) {
+         if constexpr( sizeof(uSize) == sizeof(uint32_t) ) return static_cast<int32_t>(uSize) < 0;
+         else if constexpr( sizeof(uSize) == sizeof(uint64_t) ) return static_cast<int64_t>(uSize) < 0;
+         else static_assert(false, "invalid size type compare to npos");
+         return false;
+      }
+
+      template<typename SIZE>
+      bool is_found(const SIZE uSize) {
+         return !is_npos( uSize );
+      }
+
+      // ## `count` methods is used to count number of characters (`strlen` are wrappers)
 
       /**
        * Count number of characters in utf8 buffer
@@ -89,7 +106,7 @@ namespace gd {
          return count(reinterpret_cast<const uint8_t*>(pbszText)).first;
       };
 
-      /// ## calculate needed size to store character as utf8 value
+      /// ## `size` methods is used calculate needed size to store character as utf8 value
 
       uint32_t size( uint8_t ch ); // ------------------------------------------------------------- size
       uint32_t size( uint16_t ch ); // ------------------------------------------------------------ size
@@ -98,7 +115,7 @@ namespace gd {
       /// count needed size to store char string as utf8 string
       inline uint32_t size( const char* pbsz ) { // ----------------------------------------------- size
          uint32_t uSize = 0;
-         for( ; *pbsz != 0; pbsz++ ) while( *pbsz++ != 0 ) uSize += size( static_cast<uint8_t>(*pbsz) );
+         for( ; *pbsz != 0; pbsz++ ) uSize += size( static_cast<uint8_t>(*pbsz) );
          return uSize;
       }
       inline uint32_t size(const std::string_view& stringCountSize) { // -------------------------- size
