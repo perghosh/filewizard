@@ -52,7 +52,7 @@ void message::set_text(std::string_view stringText)
  */
 message& message::append(const std::string_view& stringAppend)
 {
-   m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, stringAppend.data()));
+   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, stringAppend.data()));
    return *this;
 }
 
@@ -63,7 +63,7 @@ message& message::append(const std::string_view& stringAppend)
  */
 message& message::append(const std::wstring_view& stringAppend)
 {
-   m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, stringAppend.data()));
+   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, stringAppend.data()));
    return *this;
 }
 
@@ -75,7 +75,7 @@ message& message::append(const std::wstring_view& stringAppend)
  */
 message& message::append(const char8_t* pbszUtf8Append)
 {
-   m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, pbszUtf8Append));
+   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, pbszUtf8Append));
    return *this;
 }
 #endif
@@ -88,7 +88,7 @@ message& message::append(const char8_t* pbszUtf8Append)
 message& message::append(const message& messageAppend)
 {
    const char* pbszMessage = messageAppend.get_text();
-   if( pbszMessage != nullptr ) m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, pbszMessage, gd::utf8::utf8_tag{}));
+   if( pbszMessage != nullptr ) m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, pbszMessage, gd::utf8::utf8_tag{}));
    return *this;
 }
 
@@ -99,7 +99,7 @@ message& message::append(const message& messageAppend)
  */
 message& message::append(const stream& streamAppend)
 {
-   m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, streamAppend.get_string()));
+   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, streamAppend.get_string()));
    return *this;
 }
 
@@ -110,13 +110,18 @@ message& message::append(const stream& streamAppend)
  */
 message& message::append(const wstream& streamAppend)
 {
-   m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, streamAppend.get_string()));
+   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, streamAppend.get_string()));
    return *this;
 }
 
+/*----------------------------------------------------------------------------- append */ /**
+ * append `printf` text to message, adds separator if text is already set
+ * \param printfAppend text to add
+ * \return message& reference to message for chaining
+ */
 message& message::append(const gd::log::printf& printfAppend)
 {
-   m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, printfAppend));
+   m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, (const char*)printfAppend));
    return *this;
 }
 
@@ -249,11 +254,6 @@ std::string message::to_string() const
 //
 // ## FREE FUNCTIONS -----------------------------------------------------------------------------
 //
-
-// ================================================================================================
-// ================================================================================= STATIC
-// ================================================================================================
-
 
 /*----------------------------------------------------------------------------- new_s */ /**
  * Allocates text on heap and inserts text in utf8 format from string sent 
@@ -495,6 +495,10 @@ char* message::join_s(char** ppbszText, const std::string_view& stringAdd, char*
    return pbszNew;
 }
 
+/*----------------------------------------------------------------------------- get_now_date_as_wstring_s */ /**
+ * return current date as wstring
+ * \return std::wstring current date
+ */
 std::wstring message::get_now_date_as_wstring_s()
 {
    enum { eBufferSize = 30 };
@@ -505,6 +509,10 @@ std::wstring message::get_now_date_as_wstring_s()
    return std::wstring(pBuffer);
 }
 
+/*----------------------------------------------------------------------------- get_now_time_as_wstring_s */ /**
+ * return time as wstring
+ * \return std::wstring current time
+ */
 std::wstring message::get_now_time_as_wstring_s()
 {
    enum { eBufferSize = 30 };
@@ -515,6 +523,13 @@ std::wstring message::get_now_time_as_wstring_s()
    return std::wstring(pBuffer);
 }
 
+/*----------------------------------------------------------------------------- wrap_s */ /**
+ * wrap text between two characters
+ * \param chBefore character to set before text
+ * \param stringText wrapped text
+ * \param chAfter character placed after wrapped text
+ * \return std::wstring final wrapped text
+ */
 std::wstring message::wrap_s(wchar_t chBefore, const std::wstring_view& stringText, wchar_t chAfter)
 {
    std::wstring stringWrapped;

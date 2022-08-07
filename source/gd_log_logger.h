@@ -144,6 +144,7 @@ auto plogger = get_s();            // default logger
 #include <memory>
 #include <sstream>
 #include <iosfwd>
+#include <mutex>
 
 
 #include "gd_utf8.hpp"
@@ -276,7 +277,7 @@ enum enumMessageType
 };
 
 ///
-const size_t MESSAGE_BUFFER_START_SIZE = 96;
+const size_t MESSAGE_BUFFER_START_SIZE = 128;
 
 
 const char* severity_get_name_g(unsigned uSeverity);
@@ -496,7 +497,15 @@ public:
    message& operator<<(APPEND appendValue) {
       std::wstringstream wstringstreamAppend;
       wstringstreamAppend << appendValue;
-      m_pbszText.reset(new_s(m_pbszText.release(), std::string_view{ "  " }, wstringstreamAppend.str().c_str(), m_pbszText.release()));
+      auto pbszCurrent = m_pbszText.get();
+      auto pbszNew = new_s(pbszCurrent, std::string_view{ "  " }, wstringstreamAppend.str().c_str(), pbszCurrent);
+      if( pbszNew != pbszCurrent ) 
+      { 
+         m_pbszText.reset( pbszNew ); 
+      }
+
+      //m_pbszText.reset(new_s(pbszCurrent, std::string_view{ "  " }, wstringstreamAppend.str().c_str(), pbszCurrent));
+      //clear_s(&pbszCurrent);
       return *this;
    }
 
@@ -697,7 +706,7 @@ inline char* message::allocate_s(std::size_t uSize, char* pbszCurrent) {
    if( pbszCurrent != nullptr && uSize < MESSAGE_BUFFER_START_SIZE ) return pbszCurrent;
    if( uSize < MESSAGE_BUFFER_START_SIZE) uSize = MESSAGE_BUFFER_START_SIZE;
    char* pbszNew = new char[uSize];
-   delete[] pbszCurrent;
+   //delete[] pbszCurrent;
    return pbszNew;
 }
 
@@ -772,7 +781,7 @@ public:
  \code
  \endcode
  */
-template<int iLoggerKey>
+template<int iLoggerKey, bool bThread = false>
 class logger 
 {
 // ## construction -------------------------------------------------------------
@@ -822,6 +831,8 @@ public:
 //@}
 
 protected:
+   // internal printing
+   void print_(const message& message);
 /** \name INTERNAL
 *///@{
    /// check severity against internal severity filter
@@ -849,89 +860,147 @@ public:
    unsigned m_uSeverity;                     ///< severity filter, used to filter log messages
    std::vector<std::unique_ptr<i_printer>> m_vectorPrinter;///< list of connected printers
    std::vector<std::string> m_vectorError;   ///< list of internal errors stored as text
+
+   static std::mutex m_mutex_s;              ///< mutex to enable thread safety printing messages
    
    
 // ## free functions ------------------------------------------------------------
 public:
    /// return pointer to logger with selected instance number
-   static logger<iLoggerKey>* get_s();
+   static logger<iLoggerKey,bThread>* get_s();
    /// get reference to logger for selected instance number
-   static logger<iLoggerKey>& get_instance_s();
+   static logger<iLoggerKey,bThread>& get_instance_s();
+   /// get reference to mutex if logger is set to thread safe mode
+   static std::mutex& get_mutex_s();
 };
+
+/// generate static mutex object
+template<int iLoggerKey, bool bThread>
+std::mutex logger<iLoggerKey, bThread>::m_mutex_s;
 
 #ifndef GD_LOG_DISABLE_ALL                                                       // GD_LOG_DISABLE_ALL {
 
 /// ----------------------------------------------------------------------------
 /// Sends message to all attached printers, 
-template<int iLoggerKey>
-void logger<iLoggerKey>::print(const message& message, bool bFlush)
+template<int iLoggerKey, bool bThread>
+void logger<iLoggerKey,bThread>::print(const message& message, bool bFlush)
 {
    if( check_severity(message.get_severity()) )                                  // check if message has severity within bounds for output
    {
-      // ## print message to all attached printers
-      for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); it++ )
+      // if template argument bThread is set to true this print method will be thread safe
+      if constexpr( bThread == true )
       {
-         // check printer severity filter compared to message severity
-         // if printer has 0 as severity then it will always print
-         // if severity is set to printer then check against message severity
-         //    it will print if severity in printer is lower or equal to message.
-         //    if printer severity is set to FATAL, then it will only print FATAL messages.
-         if( (*it).get()->get_severity() == 0 || message.check_severity((*it).get()->get_severity()) == true )
-         {
-            if( (*it)->print(message) == true ) continue;
-         }
-
-         // ## if print returned false there we have one internal error in printer
-         {
-            gd::log::message messageError;
-            (*it)->error(messageError);
-            if( messageError.empty() == false ) error_push( messageError );
-         }
+         std::lock_guard<std::mutex> lock(get_mutex_s());
+         print_( message );
+         if( bFlush == true ) flush();
       }
-
-      if( bFlush == true ) flush();
+      else
+      {
+         print_( message );
+         if( bFlush == true ) flush();
+      }
    }
 }
-#else
-template<int iLoggerKey>
-void logger<iLoggerKey>::print(const message& message)
-{
-}
-#endif                                                                           // } GD_LOG_DISABLE_ALL 
 
 /// ----------------------------------------------------------------------------
 /// Sends message list to all attached printers, 
-template<int iLoggerKey>
-void logger<iLoggerKey>::print(std::initializer_list<message> listMessage)
+template<int iLoggerKey, bool bThread>
+void logger<iLoggerKey, bThread>::print(std::initializer_list<message> listMessage)
 {
    auto itBegin = listMessage.begin();
    //message* pmessage = &(*listMessage.begin());
    if( itBegin->check_severity(m_uSeverity) )                                   // check first message has severity within bounds for output
    {
-      // ## print message to all attached printers
-      for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); ++it )
+      // if template argument bThread is set to true this print method will be thread safe
+      if constexpr( bThread == true )
       {
-         for( auto itMessage : listMessage )
+         std::lock_guard<std::mutex> lock(get_mutex_s());
+
+         // ## print message to all attached printers
+         for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); ++it )
          {
-            if( (*it)->print(itMessage) == false )                               // sen message to printer
+            for( auto itMessage : listMessage )
             {
-               // ## collect error information and store it in logger
-               gd::log::message messageError;
-               (*it)->error(messageError);
-               if( messageError.empty() == false ) error_push(messageError);     // push error text to logger error stack
+               if( (*it)->print(itMessage) == false )                               // sen message to printer
+               {
+                  // ## collect error information and store it in logger
+                  gd::log::message messageError;
+                  (*it)->error(messageError);
+                  if( messageError.empty() == false ) error_push(messageError);     // push error text to logger error stack
+               }
             }
          }
+         flush();
+      }
+      else
+      {
+         // ## print message to all attached printers
+         for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); ++it )
+         {
+            for( auto itMessage : listMessage )
+            {
+               if( (*it)->print(itMessage) == false )                               // sen message to printer
+               {
+                  // ## collect error information and store it in logger
+                  gd::log::message messageError;
+                  (*it)->error(messageError);
+                  if( messageError.empty() == false ) error_push(messageError);     // push error text to logger error stack
+               }
+            }
+         }
+         flush();
       }
    }
-
-   flush();
 }
+
+
+template<int iLoggerKey, bool bThread>
+void logger<iLoggerKey, bThread>::print_(const message& message)
+{
+   // ## print message to all attached printers
+   for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); it++ )
+   {
+      // check printer severity filter compared to message severity
+      // if printer has 0 as severity then it will always print
+      // if severity is set to printer then check against message severity
+      //    it will print if severity in printer is lower or equal to message.
+      //    if printer severity is set to FATAL, then it will only print FATAL messages.
+      if( (*it).get()->get_severity() == 0 || message.check_severity((*it).get()->get_severity()) == true )
+      {
+         if( (*it)->print(message) == true ) continue;
+      }
+
+      // ## if print returned false there we have one internal error in printer
+      {
+         gd::log::message messageError;
+         (*it)->error(messageError);
+         if( messageError.empty() == false ) error_push(messageError);
+      }
+   }
+}
+
+
+
+
+#else
+template<int iLoggerKey>
+void logger<iLoggerKey,bThread>::print(const message& message)
+{
+}
+
+template<int iLoggerKey, bool bThread>
+void logger<iLoggerKey, bThread>::print(std::initializer_list<message> listMessage)
+{
+}
+
+#endif                                                                           // } GD_LOG_DISABLE_ALL 
+
 
 
 /// ----------------------------------------------------------------------------
 /// Flush all connected printers. 
-template<int iLoggerKey>
-void logger<iLoggerKey>::flush()
+template<int iLoggerKey, bool bThread>
+void logger<iLoggerKey,bThread>::flush()
 {
    // ## print message to all attached printers
    for( auto it = m_vectorPrinter.begin(); it != m_vectorPrinter.end(); ++it )
@@ -940,8 +1009,8 @@ void logger<iLoggerKey>::flush()
    }
 }
 
-template<int iLoggerKey>
-std::string logger<iLoggerKey>::error_pop()
+template<int iLoggerKey, bool bThread>
+std::string logger<iLoggerKey,bThread>::error_pop()
 {
    if( m_vectorError.empty() == false )
    {
@@ -956,16 +1025,16 @@ std::string logger<iLoggerKey>::error_pop()
 
 /// ----------------------------------------------------------------------------
 /// static member returning pointer to logger for selected instance id
-template<int iLoggerKey>
-inline logger<iLoggerKey>* logger<iLoggerKey>::get_s() {
-   return &logger<iLoggerKey>::get_instance_s();
+template<int iLoggerKey, bool bThread>
+inline logger<iLoggerKey,bThread>* logger<iLoggerKey,bThread>::get_s() {
+   return &logger<iLoggerKey,bThread>::get_instance_s();
 }
 
 /// ----------------------------------------------------------------------------
 /// global method returning pointer to logger for selected instance id
-template<int iLoggerKey>
-inline logger<iLoggerKey>* get_g() {
-   return &logger<iLoggerKey>::get_instance_s();
+template<int iLoggerKey, bool bThread=false>
+inline logger<iLoggerKey,bThread>* get_g() {
+   return &logger<iLoggerKey,bThread>::get_instance_s();
 }
 
 /// ----------------------------------------------------------------------------
@@ -976,20 +1045,51 @@ inline logger<GD_LOG_DEFAULT_INSTANCE_ID>* get_s() {
 
 
 
-/// ----------------------------------------------------------------------------
-/// Return reference to logger for instance id. Here is where each logger is created.
-/// *sample*
-/// `auto plogger = gd::log::get_s();`  
-/// `auto plogger1 = gd::log::get_s<1>();`  
-/// `auto plogger2 = gd::log::logger::get_s<2>();`  
-/// `gd::log::logger<3>* plogger3 = gd::log::get_s<3>();`  
-template<int iLoggerKey>
-logger<iLoggerKey>& logger<iLoggerKey>::get_instance_s() {
-   static logger<iLoggerKey> logger_s;
+
+
+
+/*----------------------------------------------------------------------------- get_instance_s */ /**
+ * Get reference to logger instance. 
+ * logger is a singleton where each logger instance are created from template parameter (integer value)
+Sample showing four different loggers, compiler will generate these based on the integer 
+```cpp
+auto plogger = gd::log::get_s();
+auto plogger1 = gd::log::get_s<1>();
+auto plogger2 = gd::log::logger::get_s<2>();
+gd::log::logger<3>* plogger3 = gd::log::get_s<3>();
+```
+
+Generate thread safe logger
+```cpp
+// setting second template argument to true will generate a thread safe logger
+auto ploggerThreadSafe = gd::log::get_s<1, true>();
+```
+
+ * \return logger<iLoggerKey,bThread>& reference to logger instance
+ */
+template<int iLoggerKey, bool bThread>
+logger<iLoggerKey,bThread>& logger<iLoggerKey,bThread>::get_instance_s() {
+   static logger<iLoggerKey,bThread> logger_s;
    return logger_s;
 }
 
+template<int iLoggerKey, bool bThread>
+std::mutex& logger<iLoggerKey, bThread>::get_mutex_s() {
+   return logger<iLoggerKey, bThread>::m_mutex_s;
+}
 
+
+
+/*----------------------------------------------------------------------------- severity_get_number_g */ /**
+ * Get severity number from severity name
+Get severity number
+```cpp
+   auto eSeverityNumber = severity_get_number_g("FATAL");
+   if( eSeverityNumber == severity_get_number_g("F") ) std::count << "FATAL and F returns same severity number" << std::endl;
+```
+ * \param stringSeverity severity name that severity number is returned for (matches on first character)
+ * \return constexpr enumSeverity severity number for severity name
+ */
 constexpr enumSeverity severity_get_number_g(const std::string_view& stringSeverity)
 {                                                                                assert(stringSeverity.empty() == false);
    // ## convert character to uppercase if lowercase is found
@@ -1009,6 +1109,12 @@ constexpr enumSeverity severity_get_number_g(const std::string_view& stringSever
    }
 }
 
+
+/*----------------------------------------------------------------------------- severity_get_group_g */ /**
+ * Get severity group number from severity name
+ * \param stringSeverity severity name (matches on first character in name)
+ * \return enumSeverityGroup severity group number
+ */
 constexpr enumSeverityGroup severity_get_group_g(const std::string_view& stringSeverity)
 {                                                                                assert(stringSeverity.empty() == false);
    // ## convert character to uppercase if lowercase is found

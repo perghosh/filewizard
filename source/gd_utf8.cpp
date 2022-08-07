@@ -438,7 +438,50 @@ namespace gd {
          return std::make_pair(true, pwszPosition);
       }
 
-      uint8_t* copy_character( uint8_t* puCopyTo, const uint8_t* puCopyFrom )
+      /**
+       * @brief convert unicode to ascii
+       * @param pwszFrom pointer to unicode text that is converted to ascii
+       * @param pbszTo pointer to ascii buffer getting converted unicode text
+       * @param pbszEnd pointer to end of buffer 
+       * @return std::pair<const wchar_t*, const char*> pointer to end after last unicode character copied and end after last char getting ascii code
+      */
+      std::pair<const wchar_t*, const char*> convert_unicode_to_ascii(const wchar_t* pwszFrom, char* pbszTo, const char* pbszEnd)
+      {
+         const wchar_t* pwszPosition = pwszFrom;
+         char* pbszInsert = pbszTo;
+
+         while( pbszInsert < pbszEnd && *pwszPosition )
+         {
+            if( *pwszPosition <= 0xFF )
+            {
+               *(uint8_t*)pbszInsert = (uint8_t)*pwszPosition;
+               pbszInsert++;
+            }
+
+            pwszPosition++;
+         }
+
+         if(pbszInsert < pbszEnd) *pbszInsert = '\0';
+
+         return { pwszPosition, pbszInsert };
+      }
+
+      /**
+       * @brief convert unicode to ascii and return as string
+       * @param stringUnicode unicode string to convert
+       * @return ascii string with converted unicode characters
+      */
+      std::string convert_unicode_to_ascii(std::wstring_view stringUnicode)
+      {
+         std::string stringAscii;
+         auto uLength = stringUnicode.length() + 1;
+         stringAscii.resize(stringUnicode.length() + 1);
+         auto [pwszUnicodeEnd, pbszAsciiEnd] = gd::utf8::convert_unicode_to_ascii(stringUnicode.data(), stringAscii.data(), stringAscii.data() + uLength);
+         stringAscii.resize(pbszAsciiEnd - stringAscii.c_str());
+         return stringAscii;
+      }
+
+      uint8_t* copy_character(uint8_t* puCopyTo, const uint8_t* puCopyFrom)
       {                                                                       assert( pNeededByteCount[*puCopyFrom] != 0 );
          auto uCount = pNeededByteCount[*puCopyFrom];
          while( uCount-- )

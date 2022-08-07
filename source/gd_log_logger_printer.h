@@ -137,7 +137,7 @@ public:
 /**
  * \brief prints log information to specified file
  *
- * note _wsopen_s , ::_write
+ * file operations use  ::_wsopen_s , ::_write to write to file.
  *
  \code
  \endcode
@@ -145,13 +145,16 @@ public:
 class printer_file : public i_printer
 {
 // ## constants ----------------------------------------------------------------
-public:
-   enum enumError { eErrorOpenFile = 0x0000'0001, };
+private:
+   enum enumError { 
+      eErrorOpenFile = 0x0000'0001,    // internal error flag/bit if file wasn't opened
+   };
 
 // ## construction -------------------------------------------------------------
 public:
    printer_file() : m_stringSplit{ L"  " }, m_stringNewLine{ L"\n" } {}
    printer_file(const std::wstring_view& stringFileName) : m_stringFileName(stringFileName), m_stringSplit{ L"  " }, m_stringNewLine{ L"\n" } {}
+   printer_file(unsigned uSeverity, const std::wstring_view& stringFileName) : i_printer(uSeverity), m_stringFileName(stringFileName), m_stringSplit{ L"  " }, m_stringNewLine{ L"\n" } {}
    // copy
    printer_file( const printer_file& o ) { common_construct( o ); }
    printer_file( printer_file&& o ) noexcept { common_construct( o ); }
@@ -160,9 +163,13 @@ public:
    printer_file& operator=( printer_file&& o ) noexcept { common_construct( o ); return *this; }
    
    ~printer_file() { if( m_iFileHandle >= 0 ) file_close_s(m_iFileHandle); }
-private:
+protected:
    // common copy
-   void common_construct( const printer_file& o ) {}
+   void common_construct(const printer_file& o) { 
+      i_printer::common_construct(o); m_uInternalError = o.m_uInternalError; m_stringFileName = o.m_stringFileName; m_stringSplit = o.m_stringSplit;
+      m_stringNewLine = o.m_stringNewLine; m_wchBeginWrap = o.m_wchBeginWrap; m_wchEndWrap = o.m_wchEndWrap; m_iFileHandle = o.m_iFileHandle; m_messageError = o.m_messageError;
+   }
+
    void common_construct( printer_file&& o ) noexcept {}
 
 // ## operator -----------------------------------------------------------------
@@ -229,6 +236,7 @@ public:
    static std::pair<int, std::string> file_open_s(const std::wstring_view& stringFileName);
    static std::pair<bool, std::string> file_write_s(int iFileHandle, const std::string_view& stringText);
    static std::pair<bool, std::string> file_write_s(int iFileHandle, const std::wstring_view& stringText, gd::utf8::utf8_tag );
+   static std::pair<bool, std::string> file_backup_s(const std::string_view& stringFileName, const std::string_view& stringFormat, int iRotateCount);
    static void file_close_s(int iFileHandle);
    
 

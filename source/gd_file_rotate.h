@@ -171,18 +171,29 @@ public:
 
    // reads date value and file name from each line
    static std::vector< std::pair< std::string, std::string> > file_read_date_name_s(const std::string_view& stringFileName);
+   static std::vector< std::pair< std::string, std::string> > file_read_date_name_s(const std::wstring_view& stringFileName);
 
    // write text line or lines from vector to file
    static std::pair<bool, std::string> file_write_text_s(const std::string_view& stringFileName, const std::vector< std::string >& vectorText, bool bAppend);
    // write date and name found in vector to file
    static std::pair<bool, std::string> file_write_date_name_s(const std::string_view& stringFileName, const std::vector< std::pair< std::string, std::string> >& vectorDateName, bool bAppend);
 
-   // backup file to temporary file
+   // backup file to temporary file, backing up file to temporary if you need to restore it, maybe something has gone wrong
    static std::string file_backup_as_temporary_s(const std::string_view& stringFileName);
+   // backup file to temporary file, backing up file to temporary if you need to restore it, maybe something has gone wrongs
+   static std::string file_backup_as_temporary_s(const std::wstring_view& stringFileName);
+
+   // backup log file and generate some sort of sequence to name backed up log file
    static  std::pair<bool, std::string> file_backup_log_s(const std::string_view& stringFileName, const std::string_view& stringBackupName, unsigned uIndex) { return file_backup_log_s(stringFileName, stringBackupName, uIndex, (eOptionIndex | eOptionExtension | eOptionCopy)); }
+   // backup log file and generate some sort of sequence to name backed up log file
    static std::pair<bool, std::string> file_backup_log_s( const std::string_view& stringFileName, const std::string_view& stringBackupName, unsigned uIndex, unsigned uOptions );
+
+   // delete file
    static bool file_delete_backup_s( const std::string_view& stringFileName );
+   // delete file with name in vector if more than keep count sent
    static void file_delete_backup_s( std::vector< std::pair< std::string, std::string> >& vectorBackup, unsigned uKeepCount );
+
+   static std::pair<bool, std::string> file_stash_log_s(const std::string_view& stringHistoryFileName, const std::string_view& stringLogFileName, const std::string_view& stringBackupName, unsigned uCount);
 
    // ## history statistics, find information in files containing history information
 

@@ -203,6 +203,11 @@ namespace gd {
       }
       ///@}
 
+      /// Converts unicode text to ascii, characters that can't be copied (above ascii codes) are skipped
+      std::pair<const wchar_t*, const char*> convert_unicode_to_ascii(const wchar_t* pwszFrom, char* pbszTo, const char* pbszEnd);
+      std::string convert_unicode_to_ascii( std::wstring_view stringUnicode );
+
+
       std::intptr_t distance(const uint8_t* p1, const uint8_t* p2);
 
 

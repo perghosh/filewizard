@@ -81,7 +81,11 @@ std::vector<std::pair< std::string, std::string>> backup_history::file_read_date
    }
 
    return vectorDateAndName;
+}
 
+std::vector<std::pair< std::string, std::string>> backup_history::file_read_date_name_s(const std::wstring_view& stringFileName)
+{
+   return file_read_date_name_s(gd::utf8::convert_unicode_to_ascii(stringFileName));
 }
 
 
@@ -163,7 +167,7 @@ std::pair<bool, std::string> backup_history::file_write_date_name_s(const std::s
 }
 
 /*----------------------------------------------------------------------------- file_backup_as_temporary */ /**
- * clone file to temporary file as backup.
+ * copy file to temporary file as backup.
  * remember that this file is only temporary and should not been seen as permanent backup.
  * just functionality if you need to modify a file and need to revert if file modification
  * wasn't successful.
@@ -182,6 +186,21 @@ std::string backup_history::file_backup_as_temporary_s(const std::string_view& s
    }
                                                                                  assert( false );
    return "";
+}
+
+/*----------------------------------------------------------------------------- file_backup_as_temporary_s */ /**
+ * clone file to temporary file as backup.
+ * \param stringFileName unicode file name copied to as temporary file
+ * \return std::string name for clone
+ */
+std::string backup_history::file_backup_as_temporary_s(const std::wstring_view& stringFileName)
+{
+   std::string stingBackupName;
+   auto uLength = stringFileName.length() + 1;
+   stingBackupName.resize(stringFileName.length() + 1);
+   auto [pwszUnicodeEnd, pbszAsciiEnd] = gd::utf8::convert_unicode_to_ascii(stringFileName.data(), stingBackupName.data(), stingBackupName.data() + uLength);
+   stingBackupName.resize( pbszAsciiEnd - stingBackupName.c_str() );
+   return file_backup_as_temporary_s(stingBackupName);
 }
 
 /*----------------------------------------------------------------------------- file_delete_backup */ /**
@@ -372,6 +391,51 @@ std::string backup_history::datetime_now_s()
    strftime(pbszTime, sizeof(pbszTime), "%FT%TZ", gmtime(&uCurrentTime));        // format date and time as text
 
    return pbszTime;
+}
+
+/*----------------------------------------------------------------------------- file_stash_log_s */ /**
+ * update history containing backup files
+ * \param stringHistoryFileName name of history file where time and filenames are found
+ * \param stringLogFileName active log file that is stashed
+ * \param stringBackupName name for stashed log files
+ * \param uCount max number of files in history
+ * \return std::pair<bool, std::string>
+ */
+std::pair<bool, std::string> backup_history::file_stash_log_s(const std::string_view& stringHistoryFileName, const std::string_view& stringLogFileName, const std::string_view& stringBackupName, unsigned uCount)
+{
+   if( uCount == 0 ) uCount = 20;
+
+   int iMaxIndex = 1;
+   std::string stringBackupHistory; // keep backup name for history file if there is one
+
+   // ## read history file containing date and backed up log files
+   auto vectorHistory = file_read_date_name_s(stringHistoryFileName);            // read history information
+   if( vectorHistory.empty() == false )
+   {
+      iMaxIndex = gd::file::rotate::backup_history::find_max_index(vectorHistory); // find max index
+      iMaxIndex += 1;                                                            // add one to new backup name for log file
+
+      stringBackupHistory = file_backup_as_temporary_s(stringHistoryFileName);   // backup history file
+   }
+
+   // backup log file to file with generated name based on parameters sent to `file_backup_log_s`
+   auto [bOk, stringBackupTo] = file_backup_log_s(stringLogFileName, stringBackupName, iMaxIndex, eOptionIndex | eOptionExtension | eOptionCopy);
+
+   std::string stringDateTime = gd::file::rotate::backup_history::datetime_now_s(); // get current time
+   vectorHistory.push_back({ stringDateTime, stringBackupTo });                  // adds date and filename to vector
+
+   // ## sort on time, latest time is placed first and oldest last
+   std::sort(std::begin(vectorHistory), std::end(vectorHistory), [](const std::pair< std::string, std::string>& v1, const std::pair< std::string, std::string>& v2) {
+      return v1.first > v2.first;
+   });
+
+   file_delete_backup_s(vectorHistory, uCount);                                  // delete entries from vector (and files)
+
+   file_write_date_name_s(stringHistoryFileName, vectorHistory, false);          // update history file
+
+   if( stringBackupHistory.empty() == false ) file_delete_backup_s(stringBackupHistory); // delete backup
+
+   return { true, "" };
 }
 
 _GD_FILE_ROTATE_END

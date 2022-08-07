@@ -268,7 +268,7 @@ std::pair<int, std::string> printer_file::file_open_s(const std::wstring_view& s
 #  endif
 
    if( iFileHandle < 0 )
-   {                                                                             assert( false );
+   {                                                                             // assert( false );
       std::string stringError("FILE OPEN ERROR: ");
       stringError += std::strerror(errno);
       return { iFileHandle, stringError };
@@ -326,5 +326,11 @@ void printer_file::file_close_s(int iFileHandle)
    ::_close( iFileHandle );
 }
 
+std::pair<bool, std::string> printer_file::file_backup_s(const std::string_view& stringFileName, const std::string_view& stringFormat, int iRotateCount)
+{
+
+
+   return { true, "" };
+}
 
 _GD_LOG_LOGGER_END
