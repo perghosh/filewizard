@@ -378,6 +378,7 @@ public:
       case variant_type::enumTypeNumber::eTypeNumberUInt64: return "uint64";
       case variant_type::enumTypeNumber::eTypeNumberFloat: return "float";
       case variant_type::enumTypeNumber::eTypeNumberDouble: return "double";
+      case variant_type::enumTypeNumber::eTypeNumberPointer: return "pointer";
       case variant_type::enumTypeNumber::eTypeNumberGuid:  return "guid";
       case variant_type::enumTypeNumber::eTypeNumberBinary:  return "binary";
       case variant_type::enumTypeNumber::eTypeNumberUtf8String: return "utf8";

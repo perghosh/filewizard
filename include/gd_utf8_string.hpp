@@ -10,11 +10,12 @@
 #include "gd_utf8.hpp"
 
 // LOOK: https://github.com/Maultasche/UtfString/blob/master/src/Utf8String.cpp
+// LOOK: https://unicode.org/faq/utf_bom.html
 
 #ifdef DEBUG
 #define DEBUG_ONLY(x) x
 #else
-   DEBUG_ONLY(x) (void)0
+#define DEBUG_ONLY(x) (void)0
 #endif
 
 namespace gd::utf8 { 
@@ -67,7 +68,7 @@ class string
 {
 public:
    enum enumBufferStorage {
-      eBufferStorageReferenceCount   = 0x01,
+      eBufferStorageReferenceCount   = 0x01,   // normal string, it is reference counted and it owns memory and should free memory when destruct
       eBufferStorageStack            = 0x02,   // string data is on stack, do not delete
       eBufferStorageSingle           = 0x04,   // string data is not reference counted
       eBufferStorageEmptyReference   = 0x0100,
@@ -432,7 +433,7 @@ public:
    [[nodiscard]] const_iterator find( value_type ch, const_iterator itFrom ) const;
 
    [[nodiscard]] const_iterator find( const_pointer pbszText, uint32_t uLength ) const;
-   [[nodiscard]] const_iterator find( const_pointer pbszFind, std::size_t uLength ) const { return find( pbszFind, static_cast<uint32_t>( uLength ) ); }
+   [[nodiscard]] const_iterator find( const_pointer pbszFind, uint64_t uLength ) const { return find( pbszFind, static_cast<uint32_t>( uLength ) ); }
    [[nodiscard]] const_iterator find( const_pointer pbszFind ) const { return find( pbszFind, std::strlen( reinterpret_cast<const char *>(pbszFind) ) );  }
 
    [[nodiscard]] const_iterator find( std::string_view stringFind ) const;

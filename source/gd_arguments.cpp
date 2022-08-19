@@ -474,18 +474,16 @@ std::string arguments::argument::get_string() const
          if( m_unionValue.b == true ) pbsz[0] = '1';
          break;
       case arguments::eTypeNumberInt8:
-         pbsz[0] = m_unionValue.ch;
-         pbsz[1] = '\0';
+         sprintf(pbsz, "%d", (int)m_unionValue.v_int8);
          break;
       case arguments::eTypeNumberUInt8:
-         sprintf(pbsz, "%u", (unsigned int)m_unionValue.uch);
+         sprintf(pbsz, "%u", (unsigned int)m_unionValue.v_uint8);
          break;
       case arguments::eTypeNumberInt16:
-         sprintf(pbsz, "%d", (short)m_unionValue.s);
+         sprintf(pbsz, "%d", (int)m_unionValue.v_int16);
          break;
       case arguments::eTypeNumberUInt16:
-         pbsz[0] = (char)m_unionValue.wch;
-         pbsz[1] = '\0';
+         sprintf(pbsz, "%u", (unsigned int)m_unionValue.v_uint16);
          break;
       case arguments::eTypeNumberInt32:
          sprintf(pbsz, "%d", (int)m_unionValue.v_int32);
@@ -679,7 +677,7 @@ arguments& arguments::operator=(std::initializer_list<std::pair<std::string_view
  * \return binary& reference to binary object
  */
 arguments& arguments::append( param_type uType, const_pointer pBuffer, unsigned int uLength)
-{
+{                                                                                assert( (uLength > 0 && pBuffer != nullptr) || (uLength == 0 && pBuffer == nullptr) );
    reserve(m_uLength + uLength + sizeof(param_type) + sizeof(uint32_t));
    m_pBuffer[m_uLength] = uType;
    m_uLength++;

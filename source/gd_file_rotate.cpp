@@ -251,7 +251,6 @@ int backup_history::find_max_index(const std::vector< std::pair< std::string, st
          while( pbszDigit != pbszBegin && std::isdigit(*pbszDigit) != 0 ) { pbszDigit--; }
          pbszDigit++;
 
-         std::string_view stringNumber(pbszBegin + 1, pbszDigitEnd);
          auto iIndex = std::atoi(pbszDigit);
          return iIndex;
       }
@@ -421,8 +420,11 @@ std::pair<bool, std::string> backup_history::file_stash_log_s(const std::string_
    // backup log file to file with generated name based on parameters sent to `file_backup_log_s`
    auto [bOk, stringBackupTo] = file_backup_log_s(stringLogFileName, stringBackupName, iMaxIndex, eOptionIndex | eOptionExtension | eOptionCopy);
 
-   std::string stringDateTime = gd::file::rotate::backup_history::datetime_now_s(); // get current time
-   vectorHistory.push_back({ stringDateTime, stringBackupTo });                  // adds date and filename to vector
+   if( bOk == true )
+   {
+      std::string stringDateTime = gd::file::rotate::backup_history::datetime_now_s(); // get current time
+      vectorHistory.push_back({ stringDateTime, stringBackupTo });               // adds date and filename to vector
+   }
 
    // ## sort on time, latest time is placed first and oldest last
    std::sort(std::begin(vectorHistory), std::end(vectorHistory), [](const std::pair< std::string, std::string>& v1, const std::pair< std::string, std::string>& v2) {

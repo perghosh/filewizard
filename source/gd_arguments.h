@@ -322,12 +322,12 @@ public:
       bool         is_string() const { return (m_eType == arguments::eTypeString); }
       bool         is_wstring() const { return (m_eType == arguments::eTypeWString); }
       bool         is_true() const;
-      bool         is_primitive() const { return (type_number() > arguments::eTypeNumberUnknown && type_number() < eTypeNumberDouble); } ///< primitive = built in types in C++
-      bool         is_text() const { return (m_eType >= arguments::eTypeString && m_eType <= eTypeWString); } ///< text = some sort of string value, ascii, utf8 or unicode
+      bool         is_primitive() const { return (type_number() > arguments::eTypeNumberUnknown && type_number() <= eTypeNumberDouble); } ///< primitive = built in types in C++
+      bool         is_text() const { return (m_eType & arguments::eGroupString) != 0;  } ///< text = some sort of string value, ascii, utf8 or unicode
       bool         is_binary() const { return m_eType == arguments::eTypeBinary; } ///< binary = blob data, length is unknown if used in argument (work with this in arguments)
-      bool         is_number() const { return (m_eType >= arguments::eTypeInt32 && m_eType <= arguments::eTypeDouble); }
-      bool         is_decimal() const { return (m_eType >= arguments::eTypeFloat && m_eType <= arguments::eTypeDouble); }
-      bool         is_integer() const { return (m_eType >= arguments::eTypeInt32 && m_eType <= arguments::eTypeUInt64); }
+      bool         is_number() const { return (m_eType & (arguments::eGroupInteger|arguments::eGroupDecimal)) != 0; }
+      bool         is_decimal() const { return (m_eType & arguments::eGroupDecimal) != 0; }
+      bool         is_integer() const { return (m_eType & arguments::eGroupInteger) != 0; }
 
       void*        get_raw_pointer() const { return m_unionValue.p; }            ///< return raw pointer to value
       void*        get_value_buffer() const { return (void*)&m_unionValue; }     ///< return address pointer to value
@@ -545,6 +545,12 @@ public:
 /** \name OPERATION
 *///@{
 
+   // ## append adds values to stream
+   //    note: remember that each value has its type and type in stream is just
+   //    one byte. That means that the amount of information about the type is
+   //    limited. This is the reason why each type only has it's type number.
+
+   arguments& append(std::nullptr_t) { return append(eTypeNumberUnknown, nullptr, 0); }
    arguments& append(int8_t v) { return append(eTypeNumberInt8, (const_pointer)&v, sizeof(int8_t)); }
    arguments& append(uint8_t v) { return append(eTypeNumberUInt8, (const_pointer)&v, sizeof(uint8_t)); }
    arguments& append(int16_t v) { return append(eTypeNumberInt16, (const_pointer)&v, sizeof(int16_t)); }
@@ -557,6 +563,7 @@ public:
    arguments& append(std::wstring_view v) { return append((eTypeNumberWString | eValueLength), (const_pointer)v.data(), ((unsigned int)v.length() + 1) * sizeof(wchar_t)); }
    arguments& append(param_type uType, const_pointer pBuffer, unsigned int uLength);
 
+   arguments& append(std::string_view stringName, std::nullptr_t) { return append(stringName, eTypeNumberUnknown, nullptr, 0); }
    arguments& append(std::string_view stringName, int8_t v) { return append(stringName, eTypeNumberInt8, (const_pointer)&v, sizeof(int8_t)); }
    arguments& append(std::string_view stringName, uint8_t v) { return append(stringName, eTypeNumberUInt8, (const_pointer)&v, sizeof(uint8_t)); }
    arguments& append(std::string_view stringName, int16_t v) { return append(stringName, eTypeNumberInt16, (const_pointer)&v, sizeof(int16_t)); }
@@ -604,6 +611,10 @@ public:
    arguments& append_uuid( const uint8_t* puData ) { return append(eTypeNumberGuid, puData, 16); }
    arguments& append_uuid(std::string_view stringName, const uint8_t* puData ) { return append(stringName, eTypeNumberGuid, puData, 16); }
 
+   arguments& set(std::string_view stringName, std::nullptr_t) { return set(stringName, eTypeNumberBool, nullptr, 0); }
+   arguments& set(std::string_view stringName, bool v) { return set(stringName, eTypeNumberBool, (const_pointer)&v, sizeof(bool)); }
+   arguments& set(std::string_view stringName, int8_t v) { return set(stringName, eTypeNumberInt8, (const_pointer)&v, sizeof(int8_t)); }
+   arguments& set(std::string_view stringName, uint8_t v) { return set(stringName, eTypeNumberUInt8, (const_pointer)&v, sizeof(uint8_t)); }
    arguments& set(std::string_view stringName, int16_t v) { return set(stringName, eTypeNumberInt16, (const_pointer)&v, sizeof(int16_t)); }
    arguments& set(std::string_view stringName, uint16_t v) { return set(stringName, eTypeNumberUInt16, (const_pointer)&v, sizeof(uint16_t)); }
    arguments& set(std::string_view stringName, int32_t v) { return set(stringName, eTypeNumberInt32, (const_pointer)&v, sizeof(int32_t)); }
@@ -665,10 +676,18 @@ public:
    /// find param value for name and start from position to search
    [[nodiscard]] argument find_argument(std::string_view stringName, const_pointer pPosition) const;
 
+//@}
+
+/** \name COMPARE
+* compare functionality, checks if values in arguments are equal
+*///@{
    [[nodiscard]] bool compare(const std::pair<std::string_view, gd::variant_view>& pairMatch) const { return find(pairMatch) != nullptr; }
    [[nodiscard]] bool compare(const std::string_view stringName, const arguments& argumentsCompareTo) const;
 //@}
 
+/** \name MOVE
+* move operations used to move between values, can't go back. only forward
+*///@{
    [[nodiscard]] pointer next() { return m_uLength > 0 ? m_pBuffer : nullptr; }
    [[nodiscard]] const_pointer next() const { return m_uLength > 0 ? m_pBuffer : nullptr; }
    [[nodiscard]] pointer next(pointer pPosition) {                               assert( verify_d(pPosition) );
@@ -679,8 +698,13 @@ public:
       auto p = next_s(pPosition);
       return p < get_buffer_end() ? p : nullptr;
    }
+//@}
+
    [[nodiscard]] size_t size() const;
 
+/** \name ARGUMENT
+* get argument value from arguments
+*///@{
    [[nodiscard]] argument get_argument() const { return get_argument_s(m_pBuffer); }
    [[nodiscard]] argument get_argument(const_pointer pPosition) const {                assert( verify_d(pPosition) );
       return get_argument_s(m_pBuffer); 
@@ -694,12 +718,11 @@ public:
       if( v.is_null() ) return defaultValue;
       return static_cast<DEFAULT>(v);
    }
-   [[nodiscard]] std::string get_argument(std::string_view stringName, const std::string& defaultValue) const {
+   [[nodiscard]] std::string get_argument(std::string_view stringName, const std::string& stringDefault) const {
       argument  v = find_argument(stringName);
-      if( v.is_null() ) return defaultValue;
+      if( v.is_null() ) return stringDefault;
       return v.get_string();
    }
-
 
    /**
     * Try to get value for param name, if not found then insert `vInsert` into params 
@@ -719,6 +742,7 @@ public:
 
    /// return all values for name
    [[nodiscard]] std::vector<argument> get_argument_all(std::string_view stringName) { return get_argument_all_s(get_buffer_start(), get_buffer_end(), stringName); }
+//@}
 
 /** \name PRINT
 * Methods used to format argument values into text
@@ -830,22 +854,26 @@ public:
    }
 
    /// ## Append arguments
+
+   /// append pair to arguments
    static void append_argument_s(arguments& arguments, const std::pair<std::string_view, gd::variant>& pairArgument) {
       arguments.append_argument(pairArgument);
    }
 
-   //static void append_argument_s(arguments& arguments, const std::pair<std::string_view, gd::variant>& pairArgument) { arguments.append_argument(pairArgument); }
+   /// append multiple pairs
    template<typename First, typename... Argument>
    static void append_argument_s(arguments& rArguments, const First& pairArgument, Argument... pairNext) { 
       rArguments.append_argument(pairArgument); 
       append_argument_s(rArguments, pairNext...);
    }
 
+   /// append pairs using initializer list
    static void append_argument_s( arguments& rArguments, std::initializer_list<std::pair<std::string_view, gd::variant>> listPair ) {
       for( auto it : listPair ) rArguments.append_argument(it);
    }
 
    /// ## Create arguments object
+   /// 
    /// Create arguments object from pair
    static arguments create_s(const std::pair<std::string_view, gd::variant>& pairArgument) {
       arguments A;
@@ -875,6 +903,8 @@ public:
    constexpr static unsigned int type_s(unsigned int uType) { return uType & ~eType_MASK; } // only type (no size)
    constexpr static unsigned int ctype_s(unsigned int uType) { return uType & ~eCType_MASK; } // last byte (type and size)
    constexpr static unsigned int type_number_s(unsigned int uType) { return uType & ~eTypeNumber_MASK; }
+   constexpr static std::string_view type_name_s(uint32_t uType);
+   
 
    /// count zero terminator length in bytes if type is some sort of string
    constexpr static unsigned int get_string_zero_terminate_length_s(unsigned int uType) { 
@@ -918,6 +948,17 @@ public:
 // ================================================================================= arguments_return
 // ================================================================================================
 
+/**
+ * \brief simplifies using type deduction to return value as a pair
+ *
+ * arguments_return is just to simplify how to write code returning values.
+ * constructing `arguments` needs two "{{ }}" and ´arguments_return´ only needs one like {}
+ *
+ \code
+ // sample on how to return
+ return { "return", true }
+ \endcode
+ */
 class arguments_return : public arguments
 {
 public:
@@ -942,7 +983,7 @@ inline arguments::argument arguments::find_argument(std::string_view stringName,
 }
 
 /// compare if value is equal for specified name
-/// comparing text is faster with this internal compare method because you no object is created on heap holding argument value
+/// comparing text is faster with this internal compare method because no object is created on heap holding argument value
 inline bool arguments::compare(const std::string_view stringName, const arguments& argumentsCompareTo) const {
    const argument argumentCompare = get_argument(stringName);
    if( argumentCompare.is_null() ) return false;
@@ -950,5 +991,39 @@ inline bool arguments::compare(const std::string_view stringName, const argument
    return compare_argument_s(argumentCompare, argumentCompareTo);
 }
 
+// ================================================================================================
+// ================================================================================= FREE FUNCTIONS
+// ================================================================================================
 
-_GD_ARGUMENT_END // namespace _GD_PARAM_BEGIN
+
+constexpr std::string_view arguments::type_name_s(uint32_t uType)
+{
+   const auto uNumberType = uType &  ~arguments::eTypeNumber_MASK;
+   switch( uNumberType )
+   {
+   case arguments::eTypeNumberUnknown     : return "unknown";
+   case arguments::eTypeNumberBool        : return "bool";
+   case arguments::eTypeNumberInt8        : return "int8";
+   case arguments::eTypeNumberUInt8       : return "uint8";
+   case arguments::eTypeNumberInt16       : return "int16";
+   case arguments::eTypeNumberUInt16      : return "uint16";
+   case arguments::eTypeNumberInt32       : return "int32";
+   case arguments::eTypeNumberUInt32      : return "uint32";
+   case arguments::eTypeNumberInt64       : return "int64";
+   case arguments::eTypeNumberUInt64      : return "uint64";
+   case arguments::eTypeNumberFloat       : return "float";
+   case arguments::eTypeNumberDouble      : return "double";
+   case arguments::eTypeNumberPointer     : return "pointer";
+   case arguments::eTypeNumberGuid        : return "guid";
+   case arguments::eTypeNumberString      : return "ascii";
+   case arguments::eTypeNumberUtf8String  : return "utf8";
+   case arguments::eTypeNumberWString     : return "unicode";
+   case arguments::eTypeNumberUtf32String : return "utf32";
+   case arguments::eTypeNumberBinary      : return "binary";
+   default:                                                                      assert(false);
+      return "ERROR";
+   }
+}
+
+
+_GD_ARGUMENT_END

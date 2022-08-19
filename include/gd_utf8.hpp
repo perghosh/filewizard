@@ -11,7 +11,7 @@
 */
 
 #pragma once
-
+#include <cassert>
 #include <stdint.h>
 #include <string>
 #include <string_view>
@@ -63,17 +63,18 @@ namespace gd {
       // ## is* methods
 
       /// check if size value is any `npos` value returned from string search methods that returns position or `npos` if not found
-      template<typename SIZE>
-      bool is_npos(const SIZE uSize) {
-         if constexpr( sizeof(uSize) == sizeof(uint32_t) ) return static_cast<int32_t>(uSize) < 0;
-         else if constexpr( sizeof(uSize) == sizeof(uint64_t) ) return static_cast<int64_t>(uSize) < 0;
-         else static_assert(false, "invalid size type compare to npos");
+      template<typename POSITION>
+      bool is_npos(const POSITION uPosition) {
+         if constexpr( sizeof(POSITION) == sizeof(uint32_t) ) return static_cast<int32_t>(uPosition) < 0;
+         else if constexpr( sizeof(POSITION) == sizeof(uint64_t) ) return static_cast<int64_t>(uPosition) < 0;
+         //else static_assert(false, "invalid size type compare to npos");
+         assert(false);
          return false;
       }
 
-      template<typename SIZE>
-      bool is_found(const SIZE uSize) {
-         return !is_npos( uSize );
+      template<typename POSITION>
+      bool is_found(const POSITION uPosition) {
+         return !is_npos(uPosition);
       }
 
       // ## `count` methods is used to count number of characters (`strlen` are wrappers)
