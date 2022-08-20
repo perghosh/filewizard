@@ -211,10 +211,10 @@ namespace gd {
 
       // ## convert number to text
 
-      char* itoa( int32_t uCharacter, uint8_t* pbszTo );
-      char* utoa( uint32_t uCharacter, uint8_t* pbszTo );
-      char* itoa( int64_t uCharacter, uint8_t* pbszTo );
-      char* utoa( uint64_t uCharacter, uint8_t* pbszTo );
+      uint8_t* itoa( int32_t iNumber, uint8_t* pbszTo );
+      uint8_t* utoa( uint32_t uNumber, uint8_t* pbszTo );
+      uint8_t* itoa( int64_t iNumber, uint8_t* pbszTo );
+      uint8_t* utoa( uint64_t uNumber, uint8_t* pbszTo );
 
 
       std::intptr_t distance(const uint8_t* p1, const uint8_t* p2);

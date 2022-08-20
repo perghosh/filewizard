@@ -239,8 +239,8 @@ public:
 /** \name OPERATION
 *///@{
    /// Get type variant holds, last two bytes holds static type information
-   uint32_t type() const throw() { return m_uType; }
-   uint32_t type_number() const throw() { return (m_uType & eTYPE); }
+   uint32_t type() const noexcept { return m_uType; }
+   uint32_t type_number() const noexcept { return (m_uType & eTYPE); }
    std::string_view type_name() { return variant::get_type_name_s(m_uType); }
    constexpr std::string_view type_name() const { return variant::get_type_name_s(m_uType); }
    variant_type::enumTypeNumber get_type_number() const throw() { return variant_type::enumTypeNumber(m_uType & variant_type::enumFilter::eFilterTypeNumber); }

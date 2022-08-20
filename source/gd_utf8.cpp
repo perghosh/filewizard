@@ -500,9 +500,9 @@ namespace gd {
        * Numbers are placed in buffer as text
        * @param iNumber integer number converted to text
        * @param pbszTo buffer that gets text, make sure it is big enough
-       * @return char* pointer to last position (the `\0`character)
+       * @return uint8_t* pointer to last position (the `\0`character)
        */
-      char* itoa( int32_t iNumber, uint8_t* pbszTo )
+      uint8_t* itoa( int32_t iNumber, uint8_t* pbszTo )
       {
          uint32_t uNumber = static_cast<uint32_t>(iNumber);
          if(iNumber < 0) 
@@ -518,14 +518,14 @@ namespace gd {
        * Numbers are placed in buffer as text
        * @param uNumber unsigned integer number converted to text
        * @param pbszTo buffer that gets text, make sure it is big enough
-       * @return char* pointer to last position (the `\0`character)
+       * @return uint8_t* pointer to last position (the `\0`character)
        */
-      char* utoa( uint32_t uNumber, uint8_t* pbszTo )
+      uint8_t* utoa( uint32_t uNumber, uint8_t* pbszTo )
       {
          uint8_t pbBuffer[10]; // buffer used to set values in reverse order
          uint8_t* pu = pbBuffer;
 
-         while(uNumber > 100)
+         while(uNumber >= 100)
          {
             const unsigned u = (uNumber % 100) << 1;
             uNumber /= 100;
@@ -533,7 +533,7 @@ namespace gd {
             *pu++ = puDigits_s[u];
          }
 
-         if(uNumber < 10) *p++ = uint8_t(uNumber) + '0';
+         if(uNumber < 10) *pu++ = uint8_t(uNumber) + '0';
          else 
          {
             const unsigned u = uNumber << 1;
@@ -541,7 +541,7 @@ namespace gd {
             *pu++ = puDigits_s[u];
          }
                                                                          
-         do { *pbBuffer++ = *--pu; } while(p != pbBuffer);                    // compy buffer in reverse order
+         do { *pbszTo++ = *--pu; } while(pu != pbBuffer);                   // compy buffer in reverse order
 
          *pbszTo = '\0';
          return pbszTo;
@@ -552,9 +552,9 @@ namespace gd {
        * Numbers are placed in buffer as text
        * @param uCharacter integer number converted to text
        * @param pbszTo buffer that gets text, make sure it is big enough
-       * @return char* pointer to last position (the `\0`character)
+       * @return uint8_t* pointer to last position (the `\0`character)
        */
-      char* itoa( int64_t iNumber, uint8_t* pbszTo )
+      uint8_t* itoa( int64_t iNumber, uint8_t* pbszTo )
       {
          uint64_t uNumber = static_cast<uint64_t>(iNumber);
          if(iNumber < 0) 
@@ -570,13 +570,13 @@ namespace gd {
        * Numbers are placed in buffer as text
        * @param uCharacter 
        * @param pbszTo buffer that gets text, make sure it is big enough
-       * @return char* pointer to last position (the `\0`character)
+       * @return uint8_t* pointer to last position (the `\0`character)
        */
-      char* utoa( uint64_t uNumber, uint8_t* pbszTo ) 
+      uint8_t* utoa( uint64_t uNumber, uint8_t* pbszTo ) 
       {
          uint8_t pbBuffer[20]; // buffer used to set values in reverse order
          uint8_t* pu = pbBuffer;
-         while(uNumber > 100)
+         while(uNumber >= 100)
          {
             const unsigned u = (uNumber % 100) << 1;
             uNumber /= 100;
@@ -584,15 +584,15 @@ namespace gd {
             *pu++ = puDigits_s[u];
          }
 
-         if(uNumber < 10) *p++ = uint8_t(uNumber) + '0';
+         if(uNumber < 10) *pu++ = uint8_t(uNumber) + '0';
          else 
          {
-            const unsigned u = uNumber << 1;
+            const uint32_t u = (uint32_t)uNumber << 1;
             *pu++ = puDigits_s[u + 1];
             *pu++ = puDigits_s[u];
          }
                                                                          
-         do { *pbBuffer++ = *--pu; } while(p != pbBuffer);                    // compy buffer in reverse order
+         do { *pbszTo++ = *--pu; } while(pu != pbBuffer);                   // compy buffer in reverse order
 
          *pbszTo = '\0';
          return pbszTo;

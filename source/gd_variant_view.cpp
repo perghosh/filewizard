@@ -1,7 +1,7 @@
 #include "gd_utf8.hpp"
 #include "gd_variant_view.h"
 
-#pragma warning( disable : 26812 )
+#pragma warning( disable : 4996 26812 )
 
 
 #ifndef _GD_BEGIN
@@ -299,23 +299,23 @@ char* variant_view::get_string( char* pbszBuffer ) const
       pbszBuffer++;
       break;
    case eTypeNumberInt8        :
-      return gd::utf8::itoa( staic_cast<int32_t>(m_V.int8), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+      return (char*)gd::utf8::itoa( static_cast<int32_t>(m_V.int8), reinterpret_cast<uint8_t*>(pbszBuffer) );
    case eTypeNumberUInt8       : 
-      return gd::utf8::itoa( staic_cast<int32_t>(m_V.uint8), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+      return (char*)gd::utf8::utoa( static_cast<uint32_t>(m_V.uint8), reinterpret_cast<uint8_t*>(pbszBuffer) );
    case eTypeNumberInt16       : 
-      return gd::utf8::itoa( staic_cast<int32_t>(m_V.int16), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+      return (char*)gd::utf8::itoa( static_cast<int32_t>(m_V.int16), reinterpret_cast<uint8_t*>(pbszBuffer) );
    case eTypeNumberUInt16      : 
-      return gd::utf8::itoa( staic_cast<int32_t>(m_V.uint16), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+      return (char*)gd::utf8::utoa( static_cast<uint32_t>(m_V.uint16), reinterpret_cast<uint8_t*>(pbszBuffer) );
    case eTypeNumberInt32       : 
-      return gd::utf8::itoa( staic_cast<int32_t>(m_V.int32), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+      return (char*)gd::utf8::itoa( static_cast<int32_t>(m_V.int32), reinterpret_cast<uint8_t*>(pbszBuffer) );
    case eTypeNumberUInt32      : 
-      return gd::utf8::itoa( staic_cast<int32_t>(m_V.uint32), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+      return (char*)gd::utf8::utoa( static_cast<uint32_t>(m_V.uint32), reinterpret_cast<uint8_t*>(pbszBuffer) );
    case eTypeNumberInt64       : 
-      return gd::utf8::itoa( staic_cast<int64_t>(m_V.int64), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+      return (char*)gd::utf8::itoa( static_cast<int64_t>(m_V.int64), reinterpret_cast<uint8_t*>(pbszBuffer) );
    case eTypeNumberUInt64      : 
-      return gd::utf8::itoa( staic_cast<uint64_t>(m_V.int64), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+      return (char*)gd::utf8::utoa( static_cast<uint64_t>(m_V.uint64), reinterpret_cast<uint8_t*>(pbszBuffer) );
    case eTypeNumberFloat       : 
-      sprintf(pbszBuffer, "%f", staic_cast<double>(m_V.f));
+      sprintf(pbszBuffer, "%f", static_cast<double>(m_V.f));
       pbszBuffer += strlen( pbszBuffer );
       break;
    case eTypeNumberDouble      : 
@@ -338,7 +338,7 @@ char* variant_view::get_string( char* pbszBuffer ) const
       */
    case eTypeNumberUtf8String  : 
    case eTypeNumberString      : 
-      strcpy(pbszBuffer, m_V.pbsz, m_uSize);
+      strncpy(pbszBuffer, m_V.pbsz, m_uSize);
       pbszBuffer += m_uSize;
       break;
    case eTypeNumberWString     : 
