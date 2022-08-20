@@ -209,6 +209,14 @@ namespace gd {
       std::string convert_unicode_to_ascii( std::wstring_view stringUnicode );
 
 
+      // ## convert number to text
+
+      char* itoa( int32_t uCharacter, uint8_t* pbszTo );
+      char* utoa( uint32_t uCharacter, uint8_t* pbszTo );
+      char* itoa( int64_t uCharacter, uint8_t* pbszTo );
+      char* utoa( uint64_t uCharacter, uint8_t* pbszTo );
+
+
       std::intptr_t distance(const uint8_t* p1, const uint8_t* p2);
 
 

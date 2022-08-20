@@ -225,7 +225,11 @@ public:
    double get_double() const { return get_decimal(); };
    std::string get_string() const;
    std::wstring get_wstring() const;
-   //gd_std::_variant get__variant() const { return _variant( this ); }
+
+
+   // ## buffer methods, use this if you need speed, no heap allocations
+
+   char* get_string( char* pbszBuffer ) const;
 
 
    void set_void( void* p ) { clear(); m_uType = variant_type::eTypeVoid; m_uSize = 0; m_V.p = p; }
@@ -285,29 +289,6 @@ public:
    
    uint32_t length() const { return m_uSize; }
 
-//@}
-
-/** \name GROUP
-*///@{
-/*
-   bool is_number() const throw()   { return (m_uType & eColumnTypeGroupNumber   ? true : false); }
-   bool is_integer() const throw()  { return (m_uType & eColumnTypeGroupInteger  ? true : false); }
-   bool is_decimal() const throw()  { return (m_uType & eColumnTypeGroupDecimal  ? true : false); }
-   bool is_signed() const throw()   { return (m_uType & eColumnTypeGroupSigned   ? true : false); }
-   bool is_string() const throw()   { return (m_uType & eColumnTypeGroupString   ? true : false); }
-   bool is_date() const throw()     { return (m_uType & eColumnTypeGroupDate     ? true : false); }
-   bool is_binary() const throw()   { return (m_uType & eColumnTypeGroupBinary   ? true : false); }
-
-   bool is_08() const throw()       { return (m_uType & eColumnTypeGroup08       ? true : false); }
-   bool is_16() const throw()       { return (m_uType & eColumnTypeGroup16       ? true : false); }
-   bool is_32() const throw()       { return (m_uType & eColumnTypeGroup32       ? true : false); }
-   bool is_64() const throw()       { return (m_uType & eColumnTypeGroup64       ? true : false); }
-
-   bool is_ascii() const throw()    { return (m_uType & eColumnTypeGroupChar     ? true : false); }
-   bool is_unicode() const throw()  { return (m_uType & eColumnTypeGroupWChar    ? true : false); }
-
-   bool is_null() const throw()     { return (m_uType & eColumnTypeGroupNull     ? true : false); }
-   */
 //@}
 
 /** \name LOGICAL

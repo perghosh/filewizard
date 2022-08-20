@@ -481,6 +481,125 @@ namespace gd {
          return stringAscii;
       }
 
+      /// 
+      static const uint8_t puDigits_s[200] = {
+         '0','0','0','1','0','2','0','3','0','4','0','5','0','6','0','7','0','8','0','9',          // 000 - 019
+         '1','0','1','1','1','2','1','3','1','4','1','5','1','6','1','7','1','8','1','9',          // 020 - 039
+         '2','0','2','1','2','2','2','3','2','4','2','5','2','6','2','7','2','8','2','9',          // 040 - 059
+         '3','0','3','1','3','2','3','3','3','4','3','5','3','6','3','7','3','8','3','9',          // 060 - 079
+         '4','0','4','1','4','2','4','3','4','4','4','5','4','6','4','7','4','8','4','9',          // 080 - 099
+         '5','0','5','1','5','2','5','3','5','4','5','5','5','6','5','7','5','8','5','9',          // 100 - 119
+         '6','0','6','1','6','2','6','3','6','4','6','5','6','6','6','7','6','8','6','9',          // 120 - 139
+         '7','0','7','1','7','2','7','3','7','4','7','5','7','6','7','7','7','8','7','9',          // 140 - 159
+         '8','0','8','1','8','2','8','3','8','4','8','5','8','6','8','7','8','8','8','9',          // 160 - 179
+         '9','0','9','1','9','2','9','3','9','4','9','5','9','6','9','7','9','8','9','9'           // 180 - 199
+      };
+
+      /**
+       * @brief convert integer to text
+       * Numbers are placed in buffer as text
+       * @param iNumber integer number converted to text
+       * @param pbszTo buffer that gets text, make sure it is big enough
+       * @return char* pointer to last position (the `\0`character)
+       */
+      char* itoa( int32_t iNumber, uint8_t* pbszTo )
+      {
+         uint32_t uNumber = static_cast<uint32_t>(iNumber);
+         if(iNumber < 0) 
+         {
+            *pbszTo++ = '-';                                                  // add negative sign for text because value is below 0
+            uNumber = ~uNumber + 1;                                           // invert and set to proper value after -
+         }
+         return utoa( uNumber, pbszTo );                                      // convvert rest of number
+      }
+
+      /**
+       * @brief convert unsigned integer to text
+       * Numbers are placed in buffer as text
+       * @param uNumber unsigned integer number converted to text
+       * @param pbszTo buffer that gets text, make sure it is big enough
+       * @return char* pointer to last position (the `\0`character)
+       */
+      char* utoa( uint32_t uNumber, uint8_t* pbszTo )
+      {
+         uint8_t pbBuffer[10]; // buffer used to set values in reverse order
+         uint8_t* pu = pbBuffer;
+
+         while(uNumber > 100)
+         {
+            const unsigned u = (uNumber % 100) << 1;
+            uNumber /= 100;
+            *pu++ = puDigits_s[u + 1];
+            *pu++ = puDigits_s[u];
+         }
+
+         if(uNumber < 10) *p++ = uint8_t(uNumber) + '0';
+         else 
+         {
+            const unsigned u = uNumber << 1;
+            *pu++ = puDigits_s[u + 1];
+            *pu++ = puDigits_s[u];
+         }
+                                                                         
+         do { *pbBuffer++ = *--pu; } while(p != pbBuffer);                    // compy buffer in reverse order
+
+         *pbszTo = '\0';
+         return pbszTo;
+      }
+
+      /**
+       * @brief convert integer to text
+       * Numbers are placed in buffer as text
+       * @param uCharacter integer number converted to text
+       * @param pbszTo buffer that gets text, make sure it is big enough
+       * @return char* pointer to last position (the `\0`character)
+       */
+      char* itoa( int64_t iNumber, uint8_t* pbszTo )
+      {
+         uint64_t uNumber = static_cast<uint64_t>(iNumber);
+         if(iNumber < 0) 
+         {
+            *pbszTo++ = '-';                                                  // add negative sign for text because value is below 0
+            uNumber = ~uNumber + 1;                                           // invert and set to proper value after -
+         }
+         return utoa( uNumber, pbszTo );                                      // convvert rest of number
+      }
+
+      /**
+       * @brief convert unsigned integer 64 to text
+       * Numbers are placed in buffer as text
+       * @param uCharacter 
+       * @param pbszTo buffer that gets text, make sure it is big enough
+       * @return char* pointer to last position (the `\0`character)
+       */
+      char* utoa( uint64_t uNumber, uint8_t* pbszTo ) 
+      {
+         uint8_t pbBuffer[20]; // buffer used to set values in reverse order
+         uint8_t* pu = pbBuffer;
+         while(uNumber > 100)
+         {
+            const unsigned u = (uNumber % 100) << 1;
+            uNumber /= 100;
+            *pu++ = puDigits_s[u + 1];
+            *pu++ = puDigits_s[u];
+         }
+
+         if(uNumber < 10) *p++ = uint8_t(uNumber) + '0';
+         else 
+         {
+            const unsigned u = uNumber << 1;
+            *pu++ = puDigits_s[u + 1];
+            *pu++ = puDigits_s[u];
+         }
+                                                                         
+         do { *pbBuffer++ = *--pu; } while(p != pbBuffer);                    // compy buffer in reverse order
+
+         *pbszTo = '\0';
+         return pbszTo;
+      }
+
+
+
       uint8_t* copy_character(uint8_t* puCopyTo, const uint8_t* puCopyFrom)
       {                                                                       assert( pNeededByteCount[*puCopyFrom] != 0 );
          auto uCount = pNeededByteCount[*puCopyFrom];

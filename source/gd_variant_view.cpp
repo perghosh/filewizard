@@ -162,7 +162,6 @@ std::string variant_view::get_string() const
    switch( type_number() )
    {
    case eTypeNumberUnknown     : return std::string();
-   //case eTypeNumberBit         : return std::string( gd_std::string_buffer::c_type( m_V.int8 ).c_str() );
    case eTypeNumberBool        : return std::to_string( m_V.b );
    case eTypeNumberInt8        : return std::to_string( m_V.int8 );
    case eTypeNumberInt16       : return std::to_string( m_V.int16 );
@@ -204,7 +203,6 @@ std::string variant_view::get_string() const
    }
 
    return std::string();
-
 }
 
 /*
@@ -289,6 +287,77 @@ std::wstring variant_view::get_wstring() const
 
    return std::wstring();
 }
+
+char* variant_view::get_string( char* pbszBuffer ) const
+{
+   char* pbszStart = pbszBuffer;
+   switch( type_number() )
+   {
+   case eTypeNumberUnknown     : return pbszBuffer;
+   case eTypeNumberBool        :
+      *pbszBuffer = m_V.b == true ? '1' : '0'; 
+      pbszBuffer++;
+      break;
+   case eTypeNumberInt8        :
+      return gd::utf8::itoa( staic_cast<int32_t>(m_V.int8), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+   case eTypeNumberUInt8       : 
+      return gd::utf8::itoa( staic_cast<int32_t>(m_V.uint8), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+   case eTypeNumberInt16       : 
+      return gd::utf8::itoa( staic_cast<int32_t>(m_V.int16), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+   case eTypeNumberUInt16      : 
+      return gd::utf8::itoa( staic_cast<int32_t>(m_V.uint16), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+   case eTypeNumberInt32       : 
+      return gd::utf8::itoa( staic_cast<int32_t>(m_V.int32), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+   case eTypeNumberUInt32      : 
+      return gd::utf8::itoa( staic_cast<int32_t>(m_V.uint32), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+   case eTypeNumberInt64       : 
+      return gd::utf8::itoa( staic_cast<int64_t>(m_V.int64), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+   case eTypeNumberUInt64      : 
+      return gd::utf8::itoa( staic_cast<uint64_t>(m_V.int64), reinterpreat_cast<uint8_t*>(pbszBuffer) );
+   case eTypeNumberFloat       : 
+      sprintf(pbszBuffer, "%f", staic_cast<double>(m_V.f));
+      pbszBuffer += strlen( pbszBuffer );
+      break;
+   case eTypeNumberDouble      : 
+      sprintf(pbszBuffer, "%f", m_V.d);
+      pbszBuffer += strlen( pbszBuffer );
+      break;
+      /*
+   case eTypeNumberGuid        : 
+      {  assert( false );
+      gd_std::wstring s;
+      s.assign_hex( m_V.pb, m_uSize );
+      return s;
+      }
+   case eTypeNumberBinary      :
+      {
+         gd_std::wstring s;
+         s.assign_hex( m_V.pb, m_uSize );
+         return s;
+      }
+      */
+   case eTypeNumberUtf8String  : 
+   case eTypeNumberString      : 
+      strcpy(pbszBuffer, m_V.pbsz, m_uSize);
+      pbszBuffer += m_uSize;
+      break;
+   case eTypeNumberWString     : 
+   {
+      std::string s;
+      gd::utf8::convert_unicode_to_ascii( m_V.pwsz, pbszBuffer, pbszBuffer + m_uSize);
+      pbszBuffer += m_uSize;
+   }
+      /*
+   case eTypeNumberJson        : return gd_std::wstring( gd_std::string::utf8( m_V.pbsz ), m_uSize ); 
+   case eTypeNumberXml         : return gd_std::wstring( gd_std::string::utf8( m_V.pbsz ), m_uSize ); 
+      break;
+   */
+   }
+   
+   *pbszBuffer = '\0';
+   return pbszBuffer;
+}
+
 
 
 bool variant_view::is_true() const
