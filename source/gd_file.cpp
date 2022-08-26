@@ -1,3 +1,4 @@
+#include <iostream>
 #include <filesystem>
 
 #ifdef WIN32
@@ -7,6 +8,7 @@
 
 #endif
 
+#include <io.h>
 
 
 #include "gd_file.h"
@@ -128,6 +130,46 @@ std::pair<bool, std::string> closest_having_file_g(const std::string_view& strin
 
    return {false, std::string()};
 
+}
+
+std::pair<int, std::string> file_add_reference_g(const std::string_view& stringFileName)
+{
+   int iReference = 0;
+
+   /*
+   int iReference = 0;  // reference counter found in file
+   int iFileHandle = 0; // handle to file
+   char pbszBuffer[10]
+
+   if( std::filesystem::exists(stringFileName) == false )
+   {
+      //bOk = std::filesystem::create_directory(stringPath);
+#  if defined(_WIN32)
+      errno_t iError = ::_sopen_s(&iFileHandle, stringFileName.data(), _O_CREAT|_O_WRONLY|_O_BINARY|_O_NOINHERIT, _SH_DENYWR, _S_IREAD|_S_IWRITE);
+#     else
+      iFileHandle = ::open(stringFileName->data(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+#  endif
+   }
+   else
+   {
+#  if defined(_WIN32)
+      errno_t iError = ::_sopen_s(&iFileHandle, stringFileName.data(), _O_WRONLY|_O_BINARY|_O_NOINHERIT, _SH_DENYWR, _S_IREAD|_S_IWRITE);
+#     else
+      iFileHandle = ::open(stringFileName->data(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+#  endif
+
+      int iCount = ::_read(iFileHandle, pbszBuffer, 10);
+      auto pPosition = pbszBuffer;
+      auto pEnd = pbszBuffer + sizeof(pbszBuffer);
+      pPosition = gd::utf8::move::next_non_space(pPosition, pEnd);
+      iReference = atoi( pbszBuffer );
+   }
+
+   iReference++;
+
+   return { iReference, "" };
+   */
+   return { iReference, "" };
 }
 
 

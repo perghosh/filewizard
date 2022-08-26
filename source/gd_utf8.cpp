@@ -510,7 +510,7 @@ namespace gd {
             *pbszTo++ = '-';                                                  // add negative sign for text because value is below 0
             uNumber = ~uNumber + 1;                                           // invert and set to proper value after -
          }
-         return utoa( uNumber, pbszTo );                                      // convvert rest of number
+         return utoa( uNumber, pbszTo );                                      // convert number
       }
 
       /**
@@ -541,7 +541,7 @@ namespace gd {
             *pu++ = puDigits_s[u];
          }
                                                                          
-         do { *pbszTo++ = *--pu; } while(pu != pbBuffer);                   // compy buffer in reverse order
+         do { *pbszTo++ = *--pu; } while(pu != pbBuffer);                     // copy buffer in reverse order
 
          *pbszTo = '\0';
          return pbszTo;
@@ -562,7 +562,7 @@ namespace gd {
             *pbszTo++ = '-';                                                  // add negative sign for text because value is below 0
             uNumber = ~uNumber + 1;                                           // invert and set to proper value after -
          }
-         return utoa( uNumber, pbszTo );                                      // convvert rest of number
+         return utoa( uNumber, pbszTo );                                      // convert number
       }
 
       /**
@@ -592,14 +592,18 @@ namespace gd {
             *pu++ = puDigits_s[u];
          }
                                                                          
-         do { *pbszTo++ = *--pu; } while(pu != pbBuffer);                   // compy buffer in reverse order
+         do { *pbszTo++ = *--pu; } while(pu != pbBuffer);                     // copy buffer in reverse order
 
          *pbszTo = '\0';
          return pbszTo;
       }
 
-
-
+       /**
+       * @brief copy utf8 character into buffoer
+       * @param puCopyTo buffer getting character
+       * @param puCopyFrom buffer character is read from
+       * @return uint8_t* position in buffer character is copied to
+       */
       uint8_t* copy_character(uint8_t* puCopyTo, const uint8_t* puCopyFrom)
       {                                                                       assert( pNeededByteCount[*puCopyFrom] != 0 );
          auto uCount = pNeededByteCount[*puCopyFrom];
@@ -617,7 +621,7 @@ namespace gd {
        * @param p1 first position in utf8 stream
        * @param p2 second position in utf8 stream
        * @return distance in number of utf8 characters
-      */
+       */
       std::intptr_t distance(const uint8_t* p1, const uint8_t* p2)
       {
          std::intptr_t iCount = 0;
@@ -723,17 +727,33 @@ namespace gd {
           */
          const uint8_t* next_non_space(const uint8_t* pubszPosition)
          {
-            const uint8_t* pubzNext = pubszPosition;
+            const uint8_t* pubNext = pubszPosition;
             do
             {
-               pubszPosition = pubzNext;
+               pubszPosition = pubNext;
                if( *pubszPosition > CHARACTER_SPACE ) return pubszPosition;
-               pubzNext = next( pubszPosition );
-            } while( pubzNext != pubszPosition );
+               pubNext = next( pubszPosition );
+            } while( pubNext != pubszPosition );
 
-            return pubzNext;
+            return pubNext;
          }
 
+         /**
+          * @brief move pointer to next non space character
+          * @param pubPosition pointer to string where first non space is searched for
+          * @param pubEnd end pointer, stop search for non space if passing this
+          * @return {const uint8_t*} position to next position in text where non space is found or end of string
+          */
+         const uint8_t* next_non_space(const uint8_t* pubPosition, const uint8_t* pubEnd )
+         {
+            const uint8_t* pubNext = pubPosition;
+            while( pubPosition < pubEnd )
+            {
+               if( *pubPosition > CHARACTER_SPACE ) return pubPosition;
+               pubNext = next( pubPosition );
+            }
+            return pubPosition;
+         }
 
          /**
           * @brief Move to previous character in utf8 buffer
@@ -925,6 +945,8 @@ namespace gd {
 
    }
 } // gd
+
+
 
 
 

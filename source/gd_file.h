@@ -6,6 +6,8 @@
 #include <vector>
 #include <type_traits>
 
+#include <fcntl.h>
+
 #ifndef _GD_FILE_BEGIN
 
 #  define _GD_FILE_BEGIN namespace gd { namespace file {
@@ -23,7 +25,13 @@ std::pair<bool, std::wstring> get_known_folder_wpath_g(const std::string_view& s
 // ## `closest` are used to find nearest folder in the parent hierarchy
 
 std::pair<bool, std::string> closest_having_file_g(const std::string_view& stringPath, const std::string_view& stringFindFile);
-// extern std::pair<bool, std::string> closest_having_text_g(const std::string_view& stringPath, const std::string_view& stringFindFile, const std::string_view& stringFindText);
+
+// ## `file` operations
+
+// ### 
+
+std::pair<int, std::string> file_add_reference_g(const std::string_view& stringFindName);
+std::pair<int, std::string> file_release_reference_g(const std::string_view& stringFindName);
 
 
 

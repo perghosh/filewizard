@@ -138,7 +138,9 @@ auto plogger = get_s();            // default logger
 #include <cassert>
 #include <string>
 #include <string_view>
+#if __cplusplus >= 202002L
 #include <format>
+#endif
 #include <vector>
 #include <type_traits>
 #include <memory>
@@ -354,7 +356,7 @@ struct wstream
 // ================================================================================= format
 // ================================================================================================
 
-
+#if __cplusplus >= 202002L
 /*-----------------------------------------*/ /**
  * \brief implements std::format functionality to generate log text
  *
@@ -400,6 +402,7 @@ struct format
    public:
       std::unique_ptr<char> m_pbszText;
 };
+#endif
 
 /*-----------------------------------------*/ /**
  * \brief 
@@ -430,11 +433,20 @@ public:
 // ================================================================================================
 
 /**
- * \brief 
+ * \brief manage message sent to connected printers
  *
- *
+ * `message` is the meat in the logger framework. `message` is used to temporary
+ * pack text and then when packing is ready it is sent to printers connected in
+ * selected logger.
  *
  \code
+auto plogger = gd::log::get_s();
+plogger->append( std::make_unique<gd::log::printer_console>() );
+
+plogger->print(message().printf("%s", "testar och ser om detta går")); plogger->flush();
+plogger->print(message().printf("%s", __FILE__ ).printf("%s\n", __FILE__ ));
+plogger->print(message().printf("%s\n", __FUNCTION__ ));
+plogger->print(message().printf("%s\n", __FUNCSIG__ ));
  \endcode
  */
 class message 
@@ -490,7 +502,9 @@ public:
 #  endif
    message& operator<<(const stream& streamAppend) { return append(streamAppend); }
    message& operator<<(const wstream& streamAppend) { return append(streamAppend); }
+#if __cplusplus >= 202002L
    message& operator<<(const format& formatAppend) { return append(formatAppend); }
+#endif
    message& operator<<(const printf& printfAppend) { return append(printfAppend); }
    //message& operator<<(std::wostream& ) { return append(formatAppend); }
    template<typename APPEND>
@@ -572,7 +586,9 @@ public:
    message& append(const message& messageAppend);
    message& append(const stream& streamAppend);
    message& append(const wstream& streamAppend);
+#if __cplusplus >= 202002L
    message& append(const format& formatAppend);
+#endif
    message& append(const printf& printfAppend);
 
    message& printf( const char* pbszFormat, ... );
@@ -687,11 +703,13 @@ inline bool message::empty() const {
    return false;
 }
 
+#if __cplusplus >= 202002L
 /// append text from format object (format has logic for same as C++20 format in standard template library)
 inline message& message::append(const format& formatAppend) {
    m_pbszText.reset(new_s(m_pbszText.get(), std::string_view{ "  " }, (const char*)formatAppend, m_pbszText.release(), gd::utf8::utf8_tag{}));
    return *this;
 }
+#endif
 
 /// standard allocator for text messages, this will always allocate
 inline char* message::allocate_s(std::size_t uSize) {
@@ -703,10 +721,12 @@ inline char* message::allocate_s(std::size_t uSize) {
 /// standard allocator for text messages, this will only allocate if pointer is null or size is over defined start size
 inline char* message::allocate_s(std::size_t uSize, char* pbszCurrent) {
    uSize++;                                                                      // add one for zero terminator
+
+   // !!! If buffer is created but new needed buffer size is less than minimum buffer size, then no need to allocate again, just return same pointer
    if( pbszCurrent != nullptr && uSize < MESSAGE_BUFFER_START_SIZE ) return pbszCurrent;
+
    if( uSize < MESSAGE_BUFFER_START_SIZE) uSize = MESSAGE_BUFFER_START_SIZE;
    char* pbszNew = new char[uSize];
-   //delete[] pbszCurrent;
    return pbszNew;
 }
 
@@ -810,7 +830,7 @@ public:
 *///@{
    void append(std::unique_ptr<i_printer> pprinter) { m_vectorPrinter.push_back( std::move(pprinter) ); }
 
-   void print(const message& message) { print(message, true); }
+   void print(const message& message);
 
    virtual void print( const message& message, bool bFlush );
    virtual void print( std::initializer_list<message> listMessage );
@@ -879,6 +899,11 @@ template<int iLoggerKey, bool bThread>
 std::mutex logger<iLoggerKey, bThread>::m_mutex_s;
 
 #ifndef GD_LOG_DISABLE_ALL                                                       // GD_LOG_DISABLE_ALL {
+
+/// ----------------------------------------------------------------------------
+/// call print and flush after print is done
+template<int iLoggerKey, bool bThread>
+inline void logger<iLoggerKey,bThread>::print(const message& message) { print(message, true); }
 
 /// ----------------------------------------------------------------------------
 /// Sends message to all attached printers, 
@@ -972,7 +997,7 @@ void logger<iLoggerKey, bThread>::print_(const message& message)
 
       // ## if print returned false there we have one internal error in printer
       {
-         gd::log::message messageError;
+         gd::log::message messageError; // gets error information from printer
          (*it)->error(messageError);
          if( messageError.empty() == false ) error_push(messageError);
       }
@@ -983,8 +1008,12 @@ void logger<iLoggerKey, bThread>::print_(const message& message)
 
 
 #else
-template<int iLoggerKey>
-void logger<iLoggerKey,bThread>::print(const message& message)
+
+template<int iLoggerKey, bool bThread>
+inline void logger<iLoggerKey, bThread>::print(const message& message) {}
+
+template<int iLoggerKey, bool bThread>
+void logger<iLoggerKey, bThread>::print(const message& message, bool bFlush)
 {
 }
 
@@ -992,6 +1021,12 @@ template<int iLoggerKey, bool bThread>
 void logger<iLoggerKey, bThread>::print(std::initializer_list<message> listMessage)
 {
 }
+
+template<int iLoggerKey, bool bThread>
+void logger<iLoggerKey, bThread>::print_(const message& message)
+{
+}
+
 
 #endif                                                                           // } GD_LOG_DISABLE_ALL 
 
@@ -1105,7 +1140,7 @@ constexpr enumSeverity severity_get_number_g(const std::string_view& stringSever
    case 'I': return enumSeverity::eSeverityInformation;
    case 'D': return enumSeverity::eSeverityDebug;
    case 'V': return enumSeverity::eSeverityVerbose;
-   default:  return enumSeverity::eSeverityNone;
+   default: { return enumSeverity::eSeverityNone; }
    }
 }
 
@@ -1119,8 +1154,8 @@ constexpr enumSeverityGroup severity_get_group_g(const std::string_view& stringS
 {                                                                                assert(stringSeverity.empty() == false);
    // ## convert character to uppercase if lowercase is found
    constexpr uint8_t LOWER_A = 'a';
-   uint8_t uFirst = (uint8_t)stringSeverity[0];
-   if( uFirst >= LOWER_A ) uFirst -= 32;
+   uint8_t uFirst = (uint8_t)stringSeverity[0];                                  // only check first character
+   if( uFirst >= LOWER_A ) uFirst -= ('a' - 'A');                                // convert to lowercase subtracting to capital letter
 
    switch( uFirst )
    {

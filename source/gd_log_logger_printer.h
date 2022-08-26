@@ -29,9 +29,9 @@ extern std::mutex& printer_get_mutex_g();
 
 
 /**
- * \brief 
+ * \brief print to console
  *
- *
+ * prints information to console, if debug mode and windows this also prints to output
  *
  \code
  \endcode
