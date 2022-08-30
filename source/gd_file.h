@@ -8,6 +8,8 @@
 
 #include <fcntl.h>
 
+#include "gd_arguments.h"
+
 #ifndef _GD_FILE_BEGIN
 
 #  define _GD_FILE_BEGIN namespace gd { namespace file {
@@ -26,12 +28,17 @@ std::pair<bool, std::wstring> get_known_folder_wpath_g(const std::string_view& s
 
 std::pair<bool, std::string> closest_having_file_g(const std::string_view& stringPath, const std::string_view& stringFindFile);
 
+// ## files in folder
+
+std::vector<std::string> list_files(const std::string_view& stringFolder, const gd::argument::arguments& argumentsFilter);
+
 // ## `file` operations
 
 // ### 
 
 std::pair<int, std::string> file_add_reference_g(const std::string_view& stringFindName);
-std::pair<int, std::string> file_release_reference_g(const std::string_view& stringFindName);
+
+//std::pair<int, std::string> file_release_reference_g(const std::string_view& stringFindName);
 
 
 
