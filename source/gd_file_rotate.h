@@ -202,6 +202,7 @@ public:
 
    // ## time functionality
    static std::string datetime_now_s();
+   static std::string time_now_s();
 
    // ## helper methods
 

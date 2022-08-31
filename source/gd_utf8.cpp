@@ -481,6 +481,52 @@ namespace gd {
          return stringAscii;
       }
 
+
+      /**
+       * @brief convert ascii to unicode
+       * @param pszFrom pointer to ascii text that is converted to unicode
+       * @param pwszTo pointer to unicode buffer getting converted ascii text
+       * @param pwszEnd pointer to end of buffer 
+       * @return std::pair<const char*, const wchar_t*> pointer to end after last ascii character copied and end after last char getting unicode code
+      */
+      std::pair<const char*, const wchar_t*> convert_ascii_to_unicode(const char* pszFrom, wchar_t* pwszTo, const wchar_t* pwszEnd)
+      {
+         const char* pbszPosition = pszFrom;
+         wchar_t* pwszInsert = pwszTo;
+
+         while( pwszInsert < pwszEnd && *pbszPosition )
+         {
+            *pwszInsert = *pbszPosition;
+            pwszInsert++;
+            pbszPosition++;
+         }
+
+         if( pwszInsert < pwszEnd ) *pwszInsert = '\0';
+
+         return { pbszPosition, pwszInsert };
+      }
+
+
+      /**
+       * @brief convert ascii to unicode and return as string
+       * @param stringAscii ascii string to convert
+       * @return unicode string with converted ascii characters
+      */
+      std::wstring convert_ascii_to_unicode(std::string_view stringAscii)
+      {
+         std::wstring stringUnicode;
+         auto uLength = stringAscii.length() + 1;
+         stringUnicode.resize(stringAscii.length() + 1);
+         auto [pwszUnicodeEnd, pbszAsciiEnd] = gd::utf8::convert_ascii_to_unicode(stringAscii.data(), stringUnicode.data(), stringUnicode.data() + uLength);
+         stringUnicode.resize(pbszAsciiEnd - stringUnicode.c_str());
+         return stringUnicode;
+      }
+
+
+
+
+
+
       /// 
       static const uint8_t puDigits_s[200] = {
          '0','0','0','1','0','2','0','3','0','4','0','5','0','6','0','7','0','8','0','9',          // 000 - 019

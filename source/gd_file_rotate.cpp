@@ -392,6 +392,21 @@ std::string backup_history::datetime_now_s()
    return pbszTime;
 }
 
+/*----------------------------------------------------------------------------- time_now_s */ /**
+ * Generate time value in ISO 8601 format
+ * \return std::string current time in as text
+ */
+std::string backup_history::time_now_s()
+{
+   time_t uCurrentTime;                                                          // has current time
+   time(&uCurrentTime);                                                          // get current time
+   char pbszTime[sizeof "01:01:01"];                                             // buffer storing date and time value as text
+   strftime(pbszTime, sizeof(pbszTime), "%T", gmtime(&uCurrentTime));            // format date and time as text
+
+   return pbszTime;
+}
+
+
 /*----------------------------------------------------------------------------- file_stash_log_s */ /**
  * update history containing backup files
  * \param stringHistoryFileName name of history file where time and filenames are found

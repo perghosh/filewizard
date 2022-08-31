@@ -171,36 +171,7 @@ std::vector<std::string> list_files(const std::string_view& stringFolder, const 
          struct stat statFile;
          ::stat(pathFile.string().c_str(), &statFile);
 
-         if( statFile.st_ctime >= (timeNow - timeDifference) ) return false;
-
-         //std::filesystem::file_time_type FTT = std::filesystem::last_write_time(pathFile);
-
-         
-         //time_t timeFileWrite = std::chrono::system_clock::to_time_t( FTT.clock() );
-
-         //std::chrono::duration<double> durationDouble( dToDays );
-
-         //auto test_ = now_ - durationDouble;
-         
-         //auto x1 = std::chrono::duration_cast<std::chrono::days>(now_);
-         //auto x1 = std::chrono::duration<double>(now_);
-
-         /*
-         const auto now_ = std::chrono::steady_clock::now();
-         auto now_time_ = std::chrono::floor<std::chrono::days>(SCNow);
-         std::filesystem::file_time_type FTT = std::filesystem::last_write_time(pathFile);
-         auto file_time_ = std::chrono::floor<std::chrono::days>(FTT);
-
-         auto difference_ = std::chrono::days(iToDays);
-         auto x =(now_time_ - difference_);
-
-         // ## check if file time is behind current time minus days
-         //if( file_time_.co < 0 )
-         {
-
-         }
-         */
-         
+         if( statFile.st_mtime >= (timeNow - timeDifference) ) return false;
       }
       return true;
    };

@@ -208,6 +208,10 @@ namespace gd {
       std::pair<const wchar_t*, const char*> convert_unicode_to_ascii(const wchar_t* pwszFrom, char* pbszTo, const char* pbszEnd);
       std::string convert_unicode_to_ascii( std::wstring_view stringUnicode );
 
+      /// Converts ascii text to unicode
+      std::pair<const char*, const wchar_t*> convert_ascii_to_unicode(const char* pszFrom, wchar_t* pwszTo, const wchar_t* pwszEnd);
+      std::wstring convert_ascii_to_unicode(std::string_view stringAscii);
+
 
       // ## convert number to text
 
