@@ -1,3 +1,12 @@
+
+/**
+ * \file gd_file.h
+ * 
+ * \brief Miscellaneous file operations 
+ * 
+ */
+
+
 #pragma once
 
 #include <cassert>

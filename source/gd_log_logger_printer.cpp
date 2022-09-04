@@ -326,11 +326,4 @@ void printer_file::file_close_s(int iFileHandle)
    ::_close( iFileHandle );
 }
 
-std::pair<bool, std::string> printer_file::file_backup_s(const std::string_view& stringFileName, const std::string_view& stringFormat, int iRotateCount)
-{
-
-
-   return { true, "" };
-}
-
 _GD_LOG_LOGGER_END

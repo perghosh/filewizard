@@ -138,6 +138,12 @@ std::pair<bool, std::string> closest_having_file_g(const std::string_view& strin
 
 /*----------------------------------------------------------------------------- dir */ /**
  * List files in specified folder
+ * 
+~~~{.cpp}
+// list files with the pattern log(xxxx).txt that is at least one day old
+auto vectorFile = gd::file::list_files(stringPath, { {"filter", R"(^log[\.\d].*\.txt)"}, {"to_days", -1} });
+~~~
+ * 
  * \param stringFolder folder where files is listed from
  * \param argumentsFilter different filters to select those files that you want to list
  * \return std::vector<std::string> files found in folder that match filters if any is sent
@@ -171,7 +177,7 @@ std::vector<std::string> list_files(const std::string_view& stringFolder, const 
          struct stat statFile;
          ::stat(pathFile.string().c_str(), &statFile);
 
-         if( statFile.st_mtime >= (timeNow - timeDifference) ) return false;
+         if( statFile.st_mtime >= (timeNow + timeDifference) ) return false;
       }
       return true;
    };

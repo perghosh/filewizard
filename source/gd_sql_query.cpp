@@ -25,6 +25,38 @@
 
 _GD_SQL_QUERY_BEGIN
 
+unsigned query::m_puPartOrder_s[] = 
+{ 
+   eSqlPartSelect, 
+   eSqlPartInsert, 
+   eSqlPartUpdate, 
+   eSqlPartDelete, 
+   eSqlPartFrom, 
+   eSqlPartWhere, 
+   eSqlPartGroupBy, 
+   eSqlPartHaving,
+   eSqlPartOrderBy, 
+   eSqlPartLimit 
+};
+
+void query::common_construct(const query& o)
+{
+   m_uNextKey = o.m_uNextKey;
+   m_uFormatOptions = o.m_uFormatOptions;
+   m_vectorTable = o.m_vectorTable;
+   m_vectorField = o.m_vectorField;
+   m_vectorCondition = o.m_vectorCondition;
+}
+
+void query::common_construct(query&& o) noexcept
+{
+   m_uNextKey = o.m_uNextKey;
+   m_uFormatOptions = o.m_uFormatOptions;
+   m_vectorTable = std::move( o.m_vectorTable );
+   m_vectorField = std::move( o.m_vectorField );
+   m_vectorCondition = std::move( o.m_vectorCondition );
+}
+
 const query::table* query::table_get(const gd::variant_view& variantTableIndex) const
 {
    if( variantTableIndex.is_integer() == true )
@@ -121,6 +153,20 @@ query::field* query::field_add(const gd::variant_view& variantTable, const std::
 }
 
 /*----------------------------------------------------------------------------- condition_add */ /**
+ * Add condition to query, adds condition to first table (you need to add table before calling this method)
+ * \param stringName condition field name
+ * \param variantOperator condition operator
+ * \param variantValue condition value
+ * \return condition* pointer to added condition
+ */
+gd::sql::query::condition* query::condition_add(std::string_view stringName, const gd::variant_view& variantOperator, const gd::variant_view& variantValue)
+{                                                                                assert( m_vectorTable.empty() == false );
+   auto ptable = table_get();                                                    assert(ptable != nullptr);
+   return condition_add_(ptable, stringName, variantOperator, variantValue);
+}
+
+
+/*----------------------------------------------------------------------------- condition_add */ /**
  * Add condition to query
  * \param variantTable index to table condition belongs to
  * \param stringName condition field name
@@ -131,7 +177,19 @@ query::field* query::field_add(const gd::variant_view& variantTable, const std::
 gd::sql::query::condition* query::condition_add(const gd::variant_view& variantTable, std::string_view stringName, const gd::variant_view& variantOperator, const gd::variant_view& variantValue)
 {
    auto ptable = table_get(variantTable);                                        assert(ptable != nullptr);
+   return condition_add_(ptable, stringName, variantOperator, variantValue);
+}
 
+/*----------------------------------------------------------------------------- condition_add */ /**
+ * Add condition to query
+ * \param ptable pointer to table condition belongs to
+ * \param stringName condition field name
+ * \param variantOperator condition operator
+ * \param variantValue condition value
+ * \return condition* pointer to added condition
+ */
+gd::sql::query::condition* query::condition_add_(const table* ptable, std::string_view stringName, const gd::variant_view& variantOperator, const gd::variant_view& variantValue)
+{                                                                                assert( ptable != nullptr );
    condition conditionAdd(*ptable);                                              // create condition object that is added to query
    conditionAdd.append("name", stringName);
 
@@ -143,6 +201,7 @@ gd::sql::query::condition* query::condition_add(const gd::variant_view& variantT
    m_vectorCondition.push_back(std::move(conditionAdd));                         // add to list with fields
    return &m_vectorCondition.back();                                             // return pointer to added condition
 }
+
 
 /*----------------------------------------------------------------------------- condition_add */ /**
  * Add condition to query
@@ -194,25 +253,37 @@ query::field* query::field_get( const std::pair<std::string_view, gd::variant_vi
  * \return std::string text for fields selected in query
  */
 std::string query::sql_get_select() const
-{
+{                                                                                assert( m_vectorField.empty() == false );
    std::string stringSelect; // generated select string with fields used in query
+   stringSelect.reserve(24);
+
+   unsigned uFormatOptions = m_uFormatOptions;                                   // default format options
 
    for( auto it = field_begin(); it != field_end(); it++ )
    {
       if( stringSelect.empty() == false ) stringSelect += ", ";
 
-      const table* ptable = table_get_for_key(it->get_table_key());            assert( ptable != nullptr ); // no table found for key indicates internal error for query object, this shouldn't happen
-      if( ptable->has("alias") == true )
+      if( it->has("raw") == true )
       {
-         stringSelect += ptable->alias();
-         stringSelect += ".";
+         stringSelect += it->raw();
       }
-
-      stringSelect += it->name();
-      if( it->has("alias") == true )                                             // found alias ?
+      else
       {
-         stringSelect += " ";
-         stringSelect += it->alias();
+         const table* ptable = table_get_for_key(it->get_table_key());           assert(ptable != nullptr); // no table found for key indicates internal error for query object, this shouldn't happen
+         if( ptable->has("alias") == true )
+         {
+            stringSelect += ptable->alias();
+            stringSelect += ".";
+         }
+
+         stringSelect += it->name();
+         if( it->has("alias") == true )                                          // found alias ?
+         {
+            stringSelect += " ";
+            if( flag_has_s(uFormatOptions, eFormatUseQuotes) == false ) stringSelect += it->alias();
+            else format_add_and_surround_s(stringSelect, it->alias(), '\"');
+
+         }
       }
    }
    return stringSelect;
@@ -310,10 +381,10 @@ std::string query::sql_get_where() const
 
          if( eOperator == eOperatorTypeNumberEqual || eOperator == eOperatorTypeNumberNotEqual )
          {
-            uConditionIndex++;                                                   // increase index
-            auto vectorIndex = condition_find_all_for_operataor_s(m_vectorCondition, &(*itCondition), uConditionIndex);
+            auto vectorIndex = condition_find_all_for_operataor_s(m_vectorCondition, &(*itCondition), uConditionIndex + 1);
             if( vectorIndex.empty() != true )
             {
+               uConditionIndex++;                                                // increase index for current condition
                if( eOperator == eOperatorTypeNumberEqual ) stringWhere += std::string_view{ " IN(" };
                if( eOperator == eOperatorTypeNumberNotEqual ) stringWhere += std::string_view{ " NOT IN(" };
 
@@ -386,13 +457,59 @@ std::string query::sql_get_insert() const
    return stringInsert;
 }
 
+std::string query::sql_get_update() const
+{
+   std::string stringUpdate; // generated update string 
+
+   return stringUpdate;
+}
+
+std::string query::sql_get_delete() const
+{
+   std::string stringDelete; // generated delete string 
+
+   return stringDelete;
+}
+
+std::string query::sql_get_groupby() const
+{
+   std::string stringGroupBy; // generated group by string 
+
+   return stringGroupBy;
+}
+
+std::string query::sql_get_orderby() const
+{
+   std::string stringOrderBy; // generated order by string 
+
+   return stringOrderBy;
+}
+
+std::string query::sql_get_limit() const
+{
+   std::string stringLimit; // string with limit information
+
+   return stringLimit;
+}
+
+std::string query::sql_get_with() const
+{
+   std::string stringWith; // with section
+
+   return stringWith;
+}
+
+
+
+
+
 
 /*----------------------------------------------------------------------------- sql_get_join_type_s */ /**
  * Get join type (constant value for join) for text
  * \param stringJoin join text join type is returned for
  * \return gd::sql::enumJoin type of join that join text is
  */
-gd::sql::enumJoin query::sql_get_join_type_s(std::string_view stringJoin)
+gd::sql::enumJoin query::get_join_type_s(const std::string_view& stringJoin)
 {
    auto pbszJoin = stringJoin.data();
    while( *pbszJoin <= 32 && *pbszJoin != '\0' ) pbszJoin++;
@@ -549,6 +666,63 @@ void query::print_condition_values_s( std::string& stringValues, const std::vect
       stringValues += it->value();
       uCount++;
    }
+}
+
+std::string query::sql_get(enumSql eSql) const
+{
+   return sql_get(eSql, m_puPartOrder_s);
+}
+
+std::string query::sql_get(enumSql eSql, const unsigned* puPartOrder) const
+{
+   unsigned uSql = eSql;
+   std::string stringSql;
+   while( *puPartOrder != 0 )
+   {
+      unsigned uSqlPart = *puPartOrder & uSql;
+      puPartOrder++;
+      if( uSqlPart == 0 ) continue;
+      switch( uSqlPart )
+      {
+      case eSqlPartSelect:
+         stringSql += std::string_view{ "SELECT\n\t" };
+         stringSql += sql_get_select();
+         break;
+
+      case eSqlPartInsert:
+         stringSql += std::string_view{ "INSERT INTO\n\t" };
+         stringSql += sql_get_insert();
+         break;
+
+      case eSqlPartFrom:
+         stringSql += std::string_view{ "\nFROM\n\t" };
+         stringSql += sql_get_from();
+         break;
+
+      case eSqlPartWhere:
+         stringSql += std::string_view{ "\nWHERE\n\t" };
+         stringSql += sql_get_where();
+         break;
+
+      case eSqlPartGroupBy:
+         break;
+
+      case eSqlPartHaving:
+         break;
+
+      case eSqlPartOrderBy:
+         break;
+
+      case eSqlPartLimit:
+         stringSql += sql_get_limit();
+         break;
+
+      default:
+                                                                                 assert( false );
+      }
+   }
+
+   return stringSql;
 }
 
 

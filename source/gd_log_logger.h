@@ -4,17 +4,14 @@
  * \brief Core file for logger functionality
  * 
  * 
-   |  |  |
-   | - | - |
-   | `stream` | stream ascii text into message |
+   | Name      | Description |
+   | - | -     |
+   | `stream`  | stream ascii text into message |
    | `wstream` | stream unicode text into message |
-   | `format` | use std::format syntax to stream text into message |
-   | `printf` | use printf format to format text and stream it to into message |
+   | `format`  | use std::format syntax to stream text into message |
+   | `printf`  | use printf format to format text and stream it to into message |
    | `message` | main text object when building log text, here all text is collected before print is called in logger |
-   | `logger` | core log object holding printers that are used to process message items holding text to log |
-   | `` |  |
-   | `` |  |
-   | `` |  |
+   | `logger`  | core log object holding printers that are used to process message items holding text to log |
  * 
  * 
  * ### Important classes
@@ -731,7 +728,7 @@ inline char* message::allocate_s(std::size_t uSize, char* pbszCurrent) {
 }
 
 // ================================================================================================
-// ================================================================================= printer_file
+// ================================================================================= i_printer
 // ================================================================================================
 
 

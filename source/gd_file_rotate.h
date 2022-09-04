@@ -200,9 +200,10 @@ public:
    // calculate largest number among files (tries to find largest number in names)
    static int find_max_index( const std::vector< std::pair< std::string, std::string> >& vectorDateName );
 
-   // ## time functionality
+   // ## time functionality, get current time in selected format
    static std::string datetime_now_s();
    static std::string time_now_s();
+   static std::string year_now_s();
 
    // ## helper methods
 

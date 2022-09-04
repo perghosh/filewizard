@@ -21,6 +21,32 @@ _GD_SQL_QUERY_BEGIN
 
 using namespace gd::argument;
 
+/*-----------------------------------------*/ /**
+ * \brief sql dialect used to generate sql code
+ *
+ *
+ */
+enum enumSqlDialect
+{
+   eSqlDialectSqlServer    = 1,
+   eSqlDialectSqlite       = 2,
+   eSqlDialectPostgreSql   = 3,
+   eSqlDialectMySql        = 4,
+
+};
+
+/*-----------------------------------------*/ /**
+ * \brief how to format sql
+ *
+ *
+ */
+enum enumFormat
+{
+   eFormatUseQuotes        = (1 << 0),
+   eFormatAddASKeyword     = (1 << 1),
+   eFormatAddINNERKeyword  = (1 << 2),
+
+};
 
 
 /*-----------------------------------------*/ /**
@@ -87,6 +113,34 @@ enum enumOperatorMask
 {
    eOperatorMaskNumber = 0x000000ff,
 };
+
+/**
+ * \brief message level to print, how severe information sent to printers
+ * 
+ */
+enum enumSqlPart
+{
+   //                        3       2 2       1 1
+   //                        1       4 3       6 5       8 7       0       
+   eSqlPartSelect =        0b0000'0000'0000'0000'0000'0001'0000'0000,
+   eSqlPartFrom =          0b0000'0000'0000'0000'0000'0010'0000'0000,
+   eSqlPartWhere =         0b0000'0000'0000'0000'0000'0100'0000'0000,
+   eSqlPartLimit =         0b0000'0000'0000'0000'0000'1000'0000'0000,
+   eSqlPartInsert =        0b0000'0000'0000'0000'0001'0000'0000'0000,
+   eSqlPartUpdate =        0b0000'0000'0000'0000'0010'0000'0000'0000,
+   eSqlPartDelete =        0b0000'0000'0000'0000'0100'0000'0000'0000,
+   eSqlPartOrderBy =       0b0000'0000'0000'0000'1000'0000'0000'0000,
+   eSqlPartGroupBy =       0b0000'0000'0000'0001'0000'0000'0000'0000,
+   eSqlPartWith =          0b0000'0000'0000'0010'0000'0000'0000'0000,
+   eSqlPartHaving =        0b0000'0000'0000'0100'0000'0000'0000'0000,
+};
+
+enum enumSql
+{
+   eSqlSelect =            eSqlPartSelect | eSqlPartFrom | eSqlPartWhere | eSqlPartOrderBy | eSqlPartGroupBy | eSqlPartWith | eSqlPartLimit,
+   eSqlDelete =            eSqlPartDelete | eSqlPartFrom | eSqlPartWhere,
+};
+
 
 /**
  * \brief 
@@ -170,6 +224,7 @@ public:
 
       std::string name() const { return m_argumentsField["name"].get_string(); }
       std::string alias() const { return m_argumentsField["alias"].get_string(); }
+      std::string raw() const { return m_argumentsField["raw"].get_string(); }
 
       template<typename VALUE>
       field& append(std::string_view stringName, const VALUE& v) { m_argumentsField.append(stringName, v); return *this; }
@@ -234,6 +289,7 @@ public:
 // ## construction -------------------------------------------------------------
 public:
    query() {}
+   query( unsigned uFormatOptions ) : m_uFormatOptions(uFormatOptions) {}
    // copy
    query( const query& o ) { common_construct( o ); }
    query( query&& o ) noexcept { common_construct( o ); }
@@ -244,8 +300,8 @@ public:
 	~query() {}
 private:
    // common copy
-   void common_construct( const query& o ) {}
-   void common_construct( query&& o ) noexcept {}
+   void common_construct(const query& o);
+   void common_construct(query&& o) noexcept;
 
 // ## operator -----------------------------------------------------------------
 public:
@@ -304,10 +360,11 @@ public:
 
 /** \name CONDITION
 *///@{
+   condition* condition_add(std::string_view stringName, const gd::variant_view& variantOperator, const gd::variant_view& variantValue);
    condition* condition_add(const gd::variant_view& variantTable, std::string_view stringName, const gd::variant_view& variantOperator, const gd::variant_view& variantValue);
    condition* condition_add(const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorCondition) { return condition_add( gd::variant_view(0u), vectorCondition ); }
    condition* condition_add(const gd::variant_view& variantTable, const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorCondition );
-
+   condition* condition_add_(const table* ptable, std::string_view stringName, const gd::variant_view& variantOperator, const gd::variant_view& variantValue);
 //@}
 
 
@@ -319,10 +376,22 @@ public:
    // sql_update(), sql_update( iDbType )
    // sql_insert(), sql_insert( iDbType )
 
+   void sql_set_dialect( enumSqlDialect eSqlDialect );
+
    std::string sql_get_select() const;
    std::string sql_get_from() const;
    std::string sql_get_where() const;
    std::string sql_get_insert() const;
+   std::string sql_get_update() const;
+   std::string sql_get_delete() const;
+   std::string sql_get_groupby() const;
+   std::string sql_get_orderby() const;
+   std::string sql_get_limit() const;
+   std::string sql_get_with() const;
+
+   std::string sql_get( enumSql eSql ) const;
+   std::string sql_get( enumSql eSql, const unsigned* puPartOrder ) const;
+
    
 //@}
 
@@ -334,16 +403,20 @@ protected:
 
 // ## attributes ----------------------------------------------------------------
 public:
+   enumSqlDialect m_eSqlDialect;    ///< sql dialect (brand) used to generate sql
    unsigned m_uNextKey = 0;         ///< used to generate keys
+   unsigned m_uFormatOptions;       ///< How to format query
    std::vector<table> m_vectorTable;///< list of tables used to generate query
    std::vector<field> m_vectorField;///< list of fields used to generate query
-   std::vector<condition> m_vectorCondition;///< list of fields used to generate query
+   std::vector<condition> m_vectorCondition;///< list of conditions used to generate query
+
+   static unsigned m_puPartOrder_s[];
 
 // ## free functions ------------------------------------------------------------------
 public:
-   // ## SQL key words
-   static enumJoin sql_get_join_type_s( std::string_view stringJoin );
-   static std::string_view sql_get_join_text_s( enumJoin eJoinType );
+   // ## SQL key words and type numbers
+   static enumJoin get_join_type_s(const std::string_view& stringJoin);
+   static std::string_view sql_get_join_text_s(enumJoin eJoinType);
 
    // ## SQL WHERE operator
    static enumOperator get_where_operator_number_s(std::string_view stringOperator);
@@ -354,6 +427,13 @@ public:
    // ## Condition methods
    /// Find all conditions for same field and same operator
    static std::vector<std::size_t> condition_find_all_for_operataor_s(const std::vector<condition>& vectorCondtion, const condition* pconditionMatch, unsigned uBegin);
+
+   // ## flag methods
+   template<typename FLAG>
+   static bool flag_has_s(unsigned uTest, FLAG uFlag);
+
+   // ## format methods
+   static void format_add_and_surround_s(std::string& stringValue, const std::string_view& stringAdd, char chCharacter);
 
 };
 
@@ -378,6 +458,18 @@ inline void query::field_add_many(const std::vector< std::vector< std::pair<std:
    for( auto it : vectorVectorField ) field_add(it);
 }
 
+template<typename FLAG>
+bool query::flag_has_s(unsigned uTest, FLAG uFlag) { 
+   static_assert( sizeof(FLAG) >= 4, "Value isn't compatible with unsigned (4 byte)");
+   return (uTest & (unsigned)uFlag) == 0; 
+}
+
+/// add surrounded value to string, like XXXX => "XXXX"
+inline void query::format_add_and_surround_s(std::string& stringText, const std::string_view& stringAdd, char chCharacter) {
+   stringText += chCharacter;
+   stringText += stringAdd;
+   stringText += chCharacter;
+}
 
 
 
