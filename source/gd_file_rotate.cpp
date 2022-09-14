@@ -388,7 +388,7 @@ std::string backup_history::datetime_now_s()
    time_t uCurrentTime;                                                          // has current time
    time(&uCurrentTime);                                                          // get current time
    char pbszTime[sizeof "2000-01-01T01:01:01Z"];                                 // buffer storing date and time value as text
-   strftime(pbszTime, sizeof(pbszTime), "%FT%TZ", gmtime(&uCurrentTime));        // format date and time as text
+   strftime(pbszTime, sizeof(pbszTime), "%FT%TZ", localtime(&uCurrentTime));     // format date and time as text
 
    return pbszTime;
 }
@@ -402,7 +402,7 @@ std::string backup_history::time_now_s()
    time_t uCurrentTime;                                                          // has current time
    time(&uCurrentTime);                                                          // get current time
    char pbszTime[sizeof "01:01:01"];                                             // buffer storing time value as text
-   strftime(pbszTime, sizeof(pbszTime), "%T", gmtime(&uCurrentTime));            // format time as text
+   strftime(pbszTime, sizeof(pbszTime), "%T", localtime(&uCurrentTime));         // format time as text
 
    return pbszTime;
 }
@@ -416,7 +416,7 @@ std::string backup_history::year_now_s()
    time_t uCurrentTime;                                                          // has current time
    time(&uCurrentTime);                                                          // get current time
    char pbszTime[sizeof "2000"];                                                 // buffer storing year value as text
-   strftime(pbszTime, sizeof(pbszTime), "%Y", gmtime(&uCurrentTime));            // format year as text
+   strftime(pbszTime, sizeof(pbszTime), "%Y", localtime(&uCurrentTime));         // format year as text
 
    return pbszTime;
 }
