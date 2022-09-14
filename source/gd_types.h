@@ -55,5 +55,46 @@ enum enumTypeNumber
    eTypeNumberUuidString   = 32,
 };
 
+constexpr unsigned value_size_g(enumTypeNumber eTypeNumber)
+{
+   switch( eTypeNumber )
+   {
+   case eTypeNumberUnknown : return 0;    
+   case eTypeNumberBool : return sizeof(uint8_t);
+   case eTypeNumberInt8 : return sizeof(int8_t);       
+   case eTypeNumberUInt8 : return sizeof(uint8_t);
+   case eTypeNumberInt16 : return sizeof(int16_t);
+   case eTypeNumberUInt16 : return sizeof(uint16_t);
+   case eTypeNumberInt32 : return sizeof(int32_t);
+   case eTypeNumberUInt32 : return sizeof(uint32_t);
+   case eTypeNumberInt64 : return sizeof(int64_t);
+   case eTypeNumberUInt64 : return sizeof(uint64_t);
+   case eTypeNumberFloat : return sizeof(float);
+   case eTypeNumberDouble : return sizeof(double);
+   case eTypeNumberPointer : return sizeof(void*);
+   case eTypeNumberGuid : return  16;
+   case eTypeNumberString : return 0;     
+   case eTypeNumberUtf8String : return 0; 
+   case eTypeNumberWString : return 0;    
+   case eTypeNumberUtf32String : return 0;
+   case eTypeNumberBinary : return 0;     
+   case eTypeNumberJson : return 0;       
+   case eTypeNumberXml : return 0;        
+   case eTypeNumberVoid : return 0;       
+   case eTypeNumberBit : return sizeof(uint8_t);        
+   case eTypeNumberInt128 : return sizeof(uint64_t) + sizeof(uint64_t);
+   case eTypeNumberUInt128 : return sizeof(uint64_t) + sizeof(uint64_t);
+   case eTypeNumberHex : return 0;        
+   case eTypeNumberBase32 : return 0;     
+   case eTypeNumberDateTime : return sizeof(double);
+   case eTypeNumberDate : return sizeof(double);
+   case eTypeNumberTime : return sizeof(double);
+   case eTypeNumberNumeric : return 0;    
+   case eTypeNumberDecimal : return 0;    
+   case eTypeNumberUuidString : return 0; 
+   default: return 0;
+   }
+}
+
 
 _GD_TYPES_END

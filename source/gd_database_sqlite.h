@@ -59,6 +59,7 @@ public:
 public:
 /** \name GET/SET
 *///@{
+   sqlite3* get_sqlite3() const { return m_psqlite3; }
 
 //@}
 
@@ -66,6 +67,9 @@ public:
 *///@{
    /// Open sqlite database, if no sqlite database at file location one will be created
    std::pair<bool, std::string> open(const std::string_view& stringFileName);
+
+   /// Execute sql, any sql
+   std::pair<bool, std::string> execute(const std::string_view& stringQuery);
 
    /// close sqlite connection if open
    void close() { close_s(m_psqlite3); m_psqlite3 = nullptr; }
@@ -97,11 +101,11 @@ public:
 public:
 
    static std::pair<sqlite3*, std::string> open_s(const std::string_view& stringFileName);
+   static std::pair<bool, std::string> execute_s(sqlite3* psqlite, const std::string_view& stringQuery);
    static void close_s(sqlite3* psqlite);
-
-
-
 };
+
+inline std::pair<bool, std::string> database::execute(const std::string_view& stringQuery) { return database::execute_s(m_psqlite3, stringQuery); }
 
 
 
@@ -115,9 +119,10 @@ public:
  */
 class recordset
 {
-   // ## construction -------------------------------------------------------------
+// ## construction -------------------------------------------------------------
 public:
-   recordset() {}
+   recordset(): m_pdatabase(nullptr) {}
+   recordset( database* pdatabase ): m_pdatabase(pdatabase) {}
    // copy
    recordset(const recordset& o) { common_construct(o); }
    recordset(recordset&& o) noexcept { common_construct(o); }
@@ -131,43 +136,44 @@ private:
    void common_construct(const recordset& o) {}
    void common_construct(recordset&& o) noexcept {}
 
-   // ## operator -----------------------------------------------------------------
+// ## operator -----------------------------------------------------------------
 public:
 
 
-   // ## methods ------------------------------------------------------------------
+// ## methods ------------------------------------------------------------------
 public:
-   /** \name GET/SET
-   *///@{
+/** \name GET/SET
+*///@{
 
-   //@}
+//@}
 
-   /** \name OPERATION
-   *///@{
+/** \name OPERATION
+*///@{
+   std::pair<bool, std::string> open(const std::string_view& stringSql);
 
-   //@}
+//@}
 
 protected:
-   /** \name INTERNAL
-   *///@{
+/** \name INTERNAL
+*///@{
 
-   //@}
+//@}
 
 public:
-   /** \name DEBUG
-   *///@{
+/** \name DEBUG
+*///@{
 
-   //@}
+//@}
 
 
-   // ## attributes ----------------------------------------------------------------
+// ## attributes ----------------------------------------------------------------
 public:
+   database* m_pdatabase;        ///< database recordset reads data from 
 
 
-   // ## free functions ------------------------------------------------------------
+// ## free functions ------------------------------------------------------------
 public:
-
-
+   static unsigned get_column_type_s( const char* pbszColumnType );
 
 };
 
