@@ -3,6 +3,16 @@
  * 
  * \brief macros used to simplify information sent to logger 
  * 
+ * *Macros described*
+ * - `LOG_` The core macro for all other macros used, here is where the actions is
+ * - `LOG` Use this with the default logger, here you need to set all information that is sent to logger
+ * - `LOG_NR` When multiple loggers are used, this is needed to log with other loggers than the 0 logger (the default logger)
+ * - `LOG_IF_` Generate log if condition is true
+ * - `LOG_IF` Use default logger 0 with condition if log or not
+ * - `LOG_IF_NR` If log based on condition is true or not and multiple loggers are used
+ * 
+ * Other log macros are used to simplify or make code more readable, one macro type for
+ * each severity level.
  */
 
 #pragma once
