@@ -380,6 +380,7 @@ std::pair<bool, std::string> backup_history::file_backup_log_s(const std::string
 
 /*----------------------------------------------------------------------------- datetime_now_s */ /**
  * Generate date time value in ISO 8601 format
+ * \note information about strftime - https://cplusplus.com/reference/ctime/strftime/
  * \return std::string current time in as text
  */
 std::string backup_history::datetime_now_s()
@@ -387,10 +388,40 @@ std::string backup_history::datetime_now_s()
    time_t uCurrentTime;                                                          // has current time
    time(&uCurrentTime);                                                          // get current time
    char pbszTime[sizeof "2000-01-01T01:01:01Z"];                                 // buffer storing date and time value as text
-   strftime(pbszTime, sizeof(pbszTime), "%FT%TZ", gmtime(&uCurrentTime));        // format date and time as text
+   strftime(pbszTime, sizeof(pbszTime), "%FT%TZ", localtime(&uCurrentTime));     // format date and time as text
 
    return pbszTime;
 }
+
+/*----------------------------------------------------------------------------- time_now_s */ /**
+ * Generate time value in ISO 8601 format
+ * \return std::string current time in as text
+ */
+std::string backup_history::time_now_s()
+{
+   time_t uCurrentTime;                                                          // has current time
+   time(&uCurrentTime);                                                          // get current time
+   char pbszTime[sizeof "01:01:01"];                                             // buffer storing time value as text
+   strftime(pbszTime, sizeof(pbszTime), "%T", localtime(&uCurrentTime));         // format time as text
+
+   return pbszTime;
+}
+
+/*----------------------------------------------------------------------------- year_now_s */ /**
+ * Generate year value in ISO 8601 format
+ * \return std::string current year as text
+ */
+std::string backup_history::year_now_s()
+{
+   time_t uCurrentTime;                                                          // has current time
+   time(&uCurrentTime);                                                          // get current time
+   char pbszTime[sizeof "2000"];                                                 // buffer storing year value as text
+   strftime(pbszTime, sizeof(pbszTime), "%Y", localtime(&uCurrentTime));         // format year as text
+
+   return pbszTime;
+}
+
+
 
 /*----------------------------------------------------------------------------- file_stash_log_s */ /**
  * update history containing backup files

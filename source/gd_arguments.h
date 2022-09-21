@@ -81,37 +81,37 @@ public:
 
 
    /**
-    * \brief type values used in arguments class
+    * \brief type values used for each argument in arguments class
     *
     */
    enum enumCType
    {
       // ## primitive types
-      eTypeNumberUnknown  = 0,
-      eTypeNumberBool     = 1,
-      eTypeNumberInt8     = 2,
-      eTypeNumberUInt8    = 3,
-      eTypeNumberInt16    = 4,
-      eTypeNumberUInt16   = 5,
-      eTypeNumberInt32    = 6,
-      eTypeNumberUInt32   = 7,
-      eTypeNumberInt64    = 8,
-      eTypeNumberUInt64   = 9,
+      eTypeNumberUnknown      = 0,
+      eTypeNumberBool         = 1,
+      eTypeNumberInt8         = 2,
+      eTypeNumberUInt8        = 3,
+      eTypeNumberInt16        = 4,
+      eTypeNumberUInt16       = 5,
+      eTypeNumberInt32        = 6,
+      eTypeNumberUInt32       = 7,
+      eTypeNumberInt64        = 8,
+      eTypeNumberUInt64       = 9,
 
-      eTypeNumberFloat    = 10,
-      eTypeNumberDouble   = 11,
+      eTypeNumberFloat        = 10,
+      eTypeNumberDouble       = 11,
 
-      eTypeNumberPointer  = 12,  // pointer to memory
+      eTypeNumberPointer      = 12,  // pointer to memory
+
+      eTypeNumberGuid         = 13, // universal unique identifier
 
       // ## derived types
-      eTypeNumberGuid,           // universal unique identifier
+      eTypeNumberString       = 14, // ascii string
+      eTypeNumberUtf8String   = 15, // utf8 string
+      eTypeNumberWString      = 16, // unicode string
+      eTypeNumberUtf32String  = 17, // utf32 string
 
-      eTypeNumberString   = 14,  // ascii string
-      eTypeNumberUtf8String = 15,// utf8 string
-      eTypeNumberWString,        // unicode string
-      eTypeNumberUtf32String,    // utf32 string
-
-      eTypeNumberBinary,         // binary data
+      eTypeNumberBinary       = 18, // binary data
 
       CType_MAX,
 
