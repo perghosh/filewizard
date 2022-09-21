@@ -29,9 +29,9 @@ extern std::mutex& printer_get_mutex_g();
 
 
 /**
- * \brief 
+ * \brief print to console
  *
- *
+ * prints information to console, if debug mode and windows this also prints to output
  *
  \code
  \endcode
@@ -236,7 +236,6 @@ public:
    static std::pair<int, std::string> file_open_s(const std::wstring_view& stringFileName);
    static std::pair<bool, std::string> file_write_s(int iFileHandle, const std::string_view& stringText);
    static std::pair<bool, std::string> file_write_s(int iFileHandle, const std::wstring_view& stringText, gd::utf8::utf8_tag );
-   static std::pair<bool, std::string> file_backup_s(const std::string_view& stringFileName, const std::string_view& stringFormat, int iRotateCount);
    static void file_close_s(int iFileHandle);
    
 

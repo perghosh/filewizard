@@ -142,27 +142,6 @@ message& message::printf(const char* pbszFormat, ...)
 
    auto pbszPrintfText = printf_s(pbszFormat, va_listArgument);
 
-
-//    int iLength = _vscprintf(pbszFormat, va_listArgument);                        // calculate needed length for buffer
-//    if( iLength < 0 ) { assert(false); return *this; }
-//    iLength++;                                                                    // add zero terminator
-// 
-//    m_pbszText.reset( new_s( iLength ) );
-//    char* pbszText = m_pbszText.get();
-//    pbszText[0] = '\0';
-// 
-//    int iReturn = _vsnprintf_s(pbszText, iLength, size_t(iLength) - 1, pbszFormat, va_listArgument); // generate message text
-//    va_end(va_listArgument);
-// 
-//    // ## convert to utf8 if needed, text is stored in internally in utf8 format
-//    auto uUtf8Length = gd::utf8::size(pbszText) + 1;                              assert( uUtf8Length >= (uint32_t)iLength ); // if less something is seriously wrong
-//    if( uUtf8Length > (uint32_t)iLength )                                         // do we need to convert to utf8
-//    {
-//       char* pbsz = new_s( uUtf8Length );                                         // create new buffer
-//       gd::utf8::convert_ascii(pbszText, pbsz);                                   // convert to utf8
-//       m_pbszText.reset( pbsz );                                                  // set to new buffer
-//    }
-
    if( pbszOldText != nullptr )
    {
       auto pbszText = pbszPrintfText.release();
@@ -193,33 +172,6 @@ message& message::printf(const wchar_t* pwszFormat, ...)
    if( m_pbszText != nullptr ) pbszOldText = m_pbszText.release();
 
    auto pbszPrintfText = printf_s(pwszFormat, va_listArgument);
-
-
-
-//    int iLength = _vscwprintf(pwszFormat, va_listArgument);                       // calculate needed length for buffer
-//    if( iLength < 0 ) { assert(false); return *this; }
-//    iLength++;                                                                    // add zero terminator
-// 
-//    //m_pbszText.reset(new_s(iLength));
-//    //char* pbszText = m_pbszText.get();
-//    //pbszText[0] = '\0';
-//    wchar_t* pwszText = (wchar_t*)_alloca(iLength * sizeof(wchar_t));
-// 
-//    int iReturn = _vsnwprintf_s(pwszText, iLength, size_t(iLength) - 1, pwszFormat, va_listArgument); // generate message text
-//    va_end(va_listArgument);
-// 
-//    // ## convert to utf8 if needed, text is stored in internally in utf8 format
-//    auto uUtf8Length = gd::utf8::size(pwszText) + 1;                              assert(uUtf8Length >= (uint32_t)iLength); // if less something is seriously wrong
-//    m_pbszText.reset( new_s(uUtf8Length) );
-//    char* pbsz = m_pbszText.get();
-//    gd::utf8::convert_unicode(pwszText, pbsz, pbsz + uUtf8Length);
-// 
-//    if( pbszOldText != nullptr )
-//    {
-//       auto pbszText = m_pbszText.release();
-//       m_pbszText.reset(join_s(&pbszOldText, std::string_view{ "  " }, &pbszText));
-//       clear_s(&pbszOldText);
-//    }
 
    if( pbszOldText != nullptr )
    {

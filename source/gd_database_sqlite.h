@@ -182,10 +182,6 @@ public:
 
 // ## attributes ----------------------------------------------------------------
 public:
-   unsigned m_uState;            ///< cursor state
-   sqlite3_stmt* m_pstmt;        ///< sqlite statement for active result
-   database* m_pdatabase;        ///< database cursor reads data from 
-   record m_recordRow;           ///< buffer used to store data from active row
 
 
 // ## free functions ------------------------------------------------------------

@@ -1,3 +1,12 @@
+
+/**
+ * \file gd_file.h
+ * 
+ * \brief Miscellaneous file operations 
+ * 
+ */
+
+
 #pragma once
 
 #include <cassert>
@@ -5,6 +14,10 @@
 #include <string_view>
 #include <vector>
 #include <type_traits>
+
+#include <fcntl.h>
+
+#include "gd_arguments.h"
 
 #ifndef _GD_FILE_BEGIN
 
@@ -23,7 +36,18 @@ std::pair<bool, std::wstring> get_known_folder_wpath_g(const std::string_view& s
 // ## `closest` are used to find nearest folder in the parent hierarchy
 
 std::pair<bool, std::string> closest_having_file_g(const std::string_view& stringPath, const std::string_view& stringFindFile);
-// extern std::pair<bool, std::string> closest_having_text_g(const std::string_view& stringPath, const std::string_view& stringFindFile, const std::string_view& stringFindText);
+
+// ## files in folder
+
+std::vector<std::string> list_files(const std::string_view& stringFolder, const gd::argument::arguments& argumentsFilter);
+
+// ## `file` operations
+
+// ### 
+
+std::pair<int, std::string> file_add_reference_g(const std::string_view& stringFindName);
+
+//std::pair<int, std::string> file_release_reference_g(const std::string_view& stringFindName);
 
 
 

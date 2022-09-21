@@ -329,7 +329,9 @@ public:
       uint64_t    uint64;
       char*       pbsz;
       const char* pbsz_const;
+#if defined(__cpp_char8_t)
       char8_t     putf8;
+#endif
       char32_t    putf32;
       wchar_t*    pwsz;
       const wchar_t* pwsz_const;

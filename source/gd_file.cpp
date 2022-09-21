@@ -1,4 +1,9 @@
+#include <iostream>
 #include <filesystem>
+#include <regex>
+#include <chrono>
+
+#include <sys/stat.h>
 
 #ifdef WIN32
 
@@ -7,9 +12,10 @@
 
 #endif
 
-
+#include <io.h>
 
 #include "gd_file.h"
+
 
 _GD_FILE_BEGIN
 
@@ -128,6 +134,109 @@ std::pair<bool, std::string> closest_having_file_g(const std::string_view& strin
 
    return {false, std::string()};
 
+}
+
+/*----------------------------------------------------------------------------- dir */ /**
+ * List files in specified folder
+ * 
+~~~{.cpp}
+// list files with the pattern log(xxxx).txt that is at least one day old
+auto vectorFile = gd::file::list_files(stringPath, { {"filter", R"(^log[\.\d].*\.txt)"}, {"to_days", -1} });
+~~~
+ * 
+ * \param stringFolder folder where files is listed from
+ * \param argumentsFilter different filters to select those files that you want to list
+ * \return std::vector<std::string> files found in folder that match filters if any is sent
+ */
+std::vector<std::string> list_files(const std::string_view& stringFolder, const gd::argument::arguments& argumentsFilter )
+{
+   std::vector<std::string> vectorFile;
+
+   // ## filter method is used when filter is found in arguments, file name is matched against wildcard or regular expression
+   auto filter_ = [](const std::string stringFileName, auto& argumentFilter) -> bool {
+      if( argumentFilter.is_text() )
+      {
+         std::string stringFilterOrRegex = argumentFilter.get_string();
+
+         std::smatch smatchFirst;
+         std::regex regexFind(stringFilterOrRegex);
+         if( std::regex_search(stringFileName, smatchFirst, regexFind) == false ) return false; // not matched
+      }
+      return true;
+   };
+
+   auto day_count_ = [](const std::filesystem::path& pathFile, auto& argumentToDays) -> bool {
+      if( argumentToDays.is_number() )
+      {
+         using namespace std::literals::chrono_literals;
+         auto dToDays = argumentToDays.get_double();
+
+         time_t timeNow = std::chrono::system_clock::to_time_t( std::chrono::system_clock::now() );
+         time_t timeDifference = static_cast<time_t>(dToDays * (60.0 * 60 * 24));
+
+         struct stat statFile;
+         ::stat(pathFile.string().c_str(), &statFile);
+
+         if( statFile.st_mtime >= (timeNow + timeDifference) ) return false;
+      }
+      return true;
+   };
+
+   for( const auto& itFile : std::filesystem::directory_iterator(stringFolder) )
+   {
+      if( itFile.is_regular_file() == false ) continue;
+
+      const std::string stringFile = itFile.path().filename().string();
+
+      if( filter_(stringFile, argumentsFilter["filter"]) == false ) continue;    // filter using regex or wildcard
+
+      if( day_count_(itFile.path(), argumentsFilter["to_days"]) == false ) continue;// filter on time (days ?)
+
+      vectorFile.push_back( itFile.path().string() );
+   }
+
+   return vectorFile;
+}
+
+
+std::pair<int, std::string> file_add_reference_g(const std::string_view& stringFileName)
+{
+   int iReference = 0;
+
+   /*
+   int iReference = 0;  // reference counter found in file
+   int iFileHandle = 0; // handle to file
+   char pbszBuffer[10]
+
+   if( std::filesystem::exists(stringFileName) == false )
+   {
+      //bOk = std::filesystem::create_directory(stringPath);
+#  if defined(_WIN32)
+      errno_t iError = ::_sopen_s(&iFileHandle, stringFileName.data(), _O_CREAT|_O_WRONLY|_O_BINARY|_O_NOINHERIT, _SH_DENYWR, _S_IREAD|_S_IWRITE);
+#     else
+      iFileHandle = ::open(stringFileName->data(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+#  endif
+   }
+   else
+   {
+#  if defined(_WIN32)
+      errno_t iError = ::_sopen_s(&iFileHandle, stringFileName.data(), _O_WRONLY|_O_BINARY|_O_NOINHERIT, _SH_DENYWR, _S_IREAD|_S_IWRITE);
+#     else
+      iFileHandle = ::open(stringFileName->data(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+#  endif
+
+      int iCount = ::_read(iFileHandle, pbszBuffer, 10);
+      auto pPosition = pbszBuffer;
+      auto pEnd = pbszBuffer + sizeof(pbszBuffer);
+      pPosition = gd::utf8::move::next_non_space(pPosition, pEnd);
+      iReference = atoi( pbszBuffer );
+   }
+
+   iReference++;
+
+   return { iReference, "" };
+   */
+   return { iReference, "" };
 }
 
 

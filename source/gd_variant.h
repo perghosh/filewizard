@@ -474,11 +474,12 @@ public:
 protected:
 /** \name INTERNAL
 *///@{
-   void* allocate( size_t uSize ) { return  ::malloc( uSize ); }
-   void* allocate(unsigned uSize) { return allocate((size_t)uSize); }
-   void free_() { 
-      if( !(m_uType & variant_type::eFlagLengthPrefix) ) { ::free( m_V.m_p ); }
-      else                                               { ::free( ((unsigned char*)m_V.m_p - sizeof(uint32_t)) ); } 
+   void* allocate(size_t uSize) { return ::malloc(uSize); }
+   template <typename SIZE>
+   void* allocate(SIZE uSize) { return allocate((size_t)uSize); }
+   void free_() {
+      if( !(m_uType & variant_type::eFlagLengthPrefix) ) { ::free(m_V.m_p); }
+      else { ::free(((unsigned char*)m_V.m_p - sizeof(uint32_t))); }
    }
    //@}
 

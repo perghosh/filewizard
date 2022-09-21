@@ -208,6 +208,10 @@ namespace gd {
       std::pair<const wchar_t*, const char*> convert_unicode_to_ascii(const wchar_t* pwszFrom, char* pbszTo, const char* pbszEnd);
       std::string convert_unicode_to_ascii( std::wstring_view stringUnicode );
 
+      /// Converts ascii text to unicode
+      std::pair<const char*, const wchar_t*> convert_ascii_to_unicode(const char* pszFrom, wchar_t* pwszTo, const wchar_t* pwszEnd);
+      std::wstring convert_ascii_to_unicode(std::string_view stringAscii);
+
 
       // ## convert number to text
 
@@ -215,6 +219,10 @@ namespace gd {
       uint8_t* utoa( uint32_t uNumber, uint8_t* pbszTo );
       uint8_t* itoa( int64_t iNumber, uint8_t* pbszTo );
       uint8_t* utoa( uint64_t uNumber, uint8_t* pbszTo );
+      [[nodiscard]] inline std::string itoa_to_string(int32_t iNumber) { uint8_t p[12]; itoa(iNumber, p); return std::string((char*)p); }
+      [[nodiscard]] inline std::string utoa_to_string(uint32_t uNumber) { uint8_t p[12]; utoa(uNumber, p); return std::string((char*)p); }
+      [[nodiscard]] inline std::string itoa_to_string(int64_t iNumber) { uint8_t p[23]; itoa(iNumber, p); return std::string((char*)p); }
+      [[nodiscard]] inline std::string utoa_to_string(uint64_t uNumber) { uint8_t p[23]; utoa(uNumber, p); return std::string((char*)p); }
 
 
       std::intptr_t distance(const uint8_t* p1, const uint8_t* p2);
@@ -404,4 +412,107 @@ namespace gd {
       uint32_t size(uint16_t ch);
    }
 
+}
+
+
+namespace gd {
+   namespace utf8 {
+
+      /**
+       * @brief find positions in text where characters start and ends
+       * @param puText pointer to text scanned for first and last character
+       * @param puEnd end of text
+       * @return std::pair<const uint8_t*,const uint8_t*> first and last position in string where first non space is found
+       */
+      inline std::pair<const uint8_t*,const uint8_t*> trim(const uint8_t* puText, const uint8_t* puEnd)
+      {                                                                       assert( puText < puEnd ); assert( (puEnd - puText) < 0x20000 ); // check for proper order and realistic value
+         auto puFirst = puText;
+         while( puFirst != puEnd )
+         {
+            puFirst++;
+            if( *puFirst > ' ' ) break;
+         }
+
+         auto* puLast = puEnd;
+         while( puLast != puFirst )
+         {
+            puLast--;
+            if( *puLast > ' ' ) break;
+         }
+
+         return { puFirst, puLast + 1 };
+      }
+
+      /// find positions in text where characters start
+      inline std::pair<const uint8_t*, const uint8_t*> trim(const uint8_t* puText) { return trim(puText, puText + std::strlen((const char*)puText)); }
+      inline std::pair<const uint8_t*, const uint8_t*> trim(const std::string_view& stringText) { return trim((const uint8_t*)stringText.data(), (const uint8_t*)stringText.data() + stringText.length()); }
+      /**
+       * @brief find positions in text where characters start
+       * @param puText pointer to text scanned for first and last character
+       * @param puEnd end of text
+       * @return std::pair<const uint8_t*,const uint8_t*> first and last position in string where first non space is found
+       */
+      inline std::pair<const uint8_t*,const uint8_t*> trim_left(const uint8_t* puText, const uint8_t* puEnd)
+      {                                                                       assert( puText < puEnd ); assert( (puEnd - puText) < 0x20000 ); // check for proper order and realistic value
+         auto puFirst = puText;
+         while( puFirst != puEnd )
+         {
+            puFirst++;
+            if( *puFirst > ' ' ) break;
+         }
+
+         return { puFirst, puEnd };
+      }
+
+      /// find positions in text where characters start
+      inline std::pair<const uint8_t*, const uint8_t*> trim_left(const uint8_t* puText) { return trim(puText, puText + std::strlen((const char*)puText)); }
+      inline std::pair<const uint8_t*, const uint8_t*> trim_left(const std::string_view& stringText) { return trim_left((const uint8_t*)stringText.data(), (const uint8_t*)stringText.data() + stringText.length()); }
+
+
+      /**
+       * @brief find positions in text where characters ends
+       * @param puText pointer to text scanned for first and last character
+       * @param puEnd end of text
+       * @return std::pair<const uint8_t*,const uint8_t*> first and last position in string where first non space is found
+       */
+      inline std::pair<const uint8_t*,const uint8_t*> trim_right(const uint8_t* puText, const uint8_t* puEnd)
+      {                                                                       assert( puText < puEnd ); assert( (puEnd - puText) < 0x20000 ); // check for proper order and realistic value
+         auto* puLast = puEnd;
+         while( puLast != puText )
+         {
+            puLast--;
+            if( *puLast > ' ' ) break;
+         }
+
+         return { puText, puLast + 1 };
+      }
+
+      /// find positions in text where characters ends
+      inline std::pair<const uint8_t*, const uint8_t*> trim_right(const uint8_t* puText) { return trim(puText, puText + std::strlen((const char*)puText)); }
+      inline std::pair<const uint8_t*, const uint8_t*> trim_right(const std::string_view& stringText) { return trim_right((const uint8_t*)stringText.data(), (const uint8_t*)stringText.data() + stringText.length()); }
+
+      inline std::string trim_to_string(const uint8_t* puText, const uint8_t* puEnd)
+      {
+         auto [first_, last_] = trim( puText, puEnd );
+         return std::string(first_, last_);
+      }
+      inline std::string trim_to_string(const uint8_t* puText) { return trim_to_string(puText, puText + std::strlen((const char*)puText)); }
+      inline std::string trim_to_string(const std::string_view& stringText) { return trim_to_string((const uint8_t*)stringText.data(), (const uint8_t*)stringText.data() + stringText.length()); }
+
+      inline std::string trim_left_to_string(const uint8_t* puText, const uint8_t* puEnd)
+      {
+         auto [first_, last_] = trim(puText, puEnd);
+         return std::string(first_, last_);
+      }
+      inline std::string trim_left_to_string(const uint8_t* puText) { return trim_left_to_string(puText, puText + std::strlen((const char*)puText)); }
+      inline std::string trim_left_to_string(const std::string_view& stringText) { return trim_left_to_string((const uint8_t*)stringText.data(), (const uint8_t*)stringText.data() + stringText.length()); }
+
+      inline std::string trim_right_to_string(const uint8_t* puText, const uint8_t* puEnd)
+      {
+         auto [first_, last_] = trim(puText, puEnd);
+         return std::string(first_, last_);
+      }
+      inline std::string trim_right_to_string(const uint8_t* puText) { return trim_right_to_string(puText, puText + std::strlen((const char*)puText)); }
+      inline std::string trim_right_to_string(const std::string_view& stringText) { return trim_right_to_string((const uint8_t*)stringText.data(), (const uint8_t*)stringText.data() + stringText.length()); }
+   }
 }
