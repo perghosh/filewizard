@@ -36,9 +36,15 @@ struct names
    names(): m_uSize{0}, m_uMaxSize{0}, m_pbBufferNames{nullptr} {}
    ~names() { delete [] m_pbBufferNames; }
 
+   operator const char* () const { return m_pbBufferNames; }
+
    uint16_t add( std::string_view stringName );
    uint16_t last_position() const noexcept { return m_uSize; }
    void reserve( unsigned uSize );
+   void clear() {
+      delete [] m_pbBufferNames; 
+      m_uSize = 0; m_uMaxSize = 0; m_pbBufferNames = nullptr;
+   }
 
    
    uint16_t m_uSize;       ///< value size in bytes
@@ -71,7 +77,13 @@ struct buffers
    uint8_t* primitive_data_offset( unsigned uOffset ) const { return m_pbBufferPrimitve + uOffset; }
 
    uint8_t* add_derived( unsigned uType, unsigned uSize );
-   
+
+   void clear() {
+      delete [] m_pbBufferPrimitve; 
+      m_uSize = 0; m_uMaxSize = 0; m_pbBufferPrimitve = nullptr;
+      m_vectorBuffer.clear();
+   }
+
    unsigned m_uSize;       ///< value size in bytes
    unsigned m_uMaxSize;    ///< total buffer size in bytes
    uint8_t* m_pbBufferPrimitve; ///< pointer to buffer where fixed values are stored
@@ -110,25 +122,21 @@ public:
       void set_null( bool bNull ) {  if( bNull == true ) { m_uState |= eStateNull; } else { m_uState &= ~eStateNull; } }
 
       void type( unsigned uType ) { m_uType = uType; }
-      [[nodiscard]] 
-      unsigned type() const noexcept { return m_uType; }
+      [[nodiscard]] unsigned type() const noexcept { return m_uType; }
       void ctype( unsigned uCType ) { m_uCType = uCType; }
-      [[nodiscard]] 
-      unsigned ctype() const noexcept { return m_uCType; }
+      [[nodiscard]] unsigned ctype() const noexcept { return m_uCType; }
       void size( unsigned uSize ) { m_uSize = uSize; }
-      [[nodiscard]] 
-      unsigned size() const noexcept { return m_uSize; }
+      [[nodiscard]] unsigned size() const noexcept { return m_uSize; }
+      [[nodiscard]] uint16_t name() const { return m_uNameOffset; }
       void name( uint16_t uOffset ) { m_uNameOffset = uOffset; }
-      [[nodiscard]]
-      std::string_view name( const char* pbBuffer ) const noexcept { assert( m_uNameOffset != 0 ); return names::get_name_s( pbBuffer, m_uNameOffset ); }
+      [[nodiscard]] std::string_view name( const char* pbBuffer ) const noexcept { assert( m_uNameOffset != 0 ); return names::get_name_s( pbBuffer, m_uNameOffset ); }
       //std::string_view name() const noexcept { assert( m_uNameOffset != 0 ); return names::get_name_s( m_pbBufferNames, m_uNameOffset ); }
+      [[nodiscard]] uint16_t alias() const { return m_uAliasOffset; }
       void alias( uint16_t uOffset ) { m_uAliasOffset = uOffset; }
-      [[nodiscard]]
-      std::string_view alias( const char* pbBuffer ) const noexcept { assert( m_uAliasOffset != 0 ); return names::get_name_s( pbBuffer, m_uAliasOffset ); }
+      [[nodiscard]] std::string_view alias( const char* pbBuffer ) const noexcept { assert( m_uAliasOffset != 0 ); return names::get_name_s( pbBuffer, m_uAliasOffset ); }
       //std::string_view alias() const noexcept { assert( m_uAliasOffset != 0 ); return names::get_name_s( m_pbBufferNames, m_uAliasOffset ); }
       void value( unsigned uOffset ) { m_uValueOffset = uOffset; }
-      [[nodiscard]] 
-      unsigned value() const noexcept { return m_uValueOffset; }
+      [[nodiscard]] unsigned value() const noexcept { return m_uValueOffset; }
 
 
 
@@ -182,10 +190,11 @@ public:
 
    const column* get_column( unsigned uIndex ) const { return &m_vectorColumn[uIndex]; }
    column* get_column( unsigned uIndex ) { return &m_vectorColumn[uIndex]; }
-   //column* get_column( unsigned uIndex ) { return &(*(m_vectorColumn.begin() + uIndex)); }
+   int get_column_index_for_name( const std::string_view& stringName ) const;
 
    uint8_t* get_value_buffer( unsigned uIndex ) const;
 
+   void clear();
 //@}
 
 protected:
@@ -217,6 +226,18 @@ public:
 
 
 };
+
+inline int record::get_column_index_for_name( const std::string_view& stringName ) const {
+   for( auto it = std::begin( m_vectorColumn ), itEnd = std::end( m_vectorColumn ); it != itEnd; it++ ) {
+      auto u = it->name();
+      auto name_ = it->name( m_namesColumn );
+      if( name_ == stringName )
+      {
+         return ( int )std::distance( std::begin( m_vectorColumn ), it );
+      }
+   }
+   return -1;
+}
 
 
 

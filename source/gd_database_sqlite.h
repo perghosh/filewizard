@@ -128,10 +128,13 @@ inline std::pair<bool, std::string> database::execute(const std::string_view& st
  */
 class cursor
 {
+public:
+   enum enumState { row = 0x0001 };
+
 // ## construction -------------------------------------------------------------
 public:
-   cursor(): m_pstmt(nullptr), m_pdatabase(nullptr) {}
-   cursor( database* pdatabase ): m_pstmt(nullptr), m_pdatabase(pdatabase) {}
+   cursor(): m_uState(0), m_pstmt(nullptr), m_pdatabase(nullptr) {}
+   cursor( database* pdatabase ): m_uState(0), m_pstmt(nullptr), m_pdatabase(pdatabase) {}
    // copy
    cursor(const cursor& o) { common_construct(o); }
    cursor(cursor&& o) noexcept { common_construct(o); }
@@ -139,7 +142,7 @@ public:
    cursor& operator=(const cursor& o) { common_construct(o); return *this; }
    cursor& operator=(cursor&& o) noexcept { common_construct(o); return *this; }
 
-   ~cursor() {}
+   ~cursor() { close(); }
 private:
    // common copy
    void common_construct(const cursor& o) {}
@@ -158,12 +161,38 @@ public:
 
 /** \name OPERATION
 *///@{
+   /// Open SQL SELECT query
    std::pair<bool, std::string> open(const std::string_view& stringSql);
 
    void update() { update(0, m_recordRow.size()); }
    void update( unsigned uFrom, unsigned uTo );
 
+   /// go to next row
+   std::pair<bool, std::string> next();
+   /// check if row is valid
+   bool is_valid_row() const { return (m_uState & row) == row; }
+
+   unsigned size() const { return m_recordRow.size(); }
+
+   /// close statement if open
+   void close() {
+      if(m_pstmt != nullptr) { 
+         ::sqlite3_finalize(m_pstmt); m_pstmt = nullptr; 
+         m_uState = 0; 
+         m_recordRow.clear();
+      }
+   }
+
+
+   // ## `variant` methods, return value(s) as variants
+   std::vector<gd::variant> get_variant() const;
+   gd::variant get_variant( unsigned uColumnIndex ) const;
+   std::vector<gd::variant_view> get_variant_view() const;
    gd::variant_view get_variant_view( unsigned uColumnIndex ) const;
+   gd::variant_view get_variant_view( const std::string_view& stringName ) const;
+
+
+   int get_index( const std::string_view& stringName ) const;
 
 //@}
 
@@ -182,6 +211,10 @@ public:
 
 // ## attributes ----------------------------------------------------------------
 public:
+   unsigned m_uState;            ///< cursor state
+   sqlite3_stmt* m_pstmt;        ///< sqlite statement for active result
+   database* m_pdatabase;        ///< database cursor reads data from 
+   record m_recordRow;           ///< buffer used to store data from active row
 
 
 // ## free functions ------------------------------------------------------------
@@ -190,7 +223,6 @@ public:
    static unsigned get_column_ctype_s( const char* pbszColumnType );
 
 };
-
 
 
 _GD_DATABASE_SQLITE_END

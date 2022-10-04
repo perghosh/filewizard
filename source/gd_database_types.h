@@ -179,8 +179,8 @@ enum enumColumnType
    eColumnTypeCDouble      = eColumnTypeNumberCDouble    | eColumnTypeGroupNumber | eColumnTypeGroupDecimal | eColumnTypeGroupSigned,
    eColumnTypeGuid         = eColumnTypeNumberGuid       | eColumnTypeGroupBinary,
    eColumnTypeBinary       = eColumnTypeNumberBinary     | eColumnTypeGroupBinary,
-   eColumnTypeUtf8String   = eColumnTypeNumberUtf8String | eColumnTypeGroupString,
    eColumnTypeString       = eColumnTypeNumberString     | eColumnTypeGroupString,
+   eColumnTypeUtf8String   = eColumnTypeNumberUtf8String | eColumnTypeGroupString,
    eColumnTypeWString      = eColumnTypeNumberWString    | eColumnTypeGroupString,
    eColumnTypeNumeric      = eColumnTypeNumberNumeric    | eColumnTypeGroupString,
    eColumnTypeDecimal      = eColumnTypeNumberDecimal    | eColumnTypeGroupString,
@@ -219,8 +219,8 @@ enum enumColumnTypeComplete
    eColumnTypeCompleteCDouble      = eColumnTypeCDouble    | eColumnTypeGroup64,
    eColumnTypeCompleteGuid         = eColumnTypeGuid,
    eColumnTypeCompleteBinary       = eColumnTypeBinary,
-   eColumnTypeCompleteUtf8String   = eColumnTypeUtf8String | eColumnTypeGroupChar,
    eColumnTypeCompleteString       = eColumnTypeString     | eColumnTypeGroupChar,
+   eColumnTypeCompleteUtf8String   = eColumnTypeUtf8String | eColumnTypeGroupChar,
    eColumnTypeCompleteWString      = eColumnTypeWString    | eColumnTypeGroupWChar,
    eColumnTypeCompleteNumeric      = eColumnTypeNumeric    | eColumnTypeGroupChar,
    eColumnTypeCompleteDecimal      = eColumnTypeDecimal    | eColumnTypeGroupChar,
@@ -243,6 +243,12 @@ constexpr uint32_t get_type(std::string_view stringTypeName)
 }
 */
 
+/**
+ * @brief Return column size for type number
+ * This method returns know size for specific types
+ * @param uTypeNumber type number size is returned for
+ * @return size for type
+*/
 constexpr unsigned value_size_g(unsigned uTypeNumber)
 {
    switch( uTypeNumber & 0x00000000ff )
@@ -278,6 +284,34 @@ constexpr unsigned value_size_g(unsigned uTypeNumber)
    case eColumnTypeNumberDecimal : return 0; 
    default: return 0;
    }
+}
+
+/**
+ * @brief Return number in string
+ * If string holds a number that number is extracted and returned as 
+ * @param stringGetNumber string where number is searched for and if found it is returned
+ * @return number in string as unsigned int if found, otherwise 0
+*/
+constexpr unsigned value_size_g(const std::string_view& stringGetNumber)
+{
+   for (auto it = std::begin(stringGetNumber), itEnd = std::end(stringGetNumber); it != itEnd; it++)
+   {
+      if( *it >= '0' && *it <= '9' )
+      {
+         unsigned uResult = 0;
+         do 
+         {
+            unsigned uNumber = *it - '0';
+            uResult *= 10;
+            uResult += uNumber;
+            it++;
+         } while (it != itEnd && *it >= '0' && *it <= '9');
+
+         return uResult;
+      }
+   }
+
+   return 0;
 }
 
 _GD_DATABASE_END

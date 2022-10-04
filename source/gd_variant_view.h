@@ -260,6 +260,8 @@ public:
    bool is_xml() const { return (m_uType & variant_type::enumFilter::eFilterTypeGroup) == variant_type::eTypeNumberXml ? true : false; }
    bool is_void() const { return (m_uType & variant_type::enumFilter::eFilterTypeGroup) == variant_type::eTypeNumberVoid ? true : false; }
 
+   bool is_primitive() const { return (type_number() > variant_type::eTypeNumberUnknown && type_number() <= variant_type::eTypeNumberDouble); } ///< primitive = built in types in C++
+
    bool is_true() const;
 
    bool is_char_string() const { return (m_uType == variant_type::eTypeUtf8String || m_uType == variant_type::eTypeString ? true : false); }
@@ -267,17 +269,6 @@ public:
 
    void change( variant_type::enumType eType );
 
-   /*
-   /// get value as 64 bit integer
-   int32_t get_int32() const throw();
-   /// get value as 64 bit integer
-   int64_t get_int64() const throw();
-   /// get value as double
-   double get_double() const throw();
-   /// get value as string
-   void get_string( gd_std::wstring& rstring ) const;
-   gd_std::wstring get_wstring() const;
-   */
    /// return pointer to char buffer
    const char* c_str() const {                                                   assert( is_string() );
       return m_V.pbsz; 
@@ -287,6 +278,7 @@ public:
       return m_V.pwsz; 
    }
    
+   bool compare( const variant_view& v );
    uint32_t length() const { return m_uSize; }
 
 //@}

@@ -371,12 +371,18 @@ public:
 
 /** \name OPERATION
 *///@{
+   template <typename VALUE>
+   void set_attribute( const std::string_view& stringName, const VALUE& value_ ) { m_argumentsAttribute.set( stringName, value_ ); }
+   gd::variant_view distinct() const { return m_argumentsAttribute["distinct"].get_variant_view(); }
+   gd::variant_view limit() const { return m_argumentsAttribute["limit"].get_variant_view(); }
+
+
    /// Generate key values for internal data in query
    unsigned next_key() { return ++m_uNextKey; };
    // sql_update(), sql_update( iDbType )
    // sql_insert(), sql_insert( iDbType )
 
-   void sql_set_dialect( enumSqlDialect eSqlDialect );
+   void sql_set_dialect( enumSqlDialect eSqlDialect ) { m_eSqlDialect = eSqlDialect; }
 
    std::string sql_get_select() const;
    std::string sql_get_from() const;
@@ -405,10 +411,12 @@ protected:
 public:
    enumSqlDialect m_eSqlDialect;    ///< sql dialect (brand) used to generate sql
    unsigned m_uNextKey = 0;         ///< used to generate keys
-   unsigned m_uFormatOptions;       ///< How to format query
+   unsigned m_uFormatOptions;       ///< How to format query, has flags from `enumFormat`
    std::vector<table> m_vectorTable;///< list of tables used to generate query
    std::vector<field> m_vectorField;///< list of fields used to generate query
    std::vector<condition> m_vectorCondition;///< list of conditions used to generate query
+   arguments m_argumentsAttribute;  ///< Attributes are values like `limit`, `distinct`
+
 
    static unsigned m_puPartOrder_s[];
 

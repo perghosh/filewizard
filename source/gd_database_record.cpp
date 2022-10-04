@@ -45,27 +45,20 @@ uint16_t names::add(std::string_view stringName)
    char* pbName = m_pbBufferNames + uNameOffset;                               // get pointer
    *(uint16_t*)pbName = (uint16_t)stringName.length();                         // set name lenght before name (lenght is stored as uint16_t)
    pbName += sizeof(uint16_t);                                                 // move past name lenght in buffer
+   uNameOffset += sizeof( uint16_t );                                          // add two bytes sizeof(uint16_t) storing name length, after this add name characters
    memcpy( pbName, stringName.data(), uNameLLengthAndExtra - sizeof(uint16_t) );// copy name and zero termination
    m_uSize += decltype(m_uSize)(uNameLLengthAndExtra);                         // set to end of name (where next name starts)
 
    return uNameOffset;                                                         // return offset position to where name was inserted
 }
 
+/** ---------------------------------------------------------------------------
+ * @brief maker sure that internal buffer is big enough to store size
+ * @param uSize needed size in internal buffer
+*/
 void names::reserve(unsigned uSize)
 {
-   /*
-   if(m_uMaxSize < uSize)
-   {
-      unsigned uNewSize = uSize + uSize % m_uBufferGrowBy_s;                  // new size + exgtra for avoiding to many allocations
-
-      // ## create new buffer, copy from old buffer and update members
-      char* pbNewBufferNames = new char[uNewSize];
-      memcpy(pbNewBufferNames, m_pbBufferNames, m_uSize);
-      delete [] m_pbBufferNames;
-      m_pbBufferNames = pbNewBufferNames;
-      m_uMaxSize = uNewSize;
-   }
-   */
+   // `reserve_g` is used to resize buffer if needed
    std::tie( m_pbBufferNames, m_uMaxSize ) = reserve_g<char,m_uBufferGrowBy_s>( m_pbBufferNames, uSize, m_uMaxSize );
 }
 
@@ -164,6 +157,11 @@ uint8_t* record::get_value_buffer( unsigned uIndex ) const
    }
 
    return nullptr;
+}
+
+void record::clear()
+{
+   m_vectorColumn.clear();
 }
 
 

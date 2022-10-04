@@ -69,12 +69,13 @@ void database::close_s( sqlite3* psqlite )
 
 
 /** ---------------------------------------------------------------------------
- * @brief 
- * @param stringSql 
- * @return 
+ * @brief Open select statement
+ * @param stringSql SELECT query cursor will handle
+ * @return true if ok otherwise false and error information
 */
 std::pair<bool, std::string> cursor::open(const std::string_view& stringSql)
-{                                                                             assert( m_pdatabase != nullptr );
+{                                                                              assert( m_pdatabase != nullptr );
+   close();                                                                    // close statement if there is one active open statement
    sqlite3_stmt* pstmt;
    const char* pbszTail;
    auto iResult = ::sqlite3_prepare_v2(m_pdatabase->get_sqlite3(), stringSql.data(), (int)stringSql.length(), &pstmt, &pbszTail);
@@ -96,6 +97,8 @@ std::pair<bool, std::string> cursor::open(const std::string_view& stringSql)
       }
       auto pbszName = ::sqlite3_column_name( pstmt, i );
       auto uSize = value_size_g( uColumnType );
+      if( uSize == 0 && pbszColumnType != nullptr ) uSize = value_size_g( pbszColumnType );
+
       //uint8_t* pBuffer = m_recordRow.
       m_recordRow.add( uColumnType, uSize, pbszName );
    }
@@ -106,6 +109,7 @@ std::pair<bool, std::string> cursor::open(const std::string_view& stringSql)
    if( iResult == SQLITE_ROW )
    {
       update();
+      m_uState |= row;
    }
    else if( iResult < SQLITE_ROW )   
    {
@@ -120,6 +124,11 @@ std::pair<bool, std::string> cursor::open(const std::string_view& stringSql)
    return { true, "" };
 }
 
+/** -----------------------------------------------------------------------------------------------
+ * @brief Update column buffers
+ * @param uFrom start on column to update buffer
+ * @param uTo end before this column updating buffers
+*/
 void cursor::update( unsigned uFrom, unsigned uTo )
 {                                                                             assert( m_pstmt != nullptr );
    for( auto u = uFrom; u < uTo; u++ )
@@ -134,12 +143,19 @@ void cursor::update( unsigned uFrom, unsigned uTo )
          switch( uType )
          {
          case eColumnTypeCompleteInt64:
-            int64_t iValue = ::sqlite3_column_int64( m_pstmt, u );
-            *(int64_t*)pbBuffer = iValue;
+            *(int64_t*)pbBuffer = ::sqlite3_column_int64( m_pstmt, u );
             break;
-
+         case eColumnTypeCompleteUtf8String: {
+            const unsigned char* pbValue = ::sqlite3_column_text(m_pstmt, u);
+            int iSize = ::sqlite3_column_bytes(m_pstmt, u);
+            memcpy(pbBuffer, pbValue, iSize);
+            pcolumn->size(iSize);
          }
+         break;
 
+         default:
+            assert( false );
+         }
       }
       else
       {
@@ -148,8 +164,89 @@ void cursor::update( unsigned uFrom, unsigned uTo )
    }
 }
 
-gd::variant_view cursor::get_variant_view( unsigned uColumnIndex ) const
+/** -----------------------------------------------------------------------------------------------
+ * @brief Go to next row
+ * @return 
+*/
+std::pair<bool, std::string> cursor::next()
 {
+   int iResult = ::sqlite3_step(m_pstmt);
+   if(iResult == SQLITE_ROW) 
+   { 
+      m_uState |= row; 
+      update();
+   }
+   else if( iResult == SQLITE_DONE )
+   {
+      m_uState &= ~row; 
+   }
+
+   return std::pair<bool, std::string>();
+}
+
+/** -----------------------------------------------------------------------------------------------
+ * @brief Collects values from active row and place them in returned vector with `variant`
+ * @return std::vector<gd::variant> get all values from current row
+*/
+std::vector<gd::variant> cursor::get_variant() const
+{
+   std::vector<gd::variant> vectorValue;
+   for( auto u = 0u, uTo = size(); u < uTo; u++ )
+   { 
+      vectorValue.push_back( get_variant( u ) );
+   }
+   return vectorValue;
+}
+
+/** -----------------------------------------------------------------------------------------------
+ * @brief Get value in specified column
+ * @param uColumnIndex Index to column where retured value i value
+ * @return gd::variant value is placed and returned in variant
+*/
+gd::variant cursor::get_variant( unsigned uColumnIndex ) const
+{                                                                             assert( uColumnIndex < size() );
+   const gd::database::record::column* pcolumn = m_recordRow.get_column( uColumnIndex );
+
+   if (pcolumn->is_null() == false)
+   {
+      unsigned uType = pcolumn->type();
+      uint8_t* pbBuffer = m_recordRow.get_value_buffer( uColumnIndex );        // get buffer to column
+      switch( uType )
+      {
+      case eColumnTypeCompleteInt32: return gd::variant( (int32_t)*(int64_t*)pbBuffer);
+      case eColumnTypeCompleteInt64: return gd::variant( *(int64_t*)pbBuffer );
+      case eColumnTypeCompleteCDouble: return gd::variant( *(double*)pbBuffer );
+      case eColumnTypeCompleteString: return gd::variant( (const char*)pbBuffer, (size_t)pcolumn->size() );
+      case eColumnTypeCompleteUtf8String: return gd::variant( (const char*)pbBuffer, (size_t)pcolumn->size() );
+         
+      default: assert(false);
+      }
+   }
+
+   return gd::variant();
+}
+
+/** -----------------------------------------------------------------------------------------------
+ * @brief Collects values from active row and place them in returned vector with `variant_view`
+ * @return std::vector<gd::variant_view> get all values from current row
+*/
+std::vector<gd::variant_view> cursor::get_variant_view() const
+{
+   std::vector<gd::variant_view> vectorValue;
+   for( auto u = 0u, uTo = size(); u < uTo; u++ )
+   { 
+      vectorValue.push_back( get_variant_view( u ) );
+   }
+   return vectorValue;
+}
+
+/** -----------------------------------------------------------------------------------------------
+ * @brief Get value in specified column
+ * @param uColumnIndex Index to column where retured value i value
+ * @return gd::variant_view value is placed and returned in variant_view
+*/
+gd::variant_view cursor::get_variant_view( unsigned uColumnIndex ) const
+{                                                                             assert( uColumnIndex < size() );
    const gd::database::record::column* pcolumn = m_recordRow.get_column( uColumnIndex );
 
    if (pcolumn->is_null() == false)
@@ -160,11 +257,39 @@ gd::variant_view cursor::get_variant_view( unsigned uColumnIndex ) const
       {
       case eColumnTypeCompleteInt32: return gd::variant_view( (int32_t)*(int64_t*)pbBuffer);
       case eColumnTypeCompleteInt64: return gd::variant_view( *(int64_t*)pbBuffer );
+      case eColumnTypeCompleteCDouble: return gd::variant_view( *(double*)pbBuffer );
+      case eColumnTypeCompleteString: return gd::variant_view( (const char*)pbBuffer, (size_t)pcolumn->size() );
+      case eColumnTypeCompleteUtf8String: return gd::variant_view( (const char*)pbBuffer, (size_t)pcolumn->size() );
+         
       default: assert(false);
       }
    }
 
    return gd::variant_view();
+}
+
+/** -----------------------------------------------------------------------------------------------
+ * @brief Get value in named column
+ * @param stringName column name where retured value i value
+ * @return gd::variant_view value is placed and returned in variant_view
+*/
+gd::variant_view cursor::get_variant_view( const std::string_view& stringName ) const
+{
+   int iColumnIndex = get_index( stringName );
+   if( iColumnIndex != -1 ) return get_variant_view( iColumnIndex );
+
+   return gd::variant_view();
+}
+
+
+/**
+ * @brief return index to column based field name
+ * @param stringName name column index is returned for
+ * @return int index to column if found, otherwise -1
+*/
+int cursor::get_index( const std::string_view& stringName ) const
+{
+   return m_recordRow.get_column_index_for_name( stringName );
 }
 
 
