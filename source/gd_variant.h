@@ -179,6 +179,7 @@ public:
    variant( uint64_t v )   : m_uType(variant_type::eTypeUInt64)     { m_V.uint64 = v; }
    variant( float v )      : m_uType(variant_type::eTypeCFloat)     { m_V.f = v; }
    variant( double v )     : m_uType(variant_type::eTypeCDouble)    { m_V.d = v; }
+   variant( void* p )      : m_uType(variant_type::eTypePointer)    { m_V.p = p; }
    variant( const char* v ): m_uType(variant_type::eTypeString|variant_type::eFlagAllocate), m_uSize(strlen(v)) { m_V.pbsz = (char*)allocate( m_uSize + 1u ); memcpy( m_V.pbsz, v,  m_uSize + 1u ); }
    variant( const wchar_t* v ): m_uType(variant_type::eTypeWString|variant_type::eFlagAllocate), m_uSize(wcslen(v)) { m_V.pwsz = (wchar_t*)allocate(( m_uSize + 1u ) * sizeof(wchar_t)); memcpy( m_V.pwsz, v, ( m_uSize + 1u ) * sizeof(wchar_t) ); }
    variant( const char* v, size_t uLength ): m_uType(variant_type::eTypeString|variant_type::eFlagAllocate), m_uSize(uLength) { m_V.pbsz = (char*)allocate(uLength + 1); memcpy( m_V.pbsz, v, uLength ); m_V.pbsz[uLength] = '\0';  }
@@ -284,6 +285,7 @@ public:
    operator uint64_t() const  { assert(type_number() == variant_type::eTypeNumberUInt64); return m_V.uint64; }
    operator float()  const    { assert(type_number() == variant_type::eTypeNumberFloat); return m_V.f; }
    operator double() const    { assert(type_number() == variant_type::eTypeNumberDouble); return m_V.d; }
+   operator void*() const     { assert(type_number() == variant_type::eTypeNumberPointer); return m_V.p; }
    operator const char*() const { assert(type_number() == variant_type::eTypeNumberString || type_number() == variant_type::eTypeNumberUtf8String || type_number() == variant_type::eTypeNumberJson || type_number() == variant_type::eTypeNumberXml ); return m_V.pbsz; }
    operator const wchar_t*() const { assert(type_number() == variant_type::eTypeNumberWString); return m_V.pwsz; }
    operator const unsigned char*() const { assert(type_number()== variant_type::eTypeNumberBinary); return m_V.pb; }

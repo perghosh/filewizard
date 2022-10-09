@@ -67,27 +67,69 @@ void names::reserve(unsigned uSize)
 // ============================================================================
 
 
-uint32_t buffers::add_primitive( unsigned uColumnType, unsigned uSize )
-{
+/** ---------------------------------------------------------------------------
+ * @brief Add primitive value, primitive value is same as value that has a fixed max buffer size
+ * To avoid to allocate to much memory there is one logic to add primitive (fixed max size values)
+ * and another to logic used to manage values that can be "any" size and grow dynamically if needed.
+ * @param uColumnType type of column
+ * @param uSize max size buffer needs to be to store value
+ * @return offset position in buffer storing fixed values
+*/
+uint32_t buffers::primitive_add( unsigned uColumnType, unsigned uSize )
+{                                                                              assert( uSize != 0 ); // if 0 then value is "derived" (flexible size)
    uint8_t* pbBuffer = nullptr;
    unsigned uSizeOld = m_uSize;
 
-   unsigned uSizeAndExtra = uSize + sizeof( uColumnType ) + sizeof( uSize );   // needed size in buffer for primitive/fixed type
+   unsigned uSizeAndExtra = uSize + sizeof( uSize ) + sizeof( uColumnType );   // needed size in buffer for primitive/fixed type
 
    // ## allocate storage if needed
    std::tie( m_pbBufferPrimitve, m_uMaxSize ) = reserve_g<uint8_t,m_uBufferGrowBy_s>( m_pbBufferPrimitve, uSizeAndExtra + m_uSize, m_uMaxSize );
    
    uint8_t* pbValue = m_pbBufferPrimitve + uSizeOld;
-   *(unsigned*)pbValue = uColumnType;
+   *(unsigned*)pbValue = uSize;                                                // buffer size
    pbValue += sizeof(unsigned);
-   *(unsigned*)pbValue = uSize;                                                // sice for buffer
+   *(unsigned*)pbValue = uColumnType;                                          // value type
 
    m_uSize += uSizeAndExtra;                                                   // add current buffer size for fixed buffers
 
    return uSizeOld + sizeof( uColumnType ) + sizeof( uSize );                  // return offset position to location in buffer where value is stored
 }
 
-unsigned buffers::reserve( unsigned uType, unsigned uSize )
+/** ---------------------------------------------------------------------------
+ * @brief Add "primitive"derived" value, value that are able to store any number of bytes
+ * Derived buffers are buffers used for columns that do not have any max value in them.
+ * Before reading value from result into column there is a check to see if buffer is large
+ * enought, if not relocation is done and this is only done for column buffer.
+ * Fixed buffers are store in `m_pbBufferPrimitve` as one long serie of data (same memory block)
+ * @param uColumnType type of column
+ * @param uSize max size buffer needs to be to store value
+ * @return offset position in buffer storing fixed values
+*/
+uint16_t buffers::derived_add(unsigned uColumnType, unsigned uSize)
+{
+   if( uSize == 0 ) uSize = m_uStartSizeForDerivedBuffer_s;                    // Set default start size if no size is specified
+
+   unsigned uSizeAndExtra = uSize + sizeof( uSize ) + sizeof( uColumnType );
+
+   std::unique_ptr<uint8_t> pBuffer( new uint8_t[uSizeAndExtra] );
+   uint8_t* puBuffer = pBuffer.get();
+
+   *( unsigned* )puBuffer = uSize;                                             // Set max size that can be store in buffer
+   puBuffer += sizeof( unsigned );
+   *(unsigned*)puBuffer = uColumnType;                                         // Set column type
+
+   m_vectorBuffer.push_back( std::move( pBuffer ) );
+
+   return (uint16_t)m_vectorBuffer.size() - 1;
+}
+
+/** ---------------------------------------------------------------------------
+ * @brief Reize buffer holding fixed values, all fixed values are stored in one single buffer large enough to store all fixed values
+ * @param uType number for value type
+ * @param uSize max size for value 
+ * @return previous size for buffer
+*/
+unsigned buffers::primitive_resize( unsigned uType, unsigned uSize )
 {
    uint8_t* pbBuffer = nullptr;
    unsigned uSizeOld = m_uSize;
@@ -102,24 +144,25 @@ unsigned buffers::reserve( unsigned uType, unsigned uSize )
    return uSizeOld;
 }
 
-
-
-/*
-
-   size_t get_num_columns() const { return sqlite3_column_count( m_statement ); }
-   int step() const { return sqlite3_step( m_statement ); }
-   const char* column_name( size_t uIndex ) const { return sqlite3_column_name( m_statement, uIndex ); }
-   int column_type( size_t uIndex ) const { return sqlite3_column_type( m_statement, uIndex ); }
-   const char* column_decltype( size_t uIndex ) const { return sqlite3_column_decltype( m_statement, uIndex ); }
-   __int64 column_int64( size_t uIndex ) const { return sqlite3_column_int64( m_statement, uIndex ); }
-   double column_double( size_t uIndex ) const { return sqlite3_column_double( m_statement, uIndex ); }
-   const void* column_blob( size_t uIndex ) const { return sqlite3_column_blob( m_statement, uIndex ); }
-   size_t column_bytes( size_t uIndex ) const { return sqlite3_column_bytes( m_statement, uIndex ); }
-   const char* column_text( size_t uIndex ) const { return (const char*)sqlite3_column_text( m_statement, uIndex ); }
-
-
+/** ---------------------------------------------------------------------------
+ * @brief Resize derived buffers, derived buffers are used for values that can have any buffer size
+ * @param uIndex index to buffer that needs to be resized
+ * @param uSize new size for buffer (has to be larger than previous buffer)
+ * @return pointer to new buffer
 */
+uint8_t* buffers::derived_resize( unsigned uIndex, unsigned uSize )
+{                                                                              assert( uIndex < m_vectorBuffer.size() );
+   const uint8_t* puBuffer = m_vectorBuffer[uIndex].get();                     assert( *( unsigned* )puBuffer < uSize );
 
+   uSize = uSize + (m_uStartSizeForDerivedBuffer_s - (uSize % m_uStartSizeForDerivedBuffer_s));
+
+   unsigned uOldSize = *( unsigned* )puBuffer;
+   uint8_t* puBiggerBuffer = new uint8_t[uSize + sizeof(unsigned) + sizeof(unsigned)];// create new buffer with new size
+   memcpy( puBiggerBuffer, puBuffer, uOldSize + sizeof( unsigned ) * 2 );      // copy old buffer information into new buffer
+   *( unsigned* )puBiggerBuffer = uSize;
+   m_vectorBuffer[uIndex].reset( puBiggerBuffer );                             // replace buffer
+   return puBiggerBuffer;
+}
 
 
 record& record::add( unsigned uColumnType, unsigned uSize, const std::string_view& stringName, const std::string_view& stringAlias )
@@ -132,9 +175,15 @@ record& record::add( unsigned uColumnType, unsigned uSize, const std::string_vie
    if( stringName.empty() == false ) columnAdd.name( m_namesColumn.add( stringName ) );
    if( stringAlias.empty() == false ) columnAdd.alias( m_namesColumn.add( stringAlias ) );
 
-   if( uSize > 0 )
+   if( uSize > 0 )                                                             // do we have a fixed value? (size is specified)
    {
-      uValueOffset = m_buffersValue.add_primitive( uColumnType, uSize );       // add buffer for fixed size type
+      uValueOffset = m_buffersValue.primitive_add( uColumnType, uSize );       // add buffer for fixed size type
+      columnAdd.value( uValueOffset );
+      columnAdd.set_fixed( true );
+   }
+   else
+   {
+      uValueOffset = m_buffersValue.derived_add( uColumnType, uSize );         // add buffer for fixed size type
       columnAdd.value( uValueOffset );
    }
 
@@ -143,7 +192,7 @@ record& record::add( unsigned uColumnType, unsigned uSize, const std::string_vie
    return *this;
 }
 
-/**
+/** ---------------------------------------------------------------------------
  * @brief return buffer for value buffer
  * @param uIndex column index buffer is returned for
  * @return 
@@ -159,6 +208,10 @@ uint8_t* record::get_value_buffer( unsigned uIndex ) const
    return nullptr;
 }
 
+
+/**
+ * @brief empty columns
+*/
 void record::clear()
 {
    m_vectorColumn.clear();

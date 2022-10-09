@@ -24,7 +24,7 @@ _GD_DATABASE_BEGIN
  *
  * `names` is used to stor constant text values used to work with results from
  * database. text values that do not changed during work.
- * *buffer format, how name is stored in memory*
+ * *buffer format, how name is stored in memory `0` = zero terminator*
  * 'SSname1_value0SSname2_value0SSname3_value0SSname4_value0'
  * - SS = lenght is stored in two bytes as `unsighed short` 
  * - nameX-value = name text as utf8
@@ -34,6 +34,19 @@ _GD_DATABASE_BEGIN
 struct names
 {
    names(): m_uSize{0}, m_uMaxSize{0}, m_pbBufferNames{nullptr} {}
+   names( names&& o ) {
+      m_uSize = o.m_uSize;
+      m_uMaxSize = o.m_uMaxSize;
+      m_pbBufferNames = o.m_pbBufferNames;
+      o.m_pbBufferNames = nullptr;
+   }
+   names& operator=( names&& o ) noexcept { 
+      m_uSize = o.m_uSize;
+      m_uMaxSize = o.m_uMaxSize;
+      m_pbBufferNames = o.m_pbBufferNames;
+      o.m_pbBufferNames = nullptr;
+      return *this; 
+   }
    ~names() { delete [] m_pbBufferNames; }
 
    operator const char* () const { return m_pbBufferNames; }
@@ -66,17 +79,43 @@ struct names
 struct buffers
 {
    buffers(): m_uSize{0}, m_uMaxSize{0}, m_pbBufferPrimitve{nullptr} {}
+   buffers( buffers&& o ) {
+      m_uSize = o.m_uSize;
+      m_uMaxSize = o.m_uMaxSize;
+      m_vectorBuffer = std::move( o.m_vectorBuffer );
+      m_pbBufferPrimitve = o.m_pbBufferPrimitve;
+      o.m_pbBufferPrimitve = nullptr;
+   }
+   buffers& operator=( buffers&& o ) noexcept { 
+      m_uSize = o.m_uSize;
+      m_uMaxSize = o.m_uMaxSize;
+      m_vectorBuffer = std::move( o.m_vectorBuffer );
+      m_pbBufferPrimitve = o.m_pbBufferPrimitve;
+      o.m_pbBufferPrimitve = nullptr;
+      return *this; 
+   }
+
    ~buffers() { 
       delete [] m_pbBufferPrimitve; 
    }
 
-   uint32_t add_primitive( unsigned uType, unsigned uSize );
-   unsigned reserve( unsigned uType, unsigned uSize );
+   // ## Methods that manages primitives (fixed values, max size buffer)
+   /// Add fixed buffer 
+   uint32_t primitive_add( unsigned uType, unsigned uSize );
+   
    uint8_t* primitive_data() const { return m_pbBufferPrimitve; }
    uint8_t* primitive_data_end() const { return m_pbBufferPrimitve + m_uSize; }
    uint8_t* primitive_data_offset( unsigned uOffset ) const { return m_pbBufferPrimitve + uOffset; }
 
-   uint8_t* add_derived( unsigned uType, unsigned uSize );
+   unsigned primitive_resize( unsigned uType, unsigned uSize );
+
+   // ## Derived buffers is used to store buffers that varies in size. 
+   /// return pointer to derived data buffer at index
+   uint8_t* derived_data( unsigned uIndex ) const { return m_vectorBuffer[uIndex].get(); }
+   uint8_t* derived_resize( unsigned uIndex, unsigned uSize );
+
+   // 
+   uint16_t derived_add( unsigned uColumnType, unsigned uSize );
 
    void clear() {
       delete [] m_pbBufferPrimitve; 
@@ -87,8 +126,21 @@ struct buffers
    unsigned m_uSize;       ///< value size in bytes
    unsigned m_uMaxSize;    ///< total buffer size in bytes
    uint8_t* m_pbBufferPrimitve; ///< pointer to buffer where fixed values are stored
-   std::vector< std::unique_ptr<uint8_t[]> > m_vectorBuffer;  ///< used to store values with flexible sizes, first dword in pointer holds current size
+   std::vector< std::unique_ptr<uint8_t> > m_vectorBuffer;  ///< used to store values with flexible sizes, first dword in pointer holds current size
    static const unsigned m_uBufferGrowBy_s = 128;
+   static const unsigned m_uStartSizeForDerivedBuffer_s = 128;
+
+
+   // ## Buffer methods. All buffers have same format four bytes storing size, four bytes storing type and then value
+   //    Buffer layout = SSSSTTTT......... where SSSS = four bytes (unsigned) for length, TTTT = four bytes (unsigned) for type
+
+   /// Get value position from root position in buffer or move pointer
+   static uint8_t* buffer_get_value_from_root_s( uint8_t* puBuffer ) { return puBuffer + sizeof( unsigned ) + sizeof( unsigned ); }
+   static uint8_t* buffer_get_root_from_value_s( uint8_t* puBuffer ) { return puBuffer - (sizeof( unsigned ) + sizeof( unsigned )); }
+
+   // ## size in buffer (buffer store size at first position)
+   [[nodiscard]] static unsigned buffer_size_s( uint8_t* puBuffer ) { return *( unsigned* )puBuffer; }
+
 };
 
 
@@ -115,11 +167,15 @@ public:
     */
    struct column
    {
-      enum { eStateNull = 0x01 };
+      enum { eStateNull = 0x01, eStateFixed = 0x02 };
+
       column() { memset( this, 0, sizeof(column) ); }
       
       bool is_null() const { return (m_uState & eStateNull) == eStateNull; }
       void set_null( bool bNull ) {  if( bNull == true ) { m_uState |= eStateNull; } else { m_uState &= ~eStateNull; } }
+      /// Check if column value is stored in fixed buffer
+      bool is_fixed() const { return m_uState & eStateFixed; }
+      void set_fixed( bool bFixed ) { if( bFixed == true ) { m_uState |= eStateFixed; } else { m_uState &= ~eStateFixed; } }
 
       void type( unsigned uType ) { m_uType = uType; }
       [[nodiscard]] unsigned type() const noexcept { return m_uType; }
@@ -139,8 +195,6 @@ public:
       [[nodiscard]] unsigned value() const noexcept { return m_uValueOffset; }
 
 
-
-
       unsigned m_uState;   // colum state
       unsigned m_uType;    // native value type
       unsigned m_uCType;   // c value type
@@ -156,16 +210,20 @@ public:
    record() {}
    // copy
    record( const record& o ) { common_construct( o ); }
-   record( record&& o ) noexcept { common_construct( o ); }
+   record( record&& o ) noexcept { common_construct( std::move(o) ); }
    // assign
    record& operator=( const record& o ) { common_construct( o ); return *this; }
-   record& operator=( record&& o ) noexcept { common_construct( o ); return *this; }
+   record& operator=( record&& o ) noexcept { common_construct( std::move(o) ); return *this; }
 
    ~record() {}
 private:
    // common copy
    void common_construct( const record& o ) {}
-   void common_construct( record&& o ) noexcept {}
+   void common_construct( record&& o ) noexcept {
+      m_vectorColumn = std::move( o.m_vectorColumn );
+      m_namesColumn = std::move( o.m_namesColumn );
+      m_buffersValue = std::move( o.m_buffersValue );
+   }
 
 // ## operator -----------------------------------------------------------------
 public:
@@ -193,6 +251,9 @@ public:
    int get_column_index_for_name( const std::string_view& stringName ) const;
 
    uint8_t* get_value_buffer( unsigned uIndex ) const;
+   uint8_t* get_detached_buffer( unsigned uIndex ) const { return m_buffersValue.derived_data( uIndex ); }
+
+   uint8_t* resize( unsigned uIndex, unsigned uSize ) { return m_buffersValue.derived_resize( uIndex, uSize ); }
 
    void clear();
 //@}
@@ -217,13 +278,11 @@ public:
    names m_namesColumn;    ///< names, aliases for columns in record. this works like a datastore for const text values
    buffers m_buffersValue; ///< store values for columns record manages
 
-
 // ## free functions ------------------------------------------------------------
 public:
    // ## size in bytes storing values for column type
    [[nodiscard]] static unsigned size_s( enumColumnTypeNumber eType );
    [[nodiscard]] static unsigned size_s( unsigned uType ) { return size_t( (enumColumnTypeNumber)(uType & 0x000000ff) ); }
-
 
 };
 

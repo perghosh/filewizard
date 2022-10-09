@@ -54,6 +54,7 @@ public:
    variant_view( uint64_t v )   : m_uType(variant_type::eTypeUInt64)     { m_V.uint64 = v; }
    variant_view( float v )      : m_uType(variant_type::eTypeCFloat)     { m_V.f = v; }
    variant_view( double v )     : m_uType(variant_type::eTypeCDouble)    { m_V.d = v; }
+   variant_view( void* p )      : m_uType(variant_type::eTypePointer)    { m_V.p = p; }
    variant_view(const char* v) : m_uType(variant_type::eTypeString), m_uSize(strlen(v)) { m_V.pbsz_const = v;  }
    variant_view(const wchar_t* v) : m_uType(variant_type::eTypeWString), m_uSize(wcslen(v)) { m_V.pwsz_const = v; }
    variant_view(const char* v, size_t uLength) : m_uType(variant_type::eTypeString), m_uSize(uLength) { m_V.pbsz_const = v; }
@@ -147,12 +148,10 @@ public:
    operator uint64_t() const  { assert(type_number() == variant_type::eTypeNumberUInt64); return m_V.uint64; }
    operator float()  const    { assert(type_number() == variant_type::eTypeNumberFloat); return m_V.f; }
    operator double() const    { assert(type_number() == variant_type::eTypeNumberDouble); return m_V.d; }
+   operator void*() const     { assert(type_number() == variant_type::eTypeNumberPointer); return m_V.p; }
    operator const char*() const { assert(type_number() == variant_type::eTypeNumberString || type_number() == variant_type::eTypeNumberUtf8String || type_number() == variant_type::eTypeNumberJson || type_number() == variant_type::eTypeNumberXml ); return m_V.pbsz; }
    operator const wchar_t*() const { assert(type_number() == variant_type::eTypeNumberWString); return m_V.pwsz; }
    operator const unsigned char*() const { assert(type_number()== variant_type::eTypeNumberBinary); return m_V.pb; }
-
-   //operator std::string() const { return get_string(); }
-   //operator std::wstring() const { return get_wstring_1(); }
 
    bool operator==(int8_t v) const { if( type_number() == variant_type::eTypeNumberInt8 && m_V.int8 == v ) { return true; } return false; }
    bool operator==(uint8_t v) const { if( type_number() == variant_type::eTypeNumberUInt8 && m_V.uint8 == v ) { return true; } return false; }
@@ -218,13 +217,22 @@ public:
 *///@{
    bool get_bool() const; 
    int get_int() const;   
-   int32_t get_int32() const { if(m_uType == variant_type::eTypeUInt32) return m_V.int32; else return (int32_t)get_int(); }
+   //int32_t get_int32() const { if(m_uType == variant_type::eTypeUInt32) return m_V.int32; else return (int32_t)get_int(); }
    unsigned int get_uint() const;   
    int64_t get_int64() const;
    double get_decimal() const;
    double get_double() const { return get_decimal(); };
    std::string get_string() const;
    std::wstring get_wstring() const;
+
+   // ## as_* methods, similar to C++ stl to_
+   bool as_bool() const { return get_bool(); }
+   int as_int() const { return get_int(); }
+   unsigned as_uint() const { return get_uint(); }
+   int64_t as_int64() const { return get_int64(); }
+   double as_double() const { return get_decimal(); }
+   std::string as_string() const { return get_string(); }
+   std::wstring as_wstring() const { return get_wstring(); }
 
 
    // ## buffer methods, use this if you need speed, no heap allocations

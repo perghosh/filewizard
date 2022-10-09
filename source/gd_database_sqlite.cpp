@@ -32,10 +32,13 @@ std::pair<bool,std::string> database::open(const std::string_view& stringFileNam
  * @param stringFileName file name representing sqlite database
  * @return pointer to sqlite database or if error then add error information
 */
-std::pair<sqlite3*, std::string> database::open_s(const std::string_view& stringFileName)
+std::pair<sqlite3*, std::string> database::open_s(const std::string_view& stringFileName, int iFlags)
 {
+   if( iFlags == 0 ) iFlags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX;
+   
    sqlite3* psqlite3 = nullptr;
-   auto iOpenResult = ::sqlite3_open(stringFileName.data(), &psqlite3);
+
+   auto iOpenResult = ::sqlite3_open_v2(stringFileName.data(), &psqlite3, iFlags, nullptr );
    if( iOpenResult == SQLITE_OK ) return { psqlite3, std::string() };
 
    auto pbszError = ::sqlite3_errmsg(psqlite3);
@@ -131,6 +134,10 @@ std::pair<bool, std::string> cursor::open(const std::string_view& stringSql)
 */
 void cursor::update( unsigned uFrom, unsigned uTo )
 {                                                                             assert( m_pstmt != nullptr );
+   unsigned uType;
+   uint8_t* pbBuffer;
+   int iValueSize = 0;
+
    for( auto u = uFrom; u < uTo; u++ )
    {
       int iType = ::sqlite3_column_type( m_pstmt, u );
@@ -138,18 +145,57 @@ void cursor::update( unsigned uFrom, unsigned uTo )
       if (iType != SQLITE_NULL)
       {
          pcolumn->set_null(false);
-         unsigned uType = pcolumn->type();
-         uint8_t* pbBuffer = m_recordRow.get_value_buffer( u );               // get buffer to column
+         uType = pcolumn->type();
+         if( pcolumn->is_fixed() == true )
+         {
+            pbBuffer = m_recordRow.get_value_buffer( u );                      assert( pbBuffer != nullptr ); // get buffer to column
+         }
+         else
+         {
+            // ## Compare buffer size with value size, if buffer size is smaller than
+            //    needed value size, then increase buffer size.
+            //    Remember that first 8 bytes in buffer has length as unsigned and type ans unsigned.
+            pbBuffer = m_recordRow.get_detached_buffer( pcolumn->value() ); 
+            unsigned uBufferSize = buffers::buffer_size_s( pbBuffer );
+            iValueSize = ::sqlite3_column_bytes(m_pstmt, u);
+            if( iValueSize > ( int )uBufferSize ) 
+            {
+               pbBuffer = m_recordRow.resize( pcolumn->value(), iValueSize + 1 );// increase buffer size, add one for zero termination
+            }
+            pbBuffer = buffers::buffer_get_value_from_root_s( pbBuffer );
+#ifdef _DEBUG
+            auto buffer_length_d = *( unsigned* )buffers::buffer_get_root_from_value_s( pbBuffer );
+            auto value_length_d = (unsigned)::sqlite3_column_bytes( m_pstmt, u );
+            assert( buffer_length_d >= value_length_d );
+#endif // _DEBUG
+
+         }
+
          switch( uType )
          {
          case eColumnTypeCompleteInt64:
             *(int64_t*)pbBuffer = ::sqlite3_column_int64( m_pstmt, u );
             break;
+         case eColumnTypeCompleteCDouble:
+            *(double*)pbBuffer = ::sqlite3_column_double( m_pstmt, u );
+            break;
          case eColumnTypeCompleteUtf8String: {
-            const unsigned char* pbValue = ::sqlite3_column_text(m_pstmt, u);
-            int iSize = ::sqlite3_column_bytes(m_pstmt, u);
-            memcpy(pbBuffer, pbValue, iSize);
-            pcolumn->size(iSize);
+            const unsigned char* pbValue = ::sqlite3_column_text(m_pstmt, u);  // get text value in table
+
+            if( iValueSize == 0 )                                              // if text value lenght hasn't been retrieved then this must be a fixed buffer
+            {
+               // ## Copy text from buffer in sqlite db
+               int iSize = ::sqlite3_column_bytes( m_pstmt, u );
+               memcpy( pbBuffer, pbValue, iSize );
+               pbBuffer[iSize] = '\0';
+               pcolumn->size( iSize );
+            }
+            else
+            {
+               int iSize = iValueSize;
+               memcpy( pbBuffer, pbValue, iSize );
+               pbBuffer[iSize] = '\0';
+            }
          }
          break;
 

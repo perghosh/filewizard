@@ -45,11 +45,13 @@ class database
 // ## construction -------------------------------------------------------------
 public:
    database() : m_psqlite3{ nullptr } {}
-   database( sqlite3* psqlite3 ) : m_psqlite3{ psqlite3 } {}
+   database( sqlite3* psqlite3 ) : m_psqlite3 { psqlite3 }, m_bOwner{ true } {}
+   database( void* psqlite3 ) : m_psqlite3{ (sqlite3*)psqlite3 }, m_bOwner{ true } {}
+   database( void* psqlite3, bool bOwner ) : m_psqlite3{ (sqlite3*)psqlite3 }, m_bOwner{ bOwner } {}
 
    // copy
    database(const database& o) { common_construct(o); }
-   database(database&& o) noexcept { common_construct(o); }
+   database(database&& o) noexcept { common_construct( std::move(o) ); }
    // assign
    database& operator=(const database& o) { common_construct(o); return *this; }
    database& operator=(database&& o) noexcept { common_construct(o); return *this; }
@@ -57,8 +59,13 @@ public:
    ~database() { close(); }
 private:
 // common copy
-   void common_construct(const database& o) {}
-   void common_construct(database&& o) noexcept {}
+   void common_construct(const database& o) {
+      m_psqlite3 = o.m_psqlite3;
+   }
+   void common_construct(database&& o) noexcept {
+      m_psqlite3 = o.m_psqlite3;
+      o.m_psqlite3 = nullptr;
+   }
 
 // ## operator -----------------------------------------------------------------
 public:
@@ -81,7 +88,7 @@ public:
    std::pair<bool, std::string> execute(const std::string_view& stringQuery);
 
    /// close sqlite connection if open
-   void close() { close_s(m_psqlite3); m_psqlite3 = nullptr; }
+   void close() { if( m_bOwner == true ) { close_s( m_psqlite3 ); } m_psqlite3 = nullptr; }
 
    /// Release internal pointer to sqlite database
    sqlite3* release() { sqlite3* psqlite3 = m_psqlite3; m_psqlite3 = nullptr; return psqlite3; }
@@ -103,13 +110,15 @@ public:
 
 // ## attributes ----------------------------------------------------------------
 public:
-   sqlite3* m_psqlite3;
+   bool m_bOwner;          ///< If pointer to sqlite database connection is owned (then it is deleted when object is destroyed)
+   sqlite3* m_psqlite3;    ///< pointer to sqlite database connection
 
 
 // ## free functions ------------------------------------------------------------
 public:
 
-   static std::pair<sqlite3*, std::string> open_s(const std::string_view& stringFileName);
+   static std::pair<sqlite3*, std::string> open_s(const std::string_view& stringFileName, int iFlags);
+   static std::pair<sqlite3*, std::string> open_s( const std::string_view& stringFileName ) { return open_s( stringFileName, 0 ); }
    static std::pair<bool, std::string> execute_s(sqlite3* psqlite, const std::string_view& stringQuery);
    static void close_s(sqlite3* psqlite);
 };
@@ -134,7 +143,7 @@ public:
 // ## construction -------------------------------------------------------------
 public:
    cursor(): m_uState(0), m_pstmt(nullptr), m_pdatabase(nullptr) {}
-   cursor( database* pdatabase ): m_uState(0), m_pstmt(nullptr), m_pdatabase(pdatabase) {}
+   cursor( database* pdatabase ) : m_uState( 0 ), m_pstmt( nullptr ), m_pdatabase( pdatabase ) { assert( pdatabase != nullptr ); assert( pdatabase->get_sqlite3() != nullptr ); }
    // copy
    cursor(const cursor& o) { common_construct(o); }
    cursor(cursor&& o) noexcept { common_construct(o); }
@@ -150,6 +159,9 @@ private:
 
 // ## operator -----------------------------------------------------------------
 public:
+   // ## index operators, returns variant_view
+   gd::variant_view operator[](unsigned uIndex) const { return get_variant_view(uIndex); }
+   gd::variant_view operator[](const std::string_view& stringName) const { return get_variant_view(stringName); }
 
 
 // ## methods ------------------------------------------------------------------
