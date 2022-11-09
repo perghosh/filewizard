@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstring>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -52,6 +53,7 @@ struct names
    operator const char* () const { return m_pbBufferNames; }
 
    uint16_t add( std::string_view stringName );
+   std::string_view get( unsigned uOffset ) const { return get_name_s( m_pbBufferNames, uOffset ); }
    uint16_t last_position() const noexcept { return m_uSize; }
    void reserve( unsigned uSize );
    void clear() {
@@ -67,7 +69,7 @@ struct names
    static const unsigned m_uBufferGrowBy_s = 256;
 
    /// get name from offset in buffer 
-   static std::string_view get_name_s( const char* pbBuffer, unsigned uOffset ) { 
+   static std::string_view get_name_s( const char* pbBuffer, unsigned uOffset ) { assert( uOffset < 0x90000 ); // realistic ?
       return std::string_view( pbBuffer + uOffset, *(uint16_t*)(pbBuffer + (uOffset - sizeof(uint16_t))) ); 
    }
 };
@@ -112,6 +114,7 @@ struct buffers
    // ## Derived buffers is used to store buffers that varies in size. 
    /// return pointer to derived data buffer at index
    uint8_t* derived_data( unsigned uIndex ) const { return m_vectorBuffer[uIndex].get(); }
+   uint8_t* derived_data_value( unsigned uIndex ) const { return m_vectorBuffer[uIndex].get() + m_uDerivedOffsetStart_s; }
    uint8_t* derived_resize( unsigned uIndex, unsigned uSize );
 
    // 
@@ -128,7 +131,8 @@ struct buffers
    uint8_t* m_pbBufferPrimitve; ///< pointer to buffer where fixed values are stored
    std::vector< std::unique_ptr<uint8_t> > m_vectorBuffer;  ///< used to store values with flexible sizes, first dword in pointer holds current size
    static const unsigned m_uBufferGrowBy_s = 128;
-   static const unsigned m_uStartSizeForDerivedBuffer_s = 128;
+   static const unsigned m_uStartSizeForDerivedBuffer_s = 128; ///< min size for buffer storing values withoud max column size
+   static const unsigned m_uDerivedOffsetStart_s = sizeof( unsigned ) * 2; ///< derived buffer distance to value (derived = value with any size)
 
 
    // ## Buffer methods. All buffers have same format four bytes storing size, four bytes storing type and then value
@@ -198,7 +202,7 @@ public:
       unsigned m_uState;   // colum state
       unsigned m_uType;    // native value type
       unsigned m_uCType;   // c value type
-      unsigned m_uSize;    // value size in bytes if fixed
+      unsigned m_uSize;    // current value size 
       uint16_t m_uNameOffset; // offset to location for name in buffer
       uint16_t m_uAliasOffset;// offset to location for alias in buffer
       unsigned m_uValueOffset;// offset to value in buffer
@@ -246,12 +250,24 @@ public:
 
    [[nodiscard]] unsigned size() const noexcept { return (unsigned)m_vectorColumn.size(); }
 
+   // ## access columns
    const column* get_column( unsigned uIndex ) const { return &m_vectorColumn[uIndex]; }
    column* get_column( unsigned uIndex ) { return &m_vectorColumn[uIndex]; }
    int get_column_index_for_name( const std::string_view& stringName ) const;
 
-   uint8_t* get_value_buffer( unsigned uIndex ) const;
-   uint8_t* get_detached_buffer( unsigned uIndex ) const { return m_buffersValue.derived_data( uIndex ); }
+   // ## access columns buffers
+   /// get pointer to buffer value for column with fixed max size
+   uint8_t* buffer_get( unsigned uIndex ) const;
+   /// get pointer to buffer for column with variable size
+   uint8_t* buffer_get_detached( unsigned uIndex ) const { return m_buffersValue.derived_data( uIndex ); }
+
+   // ## access column aliases
+   std::string_view alias_get( unsigned uIndex ) const;
+   std::vector<std::string_view> alias_get() const;
+
+   // ## access column names
+   std::string_view name_get( unsigned uIndex ) const;
+   std::vector<std::string_view> name_get() const;
 
    uint8_t* resize( unsigned uIndex, unsigned uSize ) { return m_buffersValue.derived_resize( uIndex, uSize ); }
 
@@ -286,6 +302,11 @@ public:
 
 };
 
+/**
+ * @brief Find index for column name
+ * @param stringName column name index is returned for
+ * @return int index to column if found, otherwise -1
+*/
 inline int record::get_column_index_for_name( const std::string_view& stringName ) const {
    for( auto it = std::begin( m_vectorColumn ), itEnd = std::end( m_vectorColumn ); it != itEnd; it++ ) {
       auto u = it->name();

@@ -11,6 +11,16 @@ _GD_DATABASE_BEGIN
 _GD_DATABASE_BEGIN
 #endif
 
+#if defined(_MSC_VER)
+   #pragma warning(push)
+   #pragma warning( disable : 26495 26812 )
+#else
+   #pragma GCC diagnostic push
+   #pragma clang diagnostic ignored "-Wdeprecated-enum-enum-conversion"
+   #pragma GCC diagnostic ignored "-Wunused-value"
+#endif
+
+
 /*
 struct tagSQLGUID {  
    unsigned long Data1;  
@@ -124,12 +134,12 @@ enum enumColumnTypeNumber
    eColumnTypeNumberUnknown      = 0,
    eColumnTypeNumberBool         = 1,
    eColumnTypeNumberInt8         = 2,
-   eColumnTypeNumberInt16        = 3,
-   eColumnTypeNumberInt32        = 4,
-   eColumnTypeNumberInt64        = 5,
-   eColumnTypeNumberUInt8        = 6,
-   eColumnTypeNumberUInt16       = 7,
-   eColumnTypeNumberUInt32       = 8,
+   eColumnTypeNumberUInt8        = 3,
+   eColumnTypeNumberInt16        = 4,
+   eColumnTypeNumberUInt16       = 5,
+   eColumnTypeNumberInt32        = 6,
+   eColumnTypeNumberUInt32       = 7,
+   eColumnTypeNumberInt64        = 8,
    eColumnTypeNumberUInt64       = 9,
    eColumnTypeNumberCFloat       = 10,
    eColumnTypeNumberCDouble      = 11,
@@ -182,6 +192,7 @@ enum enumColumnType
    eColumnTypeString       = eColumnTypeNumberString     | eColumnTypeGroupString,
    eColumnTypeUtf8String   = eColumnTypeNumberUtf8String | eColumnTypeGroupString,
    eColumnTypeWString      = eColumnTypeNumberWString    | eColumnTypeGroupString,
+   eColumnTypeUtf32String  = eColumnTypeNumberUtf32String    | eColumnTypeGroupString,
    eColumnTypeNumeric      = eColumnTypeNumberNumeric    | eColumnTypeGroupString,
    eColumnTypeDecimal      = eColumnTypeNumberDecimal    | eColumnTypeGroupString,
    eColumnTypeGuidString   = eColumnTypeNumberUuidString | eColumnTypeGroupString | eColumnTypeGroupBinary,
@@ -222,6 +233,7 @@ enum enumColumnTypeComplete
    eColumnTypeCompleteString       = eColumnTypeString     | eColumnTypeGroupChar,
    eColumnTypeCompleteUtf8String   = eColumnTypeUtf8String | eColumnTypeGroupChar,
    eColumnTypeCompleteWString      = eColumnTypeWString    | eColumnTypeGroupWChar,
+   eColumnTypeCompleteUtf32String  = eColumnTypeUtf32String| eColumnTypeGroupWChar,
    eColumnTypeCompleteNumeric      = eColumnTypeNumeric    | eColumnTypeGroupChar,
    eColumnTypeCompleteDecimal      = eColumnTypeDecimal    | eColumnTypeGroupChar,
    eColumnTypeCompleteGuidString   = eColumnTypeGuidString | eColumnTypeGroupWChar,
@@ -314,6 +326,176 @@ constexpr unsigned value_size_g(const std::string_view& stringGetNumber)
    return 0;
 }
 
+
+/** ---------------------------------------------------------------------------
+ * @brief Return type number for type name
+ * Converts a typename in text to a number and can do this during compile time.
+ * It simplifies to read code and you do not need to work with macros or other constants.
+ * Valid type names are:
+ * BINARY, BOOL, DECIMAL, DAYE, DATETIME, GUID, FLOAT, INT8, INT16, INT32, INT64,
+ * NUMERIC, NVARCHAR, STRING, UINT8, UINT16, UINT32, UINT64, UTF8, UTF32, VARCHAR
+ * @param stringType type that is converted to number
+ * @return unsigned type number
+*/
+constexpr unsigned value_get_type_number_g( const std::string_view& stringType )
+{
+   constexpr char LOWER_A = 'a';
+   const std::size_t BUFFER_SIZE = 7;
+   char pbuffer[BUFFER_SIZE] = {'\0'};
+   for( std::size_t u = 0; u < BUFFER_SIZE; u++ )
+   {
+      if( stringType.length() > u )
+      {
+         char ch = stringType[u];
+         if( ch >= LOWER_A ) ch -= ('a' - 'A');
+         pbuffer[u] = ch;
+      }
+      else
+      {
+         pbuffer[u] = '\0';
+      }
+   }
+
+   switch( pbuffer[0] )
+   {
+      case 'B': {
+         if( pbuffer[sizeof "BI" - 1] == 'I' ) return eColumnTypeNumberBinary;
+         return eColumnTypeNumberBool;
+      }
+      break;
+      case 'D': {
+         if( pbuffer[sizeof "DATET" - 1] == 'T' ) return eColumnTypeNumberDateTime;
+         if( pbuffer[sizeof "DEC" - 1] == 'C' ) return eColumnTypeNumberDecimal;
+         return eColumnTypeNumberDate;
+      }
+      break;
+      case 'G': {
+         return eColumnTypeNumberGuid;
+      }
+      case 'F': {
+         return eColumnTypeNumberCFloat;
+      }
+      break;
+      case 'I': {
+         if( pbuffer[sizeof "INT3" - 1] == '3' ) return eColumnTypeNumberInt32;
+         else if( pbuffer[sizeof "INT6" - 1] == '6' ) return eColumnTypeNumberInt64;
+         else if( pbuffer[sizeof "INT1" - 1] == '1' ) return eColumnTypeNumberInt16;
+         else if( pbuffer[sizeof "INT8" - 1] == '8' ) return eColumnTypeNumberInt8;
+         return eColumnTypeNumberInt32;
+      }
+      break;
+      case 'N': {
+         if( pbuffer[sizeof "NV" - 1] == 'V' ) return eColumnTypeNumberWString;
+         return eColumnTypeNumberNumeric;
+      }
+      break;
+      case 'S': {
+         return eColumnTypeNumberString;
+      }
+      break;
+      case 'U': {
+         if( pbuffer[sizeof "UTF8" - 1] == '8' ) return eColumnTypeNumberUtf8String;
+         else if( pbuffer[sizeof "UTF3" - 1] == '3' ) return eColumnTypeNumberUtf32String;
+         else if( pbuffer[sizeof "UINT3" - 1] == '3' ) return eColumnTypeNumberUInt32;
+         else if( pbuffer[sizeof "UINT6" - 1] == '6' ) return eColumnTypeNumberUInt64;
+         else if( pbuffer[sizeof "UINT1" - 1] == '1' ) return eColumnTypeNumberUInt16;
+         else if( pbuffer[sizeof "UINT8" - 1] == '8' ) return eColumnTypeNumberUInt8;
+         return eColumnTypeNumberUInt32;
+      }
+      case 'V': {
+         return eColumnTypeNumberString;
+      }
+      break;
+   }
+
+   return eColumnTypeNumberUnknown;
+}
+
+/** ---------------------------------------------------------------------------
+ * @brief Return type number for type name
+ * Converts a typename in text to a number and can do this during compile time.
+ * It simplifies to read code and you do not need to work with macros or other constants.
+ * Valid type names are:
+ * BINARY, BOOL, DECIMAL, DAYE, DATETIME, GUID, FLOAT, INT8, INT16, INT32, INT64,
+ * NUMERIC, NVARCHAR, STRING, UINT8, UINT16, UINT32, UINT64, UTF8, UTF32, VARCHAR
+ * @param stringType type that is converted to number
+ * @return unsigned type number
+*/
+constexpr unsigned value_get_type_complete_g( const std::string_view& stringType )
+{
+   constexpr char LOWER_A = 'a';
+   const std::size_t BUFFER_SIZE = 7;
+   char pbuffer[BUFFER_SIZE] = {'\0'};
+   for( std::size_t u = 0; u < BUFFER_SIZE; u++ )
+   {
+      if( stringType.length() > u )
+      {
+         char ch = stringType[u];
+         if( ch >= LOWER_A ) ch -= ('a' - 'A');
+         pbuffer[u] = ch;
+      }
+      else
+      {
+         pbuffer[u] = '\0';
+      }
+   }
+
+   switch( pbuffer[0] )
+   {
+      case 'B': {
+         if( pbuffer[sizeof "BI" - 1] == 'I' ) return eColumnTypeCompleteBinary;
+         return eColumnTypeCompleteBool;
+      }
+      break;
+      case 'D': {
+         if( pbuffer[sizeof "DATET" - 1] == 'T' ) return eColumnTypeCompleteDateTime;
+         if( pbuffer[sizeof "DEC" - 1] == 'C' ) return eColumnTypeCompleteDecimal;
+         return eColumnTypeCompleteDate;
+      }
+      break;
+      case 'G': {
+         return eColumnTypeCompleteGuid;
+      }
+      case 'F': {
+         return eColumnTypeCompleteCFloat;
+      }
+      break;
+      case 'I': {
+         if( pbuffer[sizeof "INT3" - 1] == '3' ) return eColumnTypeCompleteInt32;
+         else if( pbuffer[sizeof "INT6" - 1] == '6' ) return eColumnTypeCompleteInt64;
+         else if( pbuffer[sizeof "INT1" - 1] == '1' ) return eColumnTypeCompleteInt16;
+         else if( pbuffer[sizeof "INT8" - 1] == '8' ) return eColumnTypeCompleteInt8;
+         return eColumnTypeCompleteInt32;
+      }
+      break;
+      case 'N': {
+         if( pbuffer[sizeof "NV" - 1] == 'V' ) return eColumnTypeCompleteWString;
+         return eColumnTypeCompleteNumeric;
+      }
+      break;
+      case 'S': {
+         return eColumnTypeCompleteString;
+      }
+      break;
+      case 'U': {
+         if( pbuffer[sizeof "UTF8" - 1] == '8' ) return eColumnTypeCompleteUtf8String;
+         else if( pbuffer[sizeof "UTF3" - 1] == '3' ) return eColumnTypeCompleteUtf32String;
+         else if( pbuffer[sizeof "UINT3" - 1] == '3' ) return eColumnTypeCompleteUInt32;
+         else if( pbuffer[sizeof "UINT6" - 1] == '6' ) return eColumnTypeCompleteUInt64;
+         else if( pbuffer[sizeof "UINT1" - 1] == '1' ) return eColumnTypeCompleteUInt16;
+         else if( pbuffer[sizeof "UINT8" - 1] == '8' ) return eColumnTypeCompleteUInt8;
+         return eColumnTypeCompleteUInt32;
+      }
+      case 'V': {
+         return eColumnTypeCompleteString;
+      }
+      break;
+   }
+
+   return eColumnTypeCompleteUnknown;
+}
+
+
 _GD_DATABASE_END
 
 // ## Check for compability with core types found in gd::types
@@ -321,4 +503,10 @@ _GD_DATABASE_END
 static_assert( gd::types::enumTypeNumber::eTypeNumberUInt64 == gd::database::enumColumnTypeNumber::eColumnTypeNumberUInt64 );
 static_assert( gd::types::enumTypeNumber::eTypeNumberDouble == gd::database::enumColumnTypeNumber::eColumnTypeNumberCDouble );
 static_assert( gd::types::enumTypeNumber::eTypeNumberDecimal == gd::database::enumColumnTypeNumber::eColumnTypeNumberDecimal );
+#endif
+
+#if defined(_MSC_VER)
+   #pragma warning(pop)
+#else
+   #pragma GCC diagnostic pop
 #endif

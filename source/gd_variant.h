@@ -1,5 +1,6 @@
 #pragma once
 #include <cassert>
+#include <cstring>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -9,8 +10,15 @@
 #  define GD_BEGIN_VARIANT
 #endif
 
-#pragma warning( push )
-#pragma warning( disable : 4267 26495 26812 )
+#if defined(_MSC_VER)
+   #pragma warning(push)
+   #pragma warning( disable : 4267 26495 26812 )
+#else
+   #pragma GCC diagnostic push
+   #pragma clang diagnostic ignored "-Wdeprecated-enum-enum-conversion"
+   #pragma GCC diagnostic ignored "-Wunused-value"
+#endif
+
 
 #ifndef _GD_BEGIN
 namespace gd {
@@ -21,7 +29,7 @@ _GD_BEGIN
 
 namespace variant_type
 {
-   struct no_allocate_tag {};
+   struct no_allocate_tag {};                                                  // tag dispatcher for overloaded methods avoiding allocation
 
    enum enumGroup
    {
@@ -34,8 +42,8 @@ namespace variant_type
 
    enum enumFlag
    {
-      eFlagAllocate     = 0x00010000,                                            // variant object has allocated data on heap
-      eFlagLengthPrefix = 0x00020000,                                            // pointer to object is prefixed with length
+      eFlagAllocate     = 0x00010000,                                          // variant object has allocated data on heap
+      eFlagLengthPrefix = 0x00020000,                                          // pointer to object is prefixed with length
    };
 
    /*-----------------------------------------*/ /**
@@ -94,10 +102,10 @@ namespace variant_type
       eTypePointer      = eTypeNumberPointer,
       eTypeGuid         = eTypeNumberGuid     | eGroupBinary,
       eTypeBinary       = eTypeNumberBinary   | eGroupBinary,
-      eTypeUtf8String   = eTypeNumberUtf8String | eGroupString,
-      eTypeUtf32String  = eTypeNumberUtf32String | eGroupString,
       eTypeString       = eTypeNumberString   | eGroupString,
+      eTypeUtf8String   = eTypeNumberUtf8String | eGroupString,
       eTypeWString      = eTypeNumberWString  | eGroupString,
+      eTypeUtf32String  = eTypeNumberUtf32String | eGroupString,
       eTypeJson         = eTypeNumberJson     | eGroupString,
       eTypeXml          = eTypeNumberXml      | eGroupString,
       eTypeVoid         = eTypeNumberVoid
@@ -181,30 +189,26 @@ public:
    variant( double v )     : m_uType(variant_type::eTypeCDouble)    { m_V.d = v; }
    variant( void* p )      : m_uType(variant_type::eTypePointer)    { m_V.p = p; }
    variant( const char* v ): m_uType(variant_type::eTypeString|variant_type::eFlagAllocate), m_uSize(strlen(v)) { m_V.pbsz = (char*)allocate( m_uSize + 1u ); memcpy( m_V.pbsz, v,  m_uSize + 1u ); }
+#if defined(__cpp_char8_t)
+   variant( const char8_t* v ): m_uType(variant_type::eTypeUtf8String|variant_type::eFlagAllocate), m_uSize(strlen((const char*)v)) { m_V.pbsz = (char*)allocate( m_uSize + 1u ); memcpy( m_V.pbsz, v,  m_uSize + 1u ); }
+#endif
    variant( const wchar_t* v ): m_uType(variant_type::eTypeWString|variant_type::eFlagAllocate), m_uSize(wcslen(v)) { m_V.pwsz = (wchar_t*)allocate(( m_uSize + 1u ) * sizeof(wchar_t)); memcpy( m_V.pwsz, v, ( m_uSize + 1u ) * sizeof(wchar_t) ); }
    variant( const char* v, size_t uLength ): m_uType(variant_type::eTypeString|variant_type::eFlagAllocate), m_uSize(uLength) { m_V.pbsz = (char*)allocate(uLength + 1); memcpy( m_V.pbsz, v, uLength ); m_V.pbsz[uLength] = '\0';  }
    variant( const char* v, size_t uLength, bool ): m_uType(variant_type::eTypeString), m_uSize(uLength) { m_V.pbsz = const_cast<char*>(v); }
    variant( const wchar_t* v, size_t uLength ): m_uType(variant_type::eTypeWString|variant_type::eFlagAllocate), m_uSize(uLength) { m_V.pwsz = (wchar_t*)allocate((uLength + 1) * sizeof(wchar_t)); memcpy( m_V.pwsz, v, (uLength) * sizeof(wchar_t) ); m_V.pwsz[uLength] = L'\0'; }
    variant( const wchar_t* v, size_t uLength, bool ) : m_uType(variant_type::eTypeWString), m_uSize(uLength) { m_V.pwsz = const_cast<wchar_t*>(v); }
-   variant( const unsigned char* v, size_t uLength ): m_uType(variant_type::eTypeBinary|variant_type::eFlagAllocate), m_uSize(uLength) { m_V.pb = (unsigned char*)allocate(uLength); memcpy( m_V.pb, v, uLength );  }
+   //variant( const unsigned char* v, size_t uLength ): m_uType(variant_type::eTypeBinary|variant_type::eFlagAllocate), m_uSize(uLength) { m_V.pb = (unsigned char*)allocate(uLength); memcpy( m_V.pb, v, uLength );  }
    variant( const unsigned char* v, size_t uLength, bool ): m_uType(variant_type::eTypeBinary), m_uSize(uLength) { m_V.pb = const_cast<unsigned char*>(v); }
    variant( const utf8& v ) : m_uType(variant_type::eTypeUtf8String|variant_type::eFlagAllocate), m_uSize(v.m_uLength) { m_V.pbsz = (char*)allocate(  m_uSize + 1u ); memcpy( m_V.pbsz, v.m_pbsz,  m_uSize + 1u ); }
    variant( const utf8& v, unsigned int uType ) : m_uType(uType|variant_type::eFlagAllocate), m_uSize(v.m_uLength) { m_V.pbsz = (char*)allocate( m_uSize + 1u ); memcpy( m_V.pbsz, v.m_pbsz,  m_uSize + 1u ); }
    variant( const utf8& v, bool ) : m_uType(variant_type::eTypeUtf8String), m_uSize(v.m_uLength) { m_V.pbsz = const_cast<char*>(v.m_pbsz); }
    variant( unsigned int uType, void* v, size_t uLength, size_t uDataLength = 0 ) : m_uType(uType), m_uSize( uLength ) { if( uDataLength == 0 ) uDataLength = uLength; m_V.pb = (unsigned char*)allocate(uDataLength); memcpy( m_V.pb, v, uDataLength );  }
+   variant( const uint8_t* v, size_t uLength ): m_uType(variant_type::eTypeBinary|variant_type::eFlagAllocate), m_uSize(uLength) { m_V.pb = (uint8_t*)allocate(uLength); memcpy( m_V.pb, v, uLength ); }
+
+   variant( const std::string& v ): m_uType(variant_type::eTypeString|variant_type::eFlagAllocate), m_uSize(v.length()) { m_V.pbsz = (char*)allocate( m_uSize + 1u ); memcpy( m_V.pbsz, v.c_str(), m_uSize + 1u); }
 
    variant(const char* v, bool) : m_uType(variant_type::eTypeString), m_uSize(strlen(v)) { m_V.pbsz_const = v; }
    variant(std::string_view v, bool) : m_uType(variant_type::eTypeString), m_uSize(v.length()) { m_V.pbsz_const = v.data(); }
-
-
-   // explicit variant( const _variant& rv ) : m_uType(variant_type::eTypeUnknown) { _set_value( rv );  }
-
-   //variant( uint32_t uType, int8_t v )     : m_uType(uType)       { m_V.int8 = v; }
-   //variant( uint32_t uType, const char* v, size_t uLength ): m_uType(uType), m_uSize(uLength) { m_V.pbsz = v; }
-   //variant( uint32_t uType, const unsigned char* v, size_t uLength ): m_uType(uType), m_uSize(uLength) { m_V.pb = v; }
-
-   //variant( uint32_t uType, bool ) : m_uType(uType) {}
-  // variant( uint32_t uType, uint32_t uExtra, bool ) : m_uType(uType) { m_uType |= uExtra; }
 
    variant( const variant& o ) { common_construct( o ); }                        // copy
    variant( variant&& o ) noexcept { move_construct( o ); }                      // move
@@ -378,8 +382,18 @@ public:
    double get_decimal() const;
    std::string get_string() const;
    std::string_view get_string( variant_type::no_allocate_tag ) const;
+   std::string_view get_string_view() const { return get_string( variant_type::no_allocate_tag{}); };
    std::wstring get_wstring() const;
-   //gd_std::_variant get__variant() const { return _variant( this ); }
+
+   // ## as_* methods, similar to C++ stl to_
+   bool as_bool() const { return get_bool(); }
+   int as_int() const { return get_int(); }
+   unsigned as_uint() const { return get_uint(); }
+   int64_t as_int64() const { return get_int64(); }
+   double as_double() const { return get_decimal(); }
+   std::string as_string() const { return get_string(); }
+   std::wstring as_wstring() const { return get_wstring(); }
+
 
 
    void set_void( void* p ) { clear(); m_uType = variant_type::eTypeVoid; m_uSize = 0; m_V.p = p; }
@@ -398,12 +412,17 @@ public:
 
 
    bool is_null() const { return (m_uType == variant_type::eTypeUnknown); }
+
+
+   // ## Group type comparison, check if value is within specified group type
+
    bool is_bool() const { return (m_uType & variant_type::eGroupBoolean ? true : false); }
    bool is_int() const { return (m_uType & variant_type::eGroupInteger ? true : false); }
    bool is_integer() const { return (m_uType & variant_type::eGroupInteger ? true : false); }
    bool is_decimal() const { return (m_uType & variant_type::eGroupDecimal ? true : false); }
    bool is_string() const { return (m_uType & variant_type::eGroupString ? true : false); }
    bool is_binary() const { return (m_uType & variant_type::eGroupBinary ? true : false); }
+
 
    bool is_json() const { return (m_uType & variant_type::enumFilter::eFilterTypeGroup) == variant_type::eTypeNumberJson ? true : false; }
    bool is_xml() const { return (m_uType & variant_type::enumFilter::eFilterTypeGroup) == variant_type::eTypeNumberXml ? true : false; }
@@ -412,7 +431,7 @@ public:
 
    bool is_true() const;
 
-   bool is_char_string() const { return (m_uType == variant_type::eTypeUtf8String || m_uType == variant_type::eTypeString ? true : false); }
+   bool is_char_string() const { return (type_number() == variant_type::eTypeNumberString || type_number() == variant_type::eTypeNumberUtf8String ? true : false); }
 
    bool is_void() const { return (m_uType & variant_type::enumFilter::eFilterTypeGroup) == variant_type::eTypeNumberVoid ? true : false; }
 
@@ -420,17 +439,6 @@ public:
 
    bool compare( const variant& v ) const;
 
-   /*
-   /// get value as 64 bit integer
-   int32_t get_int32() const throw();
-   /// get value as 64 bit integer
-   int64_t get_int64() const throw();
-   /// get value as double
-   double get_double() const throw();
-   /// get value as string
-   void get_string( gd_std::wstring& rstring ) const;
-   gd_std::wstring get_wstring() const;
-   */
    /// return pointer to char buffer
    const char* c_str() const {                                                   assert( is_string() );
       return m_V.pbsz; 
@@ -444,28 +452,6 @@ public:
 
 //@}
 
-/** \name GROUP
-*///@{
-/*
-   bool is_number() const throw()   { return (m_uType & eColumnTypeGroupNumber   ? true : false); }
-   bool is_integer() const throw()  { return (m_uType & eColumnTypeGroupInteger  ? true : false); }
-   bool is_decimal() const throw()  { return (m_uType & eColumnTypeGroupDecimal  ? true : false); }
-   bool is_signed() const throw()   { return (m_uType & eColumnTypeGroupSigned   ? true : false); }
-   bool is_string() const throw()   { return (m_uType & eColumnTypeGroupString   ? true : false); }
-   bool is_date() const throw()     { return (m_uType & eColumnTypeGroupDate     ? true : false); }
-   bool is_binary() const throw()   { return (m_uType & eColumnTypeGroupBinary   ? true : false); }
-
-   bool is_08() const throw()       { return (m_uType & eColumnTypeGroup08       ? true : false); }
-   bool is_16() const throw()       { return (m_uType & eColumnTypeGroup16       ? true : false); }
-   bool is_32() const throw()       { return (m_uType & eColumnTypeGroup32       ? true : false); }
-   bool is_64() const throw()       { return (m_uType & eColumnTypeGroup64       ? true : false); }
-
-   bool is_ascii() const throw()    { return (m_uType & eColumnTypeGroupChar     ? true : false); }
-   bool is_unicode() const throw()  { return (m_uType & eColumnTypeGroupWChar    ? true : false); }
-
-   bool is_null() const throw()     { return (m_uType & eColumnTypeGroupNull     ? true : false); }
-   */
-//@}
 
 /** \name LOGICAL
 *///@{
@@ -552,11 +538,16 @@ public:
       return std::string_view();
    }
 //@}
+
+// ## free functions ------------------------------------------------------------
+public:
+   static std::vector<variant>::const_iterator find_s( const std::vector<variant>& vectorFindIn, const variant& variantFind  );
+   static std::vector<std::pair<variant, variant>>::const_iterator find_s( const std::vector< std::pair<variant, variant> >& vectorFindIn, std::pair<const variant&, const variant&> pairFind );
 };
 
 //inline _variant::_variant( variant v ) { ((uint64_t*)this)[0] = ((uint64_t*)&v)[0]; ((uint64_t*)this)[1] = ((uint64_t*)&v)[1];  }
 
-// ä'static_assert( sizeof(_variant) == 16, "_variant size isn't 16 bytes" );
+// Ã¤'static_assert( sizeof(_variant) == 16, "_variant size isn't 16 bytes" );
 static_assert( sizeof(variant) == 16, "variant size isn't 16 bytes" );
 
 
@@ -565,4 +556,8 @@ static_assert( sizeof(variant) == 16, "variant size isn't 16 bytes" );
 } // namespace gd
 
 
-#pragma warning( pop )
+#if defined(_MSC_VER)
+   #pragma warning(pop)
+#else
+   #pragma GCC diagnostic pop
+#endif

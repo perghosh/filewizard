@@ -7,9 +7,10 @@
 _GD_DATABASE_SQLITE_BEGIN
 
 /** -----------------------------------------------------------------------------------------------
- * @brief 
- * @param stringFileName 
- * @return 
+ * @brief Open sqlite database from specified file
+ * Opens sqlite database file. If file do not exist then a new database is created
+ * @param stringFileName database file to open
+ * @return true if ok, false and error information if failed
 */
 std::pair<bool,std::string> database::open(const std::string_view& stringFileName)
 {
@@ -24,6 +25,29 @@ std::pair<bool,std::string> database::open(const std::string_view& stringFileNam
    
    return { false, stringError };
 }
+
+/** -----------------------------------------------------------------------------------------------
+ * @brief Returns last insert key that was generated using autoincrement
+ * @return gd::variant last generated key
+*/
+gd::variant database::get_insert_key() const
+{                                                                                                  assert( m_psqlite3 != nullptr );
+   int64_t iRowId = ::sqlite3_last_insert_rowid( m_psqlite3 );
+   return iRowId;
+}
+
+
+
+/** -----------------------------------------------------------------------------------------------
+ * @brief Returns number of changed rows
+ * @return gd::variant get number of changes in recent call to server
+*/
+gd::variant database::get_change_count() const
+{                                                                                                  assert( m_psqlite3 != nullptr );
+   int32_t iCount = ::sqlite3_changes( m_psqlite3 );
+   return iCount;
+}
+
 
 
 
@@ -47,8 +71,16 @@ std::pair<sqlite3*, std::string> database::open_s(const std::string_view& string
    return { psqlite3, pbszError };
 }
 
+/** ---------------------------------------------------------------------------
+ * @brief Execute SQL query
+ * Executes any valid SQL query against sqlite database. Use this to execute 
+ * SQL queries that do not return a result where you need a result cursor.
+ * @param psqlite pointer to sqlite connection
+ * @param stringQuery sql query to execute against connected sqlite database
+ * @return true if ok, false and error information if error
+*/
 std::pair<bool, std::string> database::execute_s(sqlite3* psqlite, const std::string_view& stringQuery)
-{
+{                                                                              assert(psqlite != nullptr); assert(stringQuery.length() > sizeof("INSERT INTO"));
    char* pbszError = nullptr;
    auto iExecuteResult = ::sqlite3_exec(psqlite, stringQuery.data(), nullptr, nullptr, &pbszError );
    if( iExecuteResult != SQLITE_OK )
@@ -61,6 +93,10 @@ std::pair<bool, std::string> database::execute_s(sqlite3* psqlite, const std::st
    return { true, std::string() };
 }
 
+/** ---------------------------------------------------------------------------
+ * @brief Close down sqlite database connection
+ * @param psqlite pointer to database connection to close
+*/
 void database::close_s( sqlite3* psqlite )
 {
    if( psqlite != nullptr )
@@ -94,9 +130,19 @@ std::pair<bool, std::string> cursor::open(const std::string_view& stringSql)
    {
       unsigned uColumnType = eColumnTypeCompleteUnknown;
       const char* pbszColumnType = ::sqlite3_column_decltype(pstmt, i);
-      if( pbszColumnType != nullptr )                                         // if declared type is valid then try to get type from type name
+      if( pbszColumnType != nullptr )                                          // if declared type is valid then try to get type from type name
       {
          uColumnType = get_column_type_s( pbszColumnType );
+      }
+      else
+      {
+         // ## Unable to get declared type for column, we use sqlite native type and
+         //    convert it to our type.
+         int iType = ::sqlite3_column_type(pstmt, i);                          // get internal sqlite type
+         if( iType == SQLITE_TEXT )       uColumnType = eColumnTypeCompleteUtf8String;
+         else if( iType == SQLITE_BLOB )  uColumnType = eColumnTypeCompleteBinary;
+         else if( iType == SQLITE_FLOAT ) uColumnType = eColumnTypeCompleteCDouble;
+         else                             uColumnType = eColumnTypeCompleteInt64;
       }
       auto pbszName = ::sqlite3_column_name( pstmt, i );
       auto uSize = value_size_g( uColumnType );
@@ -134,9 +180,9 @@ std::pair<bool, std::string> cursor::open(const std::string_view& stringSql)
 */
 void cursor::update( unsigned uFrom, unsigned uTo )
 {                                                                             assert( m_pstmt != nullptr );
-   unsigned uType;
-   uint8_t* pbBuffer;
-   int iValueSize = 0;
+   enumColumnTypeComplete eType; // column type
+   uint8_t* pbBuffer;            // pointer to active field in sqlite stmt (statement)
+   int iValueSize = 0;           // gets value size for field that do not have a max limit for size
 
    for( auto u = uFrom; u < uTo; u++ )
    {
@@ -145,17 +191,17 @@ void cursor::update( unsigned uFrom, unsigned uTo )
       if (iType != SQLITE_NULL)
       {
          pcolumn->set_null(false);
-         uType = pcolumn->type();
+         eType = (enumColumnTypeComplete)pcolumn->type();
          if( pcolumn->is_fixed() == true )
          {
-            pbBuffer = m_recordRow.get_value_buffer( u );                      assert( pbBuffer != nullptr ); // get buffer to column
+            pbBuffer = m_recordRow.buffer_get( u );                           assert( pbBuffer != nullptr ); // get buffer to column
          }
          else
          {
             // ## Compare buffer size with value size, if buffer size is smaller than
             //    needed value size, then increase buffer size.
             //    Remember that first 8 bytes in buffer has length as unsigned and type ans unsigned.
-            pbBuffer = m_recordRow.get_detached_buffer( pcolumn->value() ); 
+            pbBuffer = m_recordRow.buffer_get_detached( pcolumn->value() ); 
             unsigned uBufferSize = buffers::buffer_size_s( pbBuffer );
             iValueSize = ::sqlite3_column_bytes(m_pstmt, u);
             if( iValueSize > ( int )uBufferSize ) 
@@ -171,7 +217,7 @@ void cursor::update( unsigned uFrom, unsigned uTo )
 
          }
 
-         switch( uType )
+         switch( eType )
          {
          case eColumnTypeCompleteInt64:
             *(int64_t*)pbBuffer = ::sqlite3_column_int64( m_pstmt, u );
@@ -179,8 +225,9 @@ void cursor::update( unsigned uFrom, unsigned uTo )
          case eColumnTypeCompleteCDouble:
             *(double*)pbBuffer = ::sqlite3_column_double( m_pstmt, u );
             break;
-         case eColumnTypeCompleteUtf8String: {
-            const unsigned char* pbValue = ::sqlite3_column_text(m_pstmt, u);  // get text value in table
+         case eColumnTypeCompleteUtf8String: 
+         {
+            const unsigned char* pbValue = ::sqlite3_column_text(m_pstmt, u);  // get text value from field
 
             if( iValueSize == 0 )                                              // if text value lenght hasn't been retrieved then this must be a fixed buffer
             {
@@ -195,9 +242,31 @@ void cursor::update( unsigned uFrom, unsigned uTo )
                int iSize = iValueSize;
                memcpy( pbBuffer, pbValue, iSize );
                pbBuffer[iSize] = '\0';
+               pcolumn->size( iSize );
+               iValueSize = 0;                                                 // reset value size
             }
          }
          break;
+         case eColumnTypeCompleteBinary: 
+         {
+            const uint8_t* pbValue = (const uint8_t*)::sqlite3_column_blob(m_pstmt, u);  // get binary value from field
+
+            if( iValueSize == 0 )                                              // if binary value lenght hasn't been retrieved then this must be a fixed buffer
+            {
+               // ## Copy text from buffer in sqlite db
+               int iSize = ::sqlite3_column_bytes( m_pstmt, u );
+               memcpy( pbBuffer, pbValue, iSize );
+               pcolumn->size( iSize );
+            }
+            else
+            {
+               int iSize = iValueSize;
+               memcpy( pbBuffer, pbValue, iSize );
+               iValueSize = 0;                                                 // reset value size
+            }
+         }
+         break;
+
 
          default:
             assert( false );
@@ -237,7 +306,7 @@ std::pair<bool, std::string> cursor::next()
 std::vector<gd::variant> cursor::get_variant() const
 {
    std::vector<gd::variant> vectorValue;
-   for( auto u = 0u, uTo = size(); u < uTo; u++ )
+   for( auto u = 0u, uTo = get_column_count(); u < uTo; u++ )
    { 
       vectorValue.push_back( get_variant( u ) );
    }
@@ -250,13 +319,13 @@ std::vector<gd::variant> cursor::get_variant() const
  * @return gd::variant value is placed and returned in variant
 */
 gd::variant cursor::get_variant( unsigned uColumnIndex ) const
-{                                                                             assert( uColumnIndex < size() );
+{                                                                             assert( uColumnIndex < get_column_count() );
    const gd::database::record::column* pcolumn = m_recordRow.get_column( uColumnIndex );
 
    if (pcolumn->is_null() == false)
    {
       unsigned uType = pcolumn->type();
-      uint8_t* pbBuffer = m_recordRow.get_value_buffer( uColumnIndex );        // get buffer to column
+      uint8_t* pbBuffer = m_recordRow.buffer_get( uColumnIndex );              // get buffer to column
       switch( uType )
       {
       case eColumnTypeCompleteInt32: return gd::variant( (int32_t)*(int64_t*)pbBuffer);
@@ -279,7 +348,7 @@ gd::variant cursor::get_variant( unsigned uColumnIndex ) const
 std::vector<gd::variant_view> cursor::get_variant_view() const
 {
    std::vector<gd::variant_view> vectorValue;
-   for( auto u = 0u, uTo = size(); u < uTo; u++ )
+   for( auto u = 0u, uTo = get_column_count(); u < uTo; u++ )
    { 
       vectorValue.push_back( get_variant_view( u ) );
    }
@@ -292,13 +361,13 @@ std::vector<gd::variant_view> cursor::get_variant_view() const
  * @return gd::variant_view value is placed and returned in variant_view
 */
 gd::variant_view cursor::get_variant_view( unsigned uColumnIndex ) const
-{                                                                             assert( uColumnIndex < size() );
+{                                                                             assert( uColumnIndex < get_column_count() );
    const gd::database::record::column* pcolumn = m_recordRow.get_column( uColumnIndex );
 
    if (pcolumn->is_null() == false)
    {
       unsigned uType = pcolumn->type();
-      uint8_t* pbBuffer = m_recordRow.get_value_buffer( uColumnIndex );        // get buffer to column
+      uint8_t* pbBuffer = m_recordRow.buffer_get( uColumnIndex );              // get buffer to column
       switch( uType )
       {
       case eColumnTypeCompleteInt32: return gd::variant_view( (int32_t)*(int64_t*)pbBuffer);
@@ -351,15 +420,15 @@ unsigned cursor::get_column_type_s( const char* pbszColumnType )
    switch( *pbszColumnType )
    {
    case 'B' : return pbszColumnType[2] == 'N' ? eColumnTypeCompleteBinary : eColumnTypeCompleteInt64;// BINARY|BIT|BIGINT
-   case 'D' : return pbszColumnType[1] == 'E' ? eColumnTypeCompleteCDouble : eColumnTypeCompleteInt64;// DECIMAL | DATE
+   case 'D' : return pbszColumnType[1] == 'E' ? eColumnTypeCompleteCDouble : eColumnTypeCompleteUtf8String;// DECIMAL | DATE
    case 'F' : return eColumnTypeCompleteCDouble;                                                   // FLOAT
    case 'G' : return eColumnTypeCompleteBinary;                                                    // GUID
    case 'I' : return eColumnTypeCompleteInt64;                                                     // INTEGER
    case 'N' : return pbszColumnType[1] == 'V' ? eColumnTypeCompleteUtf8String : eColumnTypeCompleteCDouble; // NVARCHAR | NUMERIC
    case 'R' : return eColumnTypeCompleteCDouble;                                                   // REAL
    case 'S' : return eColumnTypeCompleteInt64;                                                     // SMALLINT
-   case 'T' : return pbszColumnType[1] == 'E' ? eColumnTypeCompleteUtf8String : eColumnTypeCompleteInt64; // TEXT | TIME
-   case 'U' : return eColumnTypeCompleteInt64;                                                     // UTCTIME | UTCDATETIME
+   case 'T' : return pbszColumnType[1] == 'E' ? eColumnTypeCompleteUtf8String : eColumnTypeCompleteUtf8String; // TEXT | TIME
+   case 'U' : return eColumnTypeCompleteUtf8String;                                                     // UTCTIME | UTCDATETIME
    case 'V' : return pbszColumnType[3] == 'C' ? eColumnTypeCompleteUtf8String : eColumnTypeCompleteBinary; // VARCHAR | VARBIN
    }
 

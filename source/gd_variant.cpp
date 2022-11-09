@@ -1,7 +1,17 @@
+#include <cwchar>
+
+
 #include "gd_utf8.hpp"
 #include "gd_variant.h"
 
-#pragma warning( disable : 26812 )
+
+#if defined(_MSC_VER)
+   #pragma warning( disable : 26812 )
+#else
+   #pragma GCC diagnostic ignored "-Wswitch"
+   #pragma GCC diagnostic ignored "-Wformat"
+#endif
+
 
 
 #ifndef _GD_BEGIN
@@ -35,7 +45,7 @@ bool variant::get_bool() const
    case eTypeNumberUtf8String  : 
    case eTypeNumberString      : return *m_V.pbsz != '\0' ? true : false;
    case eTypeNumberWString     : return *m_V.pwsz != L'\0' ? true : false;
-   default:                                                                      assert( false );
+   default:                                                                                        assert( false );
    }
 
    return false;
@@ -63,8 +73,12 @@ int variant::get_int() const
    case eTypeNumberBinary      : return 0;
    case eTypeNumberUtf8String  : 
    case eTypeNumberString      : return atoi( m_V.pbsz );
+#if defined(_MSC_VER)   
    case eTypeNumberWString     : return _wtoi( m_V.pwsz );
-   default:                                                                      assert( false );
+#else   
+   case eTypeNumberWString     : return wcstol( m_V.pwsz, 0, 10 );
+#endif   
+   default:                                                                                        assert( false );
    }
 
    return 0;
@@ -91,8 +105,12 @@ unsigned int variant::get_uint() const
    case eTypeNumberBinary      : return 0;
    case eTypeNumberUtf8String  : 
    case eTypeNumberString      : return (unsigned int)atoi( m_V.pbsz );
+#if defined(_MSC_VER)   
    case eTypeNumberWString     : return (unsigned int)_wtoi( m_V.pwsz );
-   default:                                                                      assert( false );
+#else   
+   case eTypeNumberWString     : return (unsigned int)wcstol( m_V.pwsz, 0, 10 );
+#endif   
+   default:                                                                                        assert( false );
    }
 
    return 0;
@@ -119,8 +137,8 @@ int64_t variant::get_int64() const
    case eTypeNumberGuid        : return 0;
    case eTypeNumberBinary      : return 0;
    case eTypeNumberUtf8String  : 
-   case eTypeNumberString      : return _atoi64( m_V.pbsz );
-   case eTypeNumberWString     : return _wtoi64( m_V.pwsz );
+   case eTypeNumberString      : return atoll( m_V.pbsz );
+   case eTypeNumberWString     : return std::wcstoll( m_V.pwsz, 0, 10 );
    default:                                                                                        assert( false );
    }
 
@@ -188,7 +206,9 @@ std::string variant::get_string() const
       }
       */
    case eTypeNumberUtf8String  : 
-   case eTypeNumberString      : return std::string( m_V.pbsz, m_uSize ); 
+   case eTypeNumberString: {                                                                       assert( strlen( m_V.pbsz ) == m_uSize );
+      return std::string( m_V.pbsz, m_uSize );
+   }
    case eTypeNumberWString     : 
    {
       std::string s;
@@ -206,8 +226,13 @@ std::string variant::get_string() const
 
 }
 
+/** ---------------------------------------------------------------------------
+ * @brief return value as string_view
+ * @param tag dispatcher
+ * @return std::string_view value as string_view
+*/
 std::string_view variant::get_string(variant_type::no_allocate_tag) const
-{
+{                                                                                                  assert( is_char_string() == true );
    if( is_char_string() == true ) return std::string_view(c_str(), length());
    return std::string_view();
 }
@@ -288,7 +313,7 @@ std::wstring variant::get_wstring() const
    case eTypeNumberWString: return std::wstring( m_V.pwsz, m_V.pwsz + m_uSize );
    //case eTypeNumberJson: return gd_std::wstring( gd_std::string::utf8( m_V.pbsz ), m_uSize ).get_wstring();
    //case eTypeNumberXml: return gd_std::wstring( gd_std::string::utf8( m_V.pbsz ), m_uSize ).get_wstring();
-   default:                                                                      assert(false);
+   default:                                                                                        assert(false);
 
    }
 
@@ -296,15 +321,30 @@ std::wstring variant::get_wstring() const
 }
 
 
+/** ---------------------------------------------------------------------------
+ * @brief checks if we have a "true" value
+ * A true value is a valid type with content, If variant is a number then 0 is
+ * false, all other numbers are true. If string then empty string is false, string
+ * with characters is true. If binary then empty binary is false, binary with content
+ * is true.
+ * @return true if variant has content, false if not
+*/
 bool variant::is_true() const
 {
    if( (unsigned int)m_uType & variant_type::eGroupInteger ) { if( m_V.uint64 != 0 ) return true; }
    else if( (unsigned int)m_uType & variant_type::eGroupBoolean ) { return m_V.b; }
    if( (unsigned int)m_uType & variant_type::eGroupDecimal ) { if( m_V.f != 0.0 ) return true; }
    else if( (unsigned int)m_uType & variant_type::eGroupString ) 
-   {                                                                             assert( m_V.pwsz != nullptr );
-      if( type_number() == eTypeNumberWString ) if(m_V.pwsz[0] != L'\0') return true; 
-      else if(m_V.pbsz[0] != '\0') return true; 
+   {                                                                                               assert( m_V.pwsz != nullptr );
+      if( type_number() == eTypeNumberWString ) 
+      {
+         if(m_V.pwsz[0] != L'\0') { return true; }
+      }
+      else if(m_V.pbsz[0] != '\0') { return true; }
+   }
+   else if( ( unsigned int )m_uType & variant_type::eGroupBinary )
+   {
+      return m_uSize > 0;                                                      // has binary content ?
    }
    return false;
 }
@@ -314,7 +354,7 @@ void variant::change( variant_type::enumType eType )
 {
    if( (unsigned int)eType & variant_type::eGroupInteger )
    {
-      if( (m_uType & variant_type::eGroupInteger) == variant_type::eGroupInteger ) return;
+      if( (m_uType & variant_type::eGroupInteger) & variant_type::eGroupInteger ) return;
       auto _value = get_int64();
       switch( eType )
       {
@@ -330,7 +370,7 @@ void variant::change( variant_type::enumType eType )
    }
    else if( (unsigned int)eType & variant_type::eGroupDecimal )
    {
-      if( (m_uType & variant_type::eGroupDecimal) == variant_type::eGroupDecimal ) return;
+      if( (m_uType & variant_type::eGroupDecimal) & variant_type::eGroupDecimal ) return;
       auto _value = get_decimal();
       switch( eType )
       {
@@ -339,7 +379,7 @@ void variant::change( variant_type::enumType eType )
       }
    }
    else if( (unsigned int)eType & variant_type::eGroupString )
-   {                                                                             assert(false);
+   {                                                                                               assert(false);
    /*
       if( (m_uType & variant_type::eGroupString) == variant_type::eGroupString ) return;
       auto _value = get_wstring();
@@ -353,12 +393,17 @@ void variant::change( variant_type::enumType eType )
    }
    else if( (unsigned int)eType & variant_type::eGroupBoolean )
    {
-      if( (m_uType & variant_type::eGroupBoolean) == variant_type::eGroupBoolean ) return;
+      if( (m_uType & variant_type::eGroupBoolean) & variant_type::eGroupBoolean ) return;
       *this = get_bool();
    }
    else                                                                          assert( false );
 }
 
+/** ---------------------------------------------------------------------------
+ * @brief compare variant value
+ * @param v value that is compared if they are equal
+ * @return true if equal, false if not
+*/
 bool variant::compare( const variant& v ) const
 {
    if( v.type_number() != type_number() ) return false;
@@ -390,12 +435,40 @@ bool variant::compare( const variant& v ) const
    case eTypeNumberBinary:
       return (m_uSize == v.m_uSize && memcmp( m_V.pbsz, v.m_V.pbsz, m_uSize ) == 0);
    case eTypeNumberBit: return m_V.int8 == v.m_V.int8;
-   default:                                                                      assert(false);
+   default:                                                                    assert(false);
 
    }
 
    return false;
 }
+
+/** ---------------------------------------------------------------------------
+ * @brief Return index (iterator) for variant value within vector of variants
+ * 
+ * @param vectorFindIn vector of variants to search for "find" variant
+ * @param variantFind variant value to match within vector of variants
+ * @return index (iterator) to variant in vector if found otherwise `end` iterator
+*/
+std::vector<variant>::const_iterator variant::find_s( const std::vector<variant>& vectorFindIn, const variant& variantFind )
+{
+   for( auto it = std::begin( vectorFindIn ), itEnd = std::end( vectorFindIn ); it != itEnd; it++ )
+   {
+      if( it->compare( variantFind ) == true ) return it;
+   }
+
+   return std::end( vectorFindIn );
+}
+
+std::vector<std::pair<variant, variant>>::const_iterator variant::find_s( const std::vector< std::pair<variant, variant> >& vectorFindIn, std::pair<const variant&, const variant&> pairFind )
+{
+   for( auto it = std::begin( vectorFindIn ), itEnd = std::end( vectorFindIn ); it != itEnd; it++ )
+   {
+      if( it->first.compare( pairFind.first ) == true && it->second.compare( pairFind.second ) == true ) return it;
+   }
+
+   return std::end( vectorFindIn );
+}
+
 
 
 } /* namespace gd */

@@ -1,11 +1,20 @@
-#include <malloc.h>
 #include <iterator>
+#include <cwchar>
 
 #include "gd_utf8.hpp"  
 
 #include "gd_arguments.h"  
 
-#pragma warning( disable : 4996 6054 6387 26812 33010 ) // disable warnings for buffer that might not be zero terminated and 
+
+#if defined(_MSC_VER)
+   #pragma warning( disable : 4996 6054 6387 26812 33010 ) // disable warnings for buffer that might not be zero terminated and 
+#else
+   #pragma clang diagnostic ignored "-Wdeprecated-enum-enum-conversion"
+   #pragma GCC diagnostic ignored "-Wunused-value"
+   #pragma GCC diagnostic ignored "-Wswitch"
+   #pragma GCC diagnostic ignored "-Wformat"
+#endif
+
 
 #ifndef _GD_ARGUMENT_BEGIN
 namespace gd::argument {
@@ -66,26 +75,6 @@ bool arguments::compare_name_s(const_pointer pPosition, std::string_view stringN
    if( is_name_s(pPosition) && get_name_s(pPosition) == stringName ) return true;
    return false;
 }
-
-static uint8_t ctype_size[arguments::CType_MAX] = {
-   0,       // eTypeNumberUnknown = 0,
-   1,       // eTypeNumberBool = 1,
-   1,       // eCTypeNumberInt8 = 2,
-   1,       // eCTypeNumberUInt8,
-   2,       // eCTypeNumberInt16,
-   2,       // eCTypeNumberUInt16,
-   4,       // eCTypeNumberInt32,
-   4,       // eCTypeNumberUInt32,
-   8,       // eCTypeNumberInt64,
-   8,       // eCTypeNumberUInt64,
-
-   sizeof(float), // eTypeNumberFloat,
-   sizeof(double),// eTypeNumberDouble,
-
-   sizeof(void*), //eTypeNumberPointer,
-   16,      // eTypeNumberGuid   
-};
-
 
 const char _binary_pszHEX[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
@@ -189,7 +178,7 @@ void arguments::argument::get_binary_as_hex(std::string& stringHex) const
 
    if( uLength < 0x1000 )
    {
-      pbsz = (char*)_alloca((size_t)uLength + 1);
+      pbsz = (char*)alloca((size_t)uLength + 1);
    }
    else
    {
@@ -253,7 +242,11 @@ int arguments::argument::get_int() const
       iValue = atoi( m_unionValue.pbsz );
       break;
    case arguments::eTypeNumberWString :
+#if defined(_MSC_VER)
       iValue = _wtoi( m_unionValue.pwsz );
+#else      
+      iValue = wcstol( m_unionValue.pwsz, 0, 10 );
+#endif      
       break;
    default:
                                                                                  assert( false );
@@ -372,10 +365,10 @@ int64_t arguments::argument::get_int64() const
       break;
    case arguments::eTypeNumberString :
    case arguments::eTypeNumberUtf8String :
-      iValue = _atoi64( m_unionValue.pbsz );
+      iValue = atoll( m_unionValue.pbsz );
       break;
    case arguments::eTypeNumberWString :
-      iValue = _wtoll( m_unionValue.pwsz );
+      iValue = std::wcstoll( m_unionValue.pwsz, 0, 10 );
       break;
    default:
                                                                                  assert( false );
@@ -768,7 +761,7 @@ arguments& arguments::append_argument(const variant& variantValue)
  * \param variantValue argument value added
  * \return arguments::arguments& reference to this if nested operations is wanted
  */
-arguments& arguments::append_argument(std::string_view stringName, const gd::variant_view& variantValue)
+arguments& arguments::append_argument(const std::string_view& stringName, const gd::variant_view& variantValue)
 {
    auto argumentValue = get_argument_s(variantValue);
    const_pointer pData = (argumentValue.type_number() <= eTypeNumberPointer ? (const_pointer)&argumentValue.m_unionValue : (const_pointer)argumentValue.get_raw_pointer());
@@ -922,6 +915,10 @@ arguments::pointer arguments::find(std::string_view stringName)
    {
       if( arguments::is_name_s(pPosition) == true )
       {
+#ifdef _DEBUG
+         auto name_d = arguments::get_name(pPosition);
+#endif // _DEBUG
+
          if( arguments::get_name(pPosition) == stringName ) return pPosition;
       }
    }
@@ -1364,7 +1361,7 @@ bool arguments::compare_argument_s(const argument& a, const gd::variant_view& v)
 }
 
 /*----------------------------------------------------------------------------- compare_argument_group_s */ /**
- * compare arguments based on type, it is a broader comparison that tries to match value
+ * compare arguments based on group, it is a broader comparison that tries to match value
  * even if it isn't same type
  * \param argument1 first argument that is compared
  * \param argument2 second argument to compare
@@ -1393,6 +1390,32 @@ bool arguments::compare_argument_group_s(const argument& argument1, const gd::va
    }
 
    return compare_s( argument1, VV2 );
+}
+
+/** ---------------------------------------------------------------------------
+ * @brief Compare if source arguments values contains values from exists arguments
+ * @param argumentsSource Source arguments to look for arguments to match against exists arguments
+ * @param argumentsExists arguments to find in source arguments
+ * @return true if all exists arguments is found in source
+*/
+bool arguments::compare_exists_s( const arguments& argumentsSource, const arguments& argumentsExists )
+{
+   for( auto it = argumentsExists.begin(), itEnd = argumentsExists.end(); it != itEnd; it++ )
+   {
+      auto stringExistsName = it.name( view_tag{} );
+      if( stringExistsName.empty() == false )
+      {
+         auto pposition = argumentsSource.find( stringExistsName );
+         if( pposition == nullptr ) return false;                              // not found ? then agruments do not exist in source
+
+         auto argument_ = get_argument_s( pposition );
+         if( argument_ == it.get_argument() ) continue;
+
+         return false;
+      }
+   }
+
+   return true;
 }
 
 bool arguments::compare_s(const argument& v1, const gd::variant_view v2)
@@ -1665,6 +1688,9 @@ gd::variant arguments::get_variant_s(const arguments::argument& argumentValue)
 
    switch( type_number_s(argumentValue.m_eType) )
    {
+   case arguments::eTypeNumberUnknown:
+      return gd::variant();
+      break;
    case arguments::eTypeNumberBool:
       return gd::variant(value.b);
       break;
@@ -1699,11 +1725,13 @@ gd::variant arguments::get_variant_s(const arguments::argument& argumentValue)
       return gd::variant(value.d);
       break;
    case arguments::eTypeNumberString:
+      return gd::variant(value.pbsz, (size_t)argumentValue.length() - sizeof(char) );
+      break;
    case arguments::eTypeNumberUtf8String:
-      return gd::variant(value.pbsz, (size_t)argumentValue.length());
+      return gd::variant( gd::variant::utf8( value.pbsz, (size_t)argumentValue.length() - sizeof(char) ) );
       break;
    case arguments::eTypeNumberWString:
-      return gd::variant(value.pwsz, (size_t)argumentValue.length());
+      return gd::variant(value.pwsz, (size_t)argumentValue.length() - sizeof(wchar_t) );
       break;
    default:
       assert(false);
@@ -1758,13 +1786,13 @@ gd::variant arguments::get_variant_s(const arguments::argument& argumentValue, b
       return gd::variant(value.d);
       break;
    case arguments::eTypeNumberString:
-      return gd::variant(value.pbsz, (size_t)argumentValue.length(), false);
+      return gd::variant(value.pbsz, (size_t)argumentValue.length() - sizeof(char), false);
       break;
    case arguments::eTypeNumberUtf8String:
-      return gd::variant( variant::utf8( value.pbsz, (size_t)argumentValue.length() ) );
+      return gd::variant( variant::utf8( value.pbsz, (size_t)argumentValue.length() - sizeof(char) ) );
       break;
    case arguments::eTypeNumberWString:
-      return gd::variant(value.pwsz, (size_t)argumentValue.length(), false);
+      return gd::variant(value.pwsz, (size_t)argumentValue.length() - sizeof(wchar_t), false);
       break;
    default:
       assert(false);
@@ -1784,6 +1812,9 @@ gd::variant_view arguments::get_variant_view_s(const arguments::argument& argume
 
    switch( type_number_s(argumentValue.m_eType) )
    {
+   case arguments::eTypeNumberUnknown:
+      return variant_view();
+      break;
    case arguments::eTypeNumberBool:
       return gd::variant_view(value.b);
       break;
@@ -1821,13 +1852,13 @@ gd::variant_view arguments::get_variant_view_s(const arguments::argument& argume
       return gd::variant_view(value.pbsz, (size_t)argumentValue.length());
       break;
    case arguments::eTypeNumberString:
-      return gd::variant_view(value.pbsz, (size_t)argumentValue.length());
+      return gd::variant_view(value.pbsz, (size_t)argumentValue.length() - sizeof(char) );
       break;
    case arguments::eTypeNumberUtf8String:
-      return gd::variant_view( variant_type::utf8( value.pbsz, (size_t)argumentValue.length() ) );
+      return gd::variant_view( variant_type::utf8( value.pbsz, (size_t)argumentValue.length() - sizeof(char)) );
       break;
    case arguments::eTypeNumberWString:
-      return gd::variant_view(value.pwsz, (size_t)argumentValue.length());
+      return gd::variant_view(value.pwsz, (size_t)argumentValue.length() - sizeof(wchar_t));
       break;
    default:
       assert(false);

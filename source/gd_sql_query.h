@@ -10,6 +10,16 @@
 #include "gd_variant.h"
 #include "gd_variant_view.h"
 
+#if defined(_MSC_VER)
+   #pragma warning(push)
+   #pragma warning( disable : 26495 26812 )
+#else
+   #pragma GCC diagnostic push
+   #pragma clang diagnostic ignored "-Wdeprecated-enum-enum-conversion"
+   #pragma GCC diagnostic ignored "-Wunused-value"
+#endif
+
+
 
 #ifndef _GD_SQL_QUERY_BEGIN
 #define _GD_SQL_QUERY_BEGIN namespace gd::sql {
@@ -115,29 +125,36 @@ enum enumOperatorMask
 };
 
 /**
- * \brief message level to print, how severe information sent to printers
+ * \brief Important sql parts to build sql queries.
+ * 
+ * `query` are able to generate sql queries, different parts can be selected
+ * for generation. To combine parts you can sett flags for wich parts that
+ * is generated. Flags from `enumSqlPart` are used for that.
  * 
  */
 enum enumSqlPart
 {
+   eSqlPartUnknown =       0b0000'0000'0000'0000'0000'0000'0000'0000,
    //                        3       2 2       1 1
    //                        1       4 3       6 5       8 7       0       
-   eSqlPartSelect =        0b0000'0000'0000'0000'0000'0001'0000'0000,
-   eSqlPartFrom =          0b0000'0000'0000'0000'0000'0010'0000'0000,
-   eSqlPartWhere =         0b0000'0000'0000'0000'0000'0100'0000'0000,
-   eSqlPartLimit =         0b0000'0000'0000'0000'0000'1000'0000'0000,
-   eSqlPartInsert =        0b0000'0000'0000'0000'0001'0000'0000'0000,
-   eSqlPartUpdate =        0b0000'0000'0000'0000'0010'0000'0000'0000,
-   eSqlPartDelete =        0b0000'0000'0000'0000'0100'0000'0000'0000,
-   eSqlPartOrderBy =       0b0000'0000'0000'0000'1000'0000'0000'0000,
-   eSqlPartGroupBy =       0b0000'0000'0000'0001'0000'0000'0000'0000,
-   eSqlPartWith =          0b0000'0000'0000'0010'0000'0000'0000'0000,
-   eSqlPartHaving =        0b0000'0000'0000'0100'0000'0000'0000'0000,
+   eSqlPartSelect =        0b0000'0000'0000'0001'0000'0000'0000'0000,
+   eSqlPartFrom =          0b0000'0000'0000'0010'0000'0000'0000'0000,
+   eSqlPartWhere =         0b0000'0000'0000'0100'0000'0000'0000'0000,
+   eSqlPartLimit =         0b0000'0000'0000'1000'0000'0000'0000'0000,
+   eSqlPartInsert =        0b0000'0000'0001'0000'0000'0000'0000'0000,
+   eSqlPartUpdate =        0b0000'0000'0010'0000'0000'0000'0000'0000,
+   eSqlPartDelete =        0b0000'0000'0100'0000'0000'0000'0000'0000,
+   eSqlPartOrderBy =       0b0000'0000'1000'0000'0000'0000'0000'0000,
+   eSqlPartGroupBy =       0b0000'0001'0000'0000'0000'0000'0000'0000,
+   eSqlPartWith =          0b0000'0010'0000'0000'0000'0000'0000'0000,
+   eSqlPartHaving =        0b0000'0100'0000'0000'0000'0000'0000'0000,
 };
 
 enum enumSql
 {
    eSqlSelect =            eSqlPartSelect | eSqlPartFrom | eSqlPartWhere | eSqlPartOrderBy | eSqlPartGroupBy | eSqlPartWith | eSqlPartLimit,
+   eSqlInsert =            eSqlPartInsert,
+   eSqlUpdate =            eSqlPartUpdate | eSqlPartWhere,
    eSqlDelete =            eSqlPartDelete | eSqlPartFrom | eSqlPartWhere,
 };
 
@@ -261,8 +278,11 @@ public:
       void common_construct(const condition& o) { m_uTableKey = o.m_uTableKey; m_argumentsCondition = o.m_argumentsCondition; }
       void common_construct(condition&& o) noexcept { m_uTableKey = o.m_uTableKey; m_argumentsCondition = std::move(o.m_argumentsCondition); }
 
+      /// return value for conditions, this is places in arguments named to "value"
+      arguments::argument value() const { return m_argumentsCondition["value"]; }
+
       std::string name() const { return m_argumentsCondition["name"].get_string(); }
-      std::string value() const { return m_argumentsCondition["value"].get_string(); }
+      std::string value_string() const { return m_argumentsCondition["value"].get_string(); }
       std::string raw() const { return m_argumentsCondition["raw"].get_string(); }
 
       unsigned get_table_key() const { return m_uTableKey; }
@@ -360,6 +380,8 @@ public:
 
 /** \name CONDITION
 *///@{
+   // ## add condition to query
+   condition* condition_add(std::string_view stringName, const gd::variant_view& variantValue) { return condition_add( stringName, gd::variant_view(), variantValue ); }
    condition* condition_add(std::string_view stringName, const gd::variant_view& variantOperator, const gd::variant_view& variantValue);
    condition* condition_add(const gd::variant_view& variantTable, std::string_view stringName, const gd::variant_view& variantOperator, const gd::variant_view& variantValue);
    condition* condition_add(const std::vector< std::pair<std::string_view, gd::variant_view> >& vectorCondition) { return condition_add( gd::variant_view(0u), vectorCondition ); }
@@ -384,19 +406,20 @@ public:
 
    void sql_set_dialect( enumSqlDialect eSqlDialect ) { m_eSqlDialect = eSqlDialect; }
 
-   std::string sql_get_select() const;
-   std::string sql_get_from() const;
-   std::string sql_get_where() const;
-   std::string sql_get_insert() const;
-   std::string sql_get_update() const;
-   std::string sql_get_delete() const;
-   std::string sql_get_groupby() const;
-   std::string sql_get_orderby() const;
-   std::string sql_get_limit() const;
-   std::string sql_get_with() const;
+   [[nodiscard]] std::string sql_get_select() const;
+   [[nodiscard]] std::string sql_get_from() const;
+   [[nodiscard]] std::string sql_get_where() const;
+   [[nodiscard]] std::string sql_get_insert() const;
+   [[nodiscard]] std::string sql_get_update() const;
+   [[nodiscard]] std::string sql_get_update( const std::vector< gd::variant_view >& vectorValue ) const;
+   [[nodiscard]] std::string sql_get_delete() const;
+   [[nodiscard]] std::string sql_get_groupby() const;
+   [[nodiscard]] std::string sql_get_orderby() const;
+   [[nodiscard]] std::string sql_get_limit() const;
+   [[nodiscard]] std::string sql_get_with() const;
 
-   std::string sql_get( enumSql eSql ) const;
-   std::string sql_get( enumSql eSql, const unsigned* puPartOrder ) const;
+   [[nodiscard]] std::string sql_get( enumSql eSql ) const;
+   [[nodiscard]] std::string sql_get( enumSql eSql, const unsigned* puPartOrder ) const;
 
    
 //@}
@@ -430,18 +453,30 @@ public:
    static enumOperator get_where_operator_number_s(std::string_view stringOperator);
    static enumOperator get_where_operator_number_s(const gd::variant_view& variantOperator);
    static unsigned get_where_operator_text_s(unsigned uOperator, char* pbBuffer);
-   static void print_condition_values_s( std::string& stringValues,  const std::vector<const condition*>& vectorCondition);
+   static void print_condition_values_s( const std::vector<const condition*>& vectorCondition, std::string& stringValues );
 
    // ## Condition methods
    /// Find all conditions for same field and same operator
-   static std::vector<std::size_t> condition_find_all_for_operataor_s(const std::vector<condition>& vectorCondtion, const condition* pconditionMatch, unsigned uBegin);
+   static std::vector<std::size_t> condition_find_all_for_operator_s(const std::vector<condition>& vectorCondtion, const condition* pconditionMatch, unsigned uBegin);
 
    // ## flag methods
+   /// Helper method to test if flag is set in unsigned 32 bit value
    template<typename FLAG>
    static bool flag_has_s(unsigned uTest, FLAG uFlag);
 
    // ## format methods
+   /// add text and suround it with specified character, common operation when sql is generated
    static void format_add_and_surround_s(std::string& stringValue, const std::string_view& stringAdd, char chCharacter);
+
+   // ## values methods, values used to build edit queries, values are formated 
+   //    to work in sql queries
+   static std::pair<bool, std::string> value_get_s( gd::variant_view& variantviewValue );
+   static void value_get_s( const gd::variant_view& variantviewValue, std::string& stringSql );
+   static std::pair<bool, std::string> values_get_s( const std::vector< gd::variant_view >& vectorValue );
+   static void values_get_s( const std::vector< gd::variant_view >& vectorValue, std::string& stringValues );
+   static std::pair<bool, std::string> values_get_s( const std::vector< std::pair<std::string, gd::variant> >& vectorValue );
+
+   
 
 };
 
@@ -463,7 +498,7 @@ inline const query::table* query::table_get_for_key(unsigned uTableKey) const {
 
 
 inline void query::field_add_many(const std::vector< std::vector< std::pair<std::string_view, gd::variant_view> > >& vectorVectorField) {
-   for( auto it : vectorVectorField ) field_add(it);
+   for( auto& it : vectorVectorField ) field_add(it);
 }
 
 template<typename FLAG>
@@ -479,7 +514,46 @@ inline void query::format_add_and_surround_s(std::string& stringText, const std:
    stringText += chCharacter;
 }
 
+/** ---------------------------------------------------------------------------
+ * @brief Return  part number for part name
+ * Converts sql part name to part number and are able to do this at commpile time.
+ * Valid part names are:
+ * DELETE, FROM, GROUPBY, HAVING, INSERT, LIMIT, ORDERBY, SELECT, UPDATE, WHERE, WITH
+ * @param stringPartName Part as name that is converted to number
+ * @return {enumSqlPart} number for part name
+*/
+constexpr enumSqlPart sql_get_part_type_g(const std::string_view& stringPartName)
+{                                                                              assert(stringPartName.empty() == false);
+   // ## convert character to uppercase if lowercase is found
+   constexpr uint8_t LOWER_A = 'a';
+   uint8_t uFirst = (uint8_t)stringPartName[0];                                // only check first character
+   if( uFirst >= LOWER_A ) uFirst -= ('a' - 'A');                              // convert to lowercase subtracting to capital letter
+
+   switch( uFirst )
+   {
+   case 'D': return enumSqlPart::eSqlPartDelete;
+   case 'F': return enumSqlPart::eSqlPartFrom;
+   case 'G': return enumSqlPart::eSqlPartGroupBy;
+   case 'H': return enumSqlPart::eSqlPartHaving;
+   case 'I': return enumSqlPart::eSqlPartInsert;
+   case 'L': return enumSqlPart::eSqlPartLimit;
+   case 'O': return enumSqlPart::eSqlPartOrderBy;
+   case 'S': return enumSqlPart::eSqlPartSelect;
+   case 'U': return enumSqlPart::eSqlPartUpdate;
+   case 'W': {
+      if( stringPartName[1] == 'I' || stringPartName[1] == 'i' ) return enumSqlPart::eSqlPartWith;
+      return enumSqlPart::eSqlPartWhere;
+      }
+   }
+   return eSqlPartUnknown;
+}
 
 
 
 _GD_SQL_QUERY_END // namespace _GD_CALCULATE_PARSE_BEGIN
+
+#if defined(_MSC_VER)
+   #pragma warning(pop)
+#else
+   #pragma GCC diagnostic pop
+#endif

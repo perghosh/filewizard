@@ -12,7 +12,11 @@
 
 #endif
 
+#if defined(_MSC_VER)
 #include <io.h>
+#else
+
+#endif
 
 #include "gd_file.h"
 
@@ -36,6 +40,7 @@ _GD_FILE_BEGIN
  */
 std::pair<bool, std::wstring> get_known_folder_wpath_g(const std::string_view& stringFolderId)
 {                                                                                assert( stringFolderId.length() > 0 );
+   std::wstring stringFolderPath; // gets path to requested folder
    // ## copy first four bytes if requested id holds that many characters, copy is designed to be fast
    char pbFolderId[] = { '\0', '\0', '\0', '\0' }; // buffer used to match the requested folder path     // > variables declared on their own line should be commented
    if( stringFolderId.length() > 3 )
@@ -72,7 +77,7 @@ std::pair<bool, std::wstring> get_known_folder_wpath_g(const std::string_view& s
       return { false, stringError };
    }                                                                                                      // function name and comments at a margin?
                                                                                                           // > In this sample comments is not mixed
-   std::wstring stringFolderPath; // gets path to requested folder                                        // > with code. Comments are separate from
+                                                                                                          // > with code. Comments are separate from
                                                                                                           // > code to enable brieaf read without reading
    // ## Try to get path to folder                                                                        // > code to know what the code does.
    if( pguidFolderId != nullptr )                                                                         // > Puting comments at a margin will not clutter code.
@@ -145,15 +150,18 @@ auto vectorFile = gd::file::list_files(stringPath, { {"filter", R"(^log[\.\d].*\
 ~~~
  * 
  * \param stringFolder folder where files is listed from
- * \param argumentsFilter different filters to select those files that you want to list
+ * \param argumentsFilter different filters to select those files that you want to list, all are optional
+ * \param   argumentsFilter["filter"] regular expression used to match file
+ * \param   argumentsFilter["to_days"] match days, if file is older compared to days sent then it is a match
+ * \param   argumentsFilter["extension"] match file extension
  * \return std::vector<std::string> files found in folder that match filters if any is sent
  */
-std::vector<std::string> list_files(const std::string_view& stringFolder, const gd::argument::arguments& argumentsFilter )
+std::vector<std::string> list_files_g(const std::string_view& stringFolder, const gd::argument::arguments& argumentsFilter )
 {
    std::vector<std::string> vectorFile;
 
    // ## filter method is used when filter is found in arguments, file name is matched against wildcard or regular expression
-   auto filter_ = [](const std::string stringFileName, auto& argumentFilter) -> bool {
+   auto filter_ = [](const std::string stringFileName, const auto& argumentFilter) -> bool {
       if( argumentFilter.is_text() )
       {
          std::string stringFilterOrRegex = argumentFilter.get_string();
@@ -165,7 +173,8 @@ std::vector<std::string> list_files(const std::string_view& stringFolder, const 
       return true;
    };
 
-   auto day_count_ = [](const std::filesystem::path& pathFile, auto& argumentToDays) -> bool {
+   // ## compare number of days, if file is older compared to days sent then return true
+   auto day_count_ = [](const std::filesystem::path& pathFile, const auto& argumentToDays) -> bool {
       if( argumentToDays.is_number() )
       {
          using namespace std::literals::chrono_literals;
@@ -182,6 +191,23 @@ std::vector<std::string> list_files(const std::string_view& stringFolder, const 
       return true;
    };
 
+   auto extension_ = []( std::string stringFileName, const auto& argumentExtension ) -> bool {
+      if( argumentExtension.is_string() )
+      {
+         std::string stringExtension = argumentExtension.get_string();
+         if( stringFileName.length() >= stringExtension.length() )
+         {
+            std::transform(stringFileName.begin(), stringFileName.end(), stringFileName.begin(), [](unsigned char character_){ return std::tolower(character_); });
+            std::transform(stringExtension.begin(), stringExtension.end(), stringExtension.begin(), [](unsigned char character_){ return std::tolower(character_); });
+            
+            bool bMatch = std::equal( stringExtension.rbegin(), stringExtension.rend(), stringFileName.rbegin() );
+            return bMatch;
+         }
+      }
+      
+      return false;
+   };
+
    for( const auto& itFile : std::filesystem::directory_iterator(stringFolder) )
    {
       if( itFile.is_regular_file() == false ) continue;
@@ -191,6 +217,8 @@ std::vector<std::string> list_files(const std::string_view& stringFolder, const 
       if( filter_(stringFile, argumentsFilter["filter"]) == false ) continue;    // filter using regex or wildcard
 
       if( day_count_(itFile.path(), argumentsFilter["to_days"]) == false ) continue;// filter on time (days ?)
+
+      if( extension_(stringFile, argumentsFilter["extension"]) == false ) continue;// filter on file extension
 
       vectorFile.push_back( itFile.path().string() );
    }

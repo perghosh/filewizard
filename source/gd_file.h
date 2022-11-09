@@ -10,6 +10,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstring>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -39,7 +40,8 @@ std::pair<bool, std::string> closest_having_file_g(const std::string_view& strin
 
 // ## files in folder
 
-std::vector<std::string> list_files(const std::string_view& stringFolder, const gd::argument::arguments& argumentsFilter);
+std::vector<std::string> list_files_g(const std::string_view& stringFolder, const gd::argument::arguments& argumentsFilter);
+inline std::vector<std::string> list_files_g(const std::string_view& stringFolder) { return list_files_g( stringFolder, gd::argument::arguments() ); }
 
 // ## `file` operations
 

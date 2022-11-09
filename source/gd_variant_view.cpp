@@ -1,7 +1,16 @@
+#include <cwchar>
+
 #include "gd_utf8.hpp"
 #include "gd_variant_view.h"
 
-#pragma warning( disable : 4996 26812 )
+
+#if defined(_MSC_VER)
+   #pragma warning( disable : 4996 26812 )
+#else
+   #pragma GCC diagnostic ignored "-Wswitch"
+   #pragma GCC diagnostic ignored "-Wformat"
+#endif
+
 
 
 #ifndef _GD_BEGIN
@@ -63,7 +72,11 @@ int variant_view::get_int() const
    case eTypeNumberBinary      : return 0;
    case eTypeNumberUtf8String  : 
    case eTypeNumberString      : return atoi( m_V.pbsz );
+#if defined(_MSC_VER)
    case eTypeNumberWString     : return _wtoi( m_V.pwsz );
+#else   
+   case eTypeNumberWString     : return wcstol( m_V.pwsz, 0, 10 );
+#endif   
    default:                                                                      assert( false );
    }
 
@@ -91,7 +104,12 @@ unsigned int variant_view::get_uint() const
    case eTypeNumberBinary      : return 0;
    case eTypeNumberUtf8String  : 
    case eTypeNumberString      : return (unsigned int)atoi( m_V.pbsz );
+#if defined(_MSC_VER)
    case eTypeNumberWString     : return (unsigned int)_wtoi( m_V.pwsz );
+#else   
+   case eTypeNumberWString     : return (unsigned int)wcstol( m_V.pwsz, 0, 10 );
+#endif   
+
    default:                                                                      assert( false );
    }
 
@@ -119,9 +137,9 @@ int64_t variant_view::get_int64() const
    case eTypeNumberGuid        : return 0;
    case eTypeNumberBinary      : return 0;
    case eTypeNumberUtf8String  : 
-   case eTypeNumberString      : return _atoi64( m_V.pbsz );
-   case eTypeNumberWString     : return _wtoi64( m_V.pwsz );
-   case eTypeNumberUtf32String : return _wtoi64( m_V.pwsz );
+   case eTypeNumberString      : return atoll( m_V.pbsz );// _atoi64( m_V.pbsz ); #GCC
+   case eTypeNumberWString     : return std::wcstoll( m_V.pwsz, 0, 10 );
+   //case eTypeNumberUtf32String : return _wtoi64( m_V.pwsz );                   // #TODO fix this
    default:                                                                                        assert( false );
    }
 
@@ -204,6 +222,17 @@ std::string variant_view::get_string() const
 
    return std::string();
 }
+
+/** ---------------------------------------------------------------------------
+ * @brief return value as string_view
+ * @return std::string_view value as string_view
+*/
+std::string_view variant_view::get_string_view() const
+{
+   if( is_char_string() == true ) return std::string_view(c_str(), length());
+   return std::string_view();
+}
+
 
 /*
 std::string variant_view::get_utf8string() const
@@ -367,7 +396,10 @@ bool variant_view::is_true() const
    if( (unsigned int)m_uType & variant_type::eGroupDecimal ) { if( m_V.d != 0.0 ) return true; }
    else if( (unsigned int)m_uType & variant_type::eGroupString ) 
    {                                                                             assert( m_V.pwsz != nullptr );
-      if( type_number() == eTypeNumberWString ) if(m_V.pwsz[0] != L'\0') return true; 
+      if( type_number() == eTypeNumberWString )
+      {
+         if(m_V.pwsz[0] != L'\0') return true; 
+      }
       else if(m_V.pbsz[0] != '\0') return true; 
    }
    return false;
@@ -378,7 +410,7 @@ void variant_view::change( variant_type::enumType eType )
 {
    if( (unsigned int)eType & variant_type::eGroupInteger )
    {
-      if( (m_uType & variant_type::eGroupInteger) == variant_type::eGroupInteger ) return;
+      if( (m_uType & variant_type::eGroupInteger) & variant_type::eGroupInteger ) return;
       auto _value = get_int64();
       switch( eType )
       {
@@ -394,7 +426,7 @@ void variant_view::change( variant_type::enumType eType )
    }
    else if( (unsigned int)eType & variant_type::eGroupDecimal )
    {
-      if( (m_uType & variant_type::eGroupDecimal) == variant_type::eGroupDecimal ) return;
+      if( (m_uType & variant_type::eGroupDecimal) & variant_type::eGroupDecimal ) return;
       auto _value = get_decimal();
       switch( eType )
       {
@@ -417,7 +449,7 @@ void variant_view::change( variant_type::enumType eType )
    }
    else if( (unsigned int)eType & variant_type::eGroupBoolean )
    {
-      if( (m_uType & variant_type::eGroupBoolean) == variant_type::eGroupBoolean ) return;
+      if( (m_uType & variant_type::eGroupBoolean) & variant_type::eGroupBoolean ) return;
       *this = get_bool();
    }
    else                                                                          assert( false );

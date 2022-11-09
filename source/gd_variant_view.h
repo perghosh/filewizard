@@ -11,8 +11,15 @@
 #  define _GD_BEGIN_VARIANT_VIEW
 #endif
 
-#pragma warning( push )
-#pragma warning( disable : 4267 26495 26812 )
+#if defined(_MSC_VER)
+   #pragma warning(push)
+   #pragma warning( disable : 4267 26495 26812 )
+#else
+   #pragma GCC diagnostic push
+   #pragma clang diagnostic ignored "-Wdeprecated-enum-enum-conversion"
+   #pragma GCC diagnostic ignored "-Wunused-value"
+#endif
+
 
 #ifndef _GD_BEGIN
 namespace gd {
@@ -71,16 +78,23 @@ public:
    variant_view(const char* v, bool) : m_uType(variant_type::eTypeString), m_uSize(strlen(v)) { m_V.pbsz_const = v; }
    variant_view(std::string_view v, bool) : m_uType(variant_type::eTypeString), m_uSize(v.length()) { m_V.pbsz_const = v.data(); }
 
-   variant_view( const variant_view& o ) { common_construct( o ); }                        // copy
-   variant_view( variant_view&& o ) noexcept { move_construct( o ); }                      // move
+   /// copies variant data into variant_view, this is possible because they are binary compatible, just that variant view do not own the data
+   //explicit variant_view( const gd::variant&v  ) { ((uint64_t*)this)[0] = ((uint64_t*)&v)[0]; ((uint64_t*)this)[1] = ((uint64_t*)&v)[1]; }
+   explicit variant_view( const gd::variant& v ) { memcpy( this, &v, sizeof(variant_view) ); }
+   explicit variant_view( const gd::variant* pv ) { memcpy( this, pv, sizeof(variant_view) ); }
+
+   variant_view( const variant_view& o ) { common_construct( o ); }            // copy
+   variant_view( variant_view&& o ) noexcept { common_construct( std::move( o ) ); }// move
 
    // assign
-   variant_view& operator=( const variant_view& o ) { clear(); common_construct( o ); return *this; }
+   variant_view& operator=( const variant_view& o ) { 
+      common_construct( o ); 
+      return *this; 
+   }
    variant_view& operator=( variant_view&& o ) noexcept { 
-      clear();
       if( this != &o ) { ((uint64_t*)this)[0] = ((uint64_t*)&o)[0]; ((uint64_t*)this)[1] = ((uint64_t*)&o)[1]; o.m_uType = variant_type::eTypeUnknown; }
       return *this; }
-   ~variant_view() { clear(); }
+   ~variant_view() {}
 
    void operator=( bool b )     { clear(); m_uType = variant_type::eTypeBool; m_V.b = b; }
    void operator=( int8_t v )   { clear(); m_uType = variant_type::eTypeInt8; m_V.int8 = v;  }
@@ -200,7 +214,7 @@ private:
       ((uint64_t*)this)[1] = ((uint64_t*)&o)[1];
    }
 
-   void move_construct( variant_view& o ) {
+   void common_construct( variant_view&& o ) {
       ((uint64_t*)this)[0] = ((uint64_t*)&o)[0];
       ((uint64_t*)this)[1] = ((uint64_t*)&o)[1];
       o.m_uType = variant_type::eTypeUnknown;
@@ -223,6 +237,7 @@ public:
    double get_decimal() const;
    double get_double() const { return get_decimal(); };
    std::string get_string() const;
+   std::string_view get_string_view() const;
    std::wstring get_wstring() const;
 
    // ## as_* methods, similar to C++ stl to_
@@ -381,13 +396,17 @@ public:
 
 //inline _variant::_variant( variant v ) { ((uint64_t*)this)[0] = ((uint64_t*)&v)[0]; ((uint64_t*)this)[1] = ((uint64_t*)&v)[1];  }
 
-// ä'static_assert( sizeof(_variant) == 16, "_variant size isn't 16 bytes" );
+// ï¿½'static_assert( sizeof(_variant) == 16, "_variant size isn't 16 bytes" );
 static_assert( sizeof(variant_view) == 16, "variant size isn't 16 bytes" );
-
+static_assert( sizeof( gd::variant ) == sizeof( gd::variant_view ), "variant and variant_view have different sizes!!!" );
 
 
 
 } // namespace gd
 
 
-#pragma warning( pop )
+#if defined(_MSC_VER)
+   #pragma warning(pop)
+#else
+   #pragma GCC diagnostic pop
+#endif

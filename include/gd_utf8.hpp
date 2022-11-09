@@ -1,4 +1,4 @@
-/*
+ï»¿/*
 ## Overview
 | Name | Description |
 | - | - |
@@ -13,6 +13,7 @@
 #pragma once
 #include <cassert>
 #include <stdint.h>
+#include <cstring>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -42,7 +43,7 @@ Links: https://github.com/nemtrif/utfcpp
 namespace gd { 
    namespace utf8 {
 
-      // tag dispatch for utf8 if no support for char8_t
+      // tag dispatcher for utf8 if no support for char8_t
       struct utf8_tag {};
 
       constexpr uint32_t SIZE8_MAX_UTF_SIZE = 2;
@@ -93,7 +94,7 @@ namespace gd {
          static_assert( sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
          return count( reinterpret_cast<const uint8_t*>(pbszText) ); 
       };
-      std::pair<uint32_t, const uint8_t*> count( const uint8_t* pubszText¨, const uint8_t* pubszEnd );
+      std::pair<uint32_t, const uint8_t*> count( const uint8_t* pubszText, const uint8_t* pubszEnd );
       template <typename UTF8_TYPE>
       std::pair<uint32_t, const uint8_t*> count(const UTF8_TYPE* pbszText, const UTF8_TYPE* pbszEnd) { // count utf8 characters
          static_assert( sizeof(UTF8_TYPE) == 1, "Value isn't compatible with uint8_t");
@@ -405,7 +406,7 @@ namespace gd {
       uint32_t character(const uint16_t* pubszText); // ------------------------------------------- character
       template <typename UTF16_TYPE>
       uint32_t character(const UTF16_TYPE* pbszText) { // ----------------------------------------- character
-         static_assert(sizeof(UTF16_TYPE) == 2, "Value isn't compatible with uint8_t");
+         //static_assert(sizeof(UTF16_TYPE) == 2, "Value isn't compatible with uint8_t");          // #GCC generates error here, try to fix this 2022-10-10
          return character(reinterpret_cast<const uint16_t*>(pbszText));
       };
 

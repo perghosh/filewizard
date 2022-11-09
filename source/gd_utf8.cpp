@@ -125,8 +125,7 @@ namespace gd {
       {
          if(uCharacter < 0x80) return 1;
          else if(uCharacter < 0x800) return 2;
-         else if(uCharacter < 0x10000) return 3;
-         return 4;
+         return 3;
       }
 
       uint32_t size(uint32_t uCharacter)
@@ -681,11 +680,8 @@ namespace gd {
 
          return p1 < p2 ? iCount : -iCount;
       }
-
-
-
-   }  
-}
+   } // utf8 
+} // gd
 
 
 namespace gd {
@@ -973,20 +969,19 @@ namespace gd {
    namespace utf16 {
       uint32_t character(const uint16_t* pubszCharacter)
       {
-         if(*pubszCharacter < 0x80) return static_cast<uint32_t>(*pubszCharacter);
-         else if(*pubszCharacter < 0x800) return static_cast<uint32_t>(((0x1f & pubszCharacter[0]) << 6) | (0x3f & pubszCharacter[1]));
-         else if(*pubszCharacter < 0x10000) return static_cast<uint32_t>(((0x0f & pubszCharacter[0]) << 12) | ((0x3f & pubszCharacter[1]) << 6) | (0x3f & pubszCharacter[2]));
-         else if(*pubszCharacter < 0x200000) return static_cast<uint32_t>(((0x07 & pubszCharacter[0]) << 18) | ((0x3f & pubszCharacter[1]) << 12) | ((0x3f & pubszCharacter[2]) << 6) | (0x3f & pubszCharacter[3]));
-         else throw std::runtime_error("invalid UTF-8  (operation = character)");
-         return 0;
+         uint32_t uCharacter;
+         if(*pubszCharacter < 0x80) uCharacter = static_cast<uint32_t>(*pubszCharacter);
+         else if(*pubszCharacter < 0x800) uCharacter = static_cast<uint32_t>( ((0x1f & pubszCharacter[0]) << 6) | (0x3f & pubszCharacter[1]) );
+         else uCharacter = static_cast<uint32_t>( ((0x0f & pubszCharacter[0]) << 12) | ((0x3f & pubszCharacter[1]) << 6) | (0x3f & pubszCharacter[2]) );
+
+         return uCharacter;
       }
 
       uint32_t size(uint16_t uCharacter)
       {
          if(uCharacter < 0x80) return 1;
          else if(uCharacter < 0x800) return 2;
-         else if(uCharacter < 0x10000) return 3;
-         return 4;
+         return 3;
       }
 
    }

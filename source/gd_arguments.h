@@ -1,5 +1,6 @@
 #pragma once
 #include <cassert>
+#include <cstring>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -23,7 +24,18 @@ mdtable
 */
 
 
-#pragma warning( disable : 26495 26812 )
+
+
+#if defined(_MSC_VER)
+   #pragma warning(push)
+   #pragma warning( disable : 26495 26812 )
+#else
+   #pragma GCC diagnostic push
+   #pragma clang diagnostic ignored "-Wdeprecated-enum-enum-conversion"
+   #pragma GCC diagnostic ignored "-Wunused-value"
+   #pragma GCC diagnostic ignored "-Wdeprecated-enum-compare"
+#endif
+
 
 #ifndef _GD_ARGUMENT_BEGIN
 #define _GD_ARGUMENT_BEGIN namespace gd::argument {
@@ -32,6 +44,7 @@ _GD_ARGUMENT_BEGIN
 #else
 _GD_SQL_QUERY_BEGIN
 #endif
+
 
 
 // ================================================================================================
@@ -60,8 +73,9 @@ public:
 
    typedef uint8_t            param_type;
 
-   struct pair_tag {};                                                           // used to select proper method, working with pair items instead of vector
-   struct no_initializer_list_tag {};                                            // do not select initializer_list versions
+   struct pair_tag {};                                                         // tag dispatcher used to select working with pair items instead of vector
+   struct view_tag {};                                                         // tag dispatcher used when working with view objects (not owning its data)
+   struct no_initializer_list_tag {};                                          // do not select initializer_list versions
 
 
 public:
@@ -149,14 +163,14 @@ public:
       eTypePointer      = eTypeNumberPointer,
       eTypeGuid         = eTypeNumberGuid     | eGroupBinary,
       eTypeBinary       = eTypeNumberBinary   | eGroupBinary,
-      eTypeUtf8String   = eTypeNumberUtf8String | eGroupString,
-      eTypeUtf32String  = eTypeNumberUtf32String | eGroupString,
       eTypeString       = eTypeNumberString   | eGroupString,
+      eTypeUtf8String   = eTypeNumberUtf8String | eGroupString,
       eTypeWString      = eTypeNumberWString  | eGroupString,
+      eTypeUtf32String  = eTypeNumberUtf32String | eGroupString,
    };
 
 
-                                                                                 static_assert(eTypeNumberUInt64 == variant_type::eTypeNumberUInt64); static_assert(eTypeNumberDouble == variant_type::eTypeNumberDouble); static_assert(eTypeNumberBinary == variant_type::eTypeNumberBinary);
+                                                                                 static_assert((int)eTypeNumberUInt64 == (int)variant_type::eTypeNumberUInt64); static_assert((int)eTypeNumberDouble == (int)variant_type::eTypeNumberDouble); static_assert((int)eTypeNumberBinary == (int)variant_type::eTypeNumberBinary);
                                                                                  static_assert( (CType_MAX & eType_MASK) == 0 );
 
    static const unsigned ARGUMENTS_NO_LENGTH = eTypeNumberGuid;
@@ -231,6 +245,9 @@ public:
       bool operator==(const argument& o) const { return compare_argument_s(*this, o); }
       bool operator==(const gd::variant_view& v) const { return compare_argument_s(*this, v); }
 
+      bool operator!=(const argument& o) const { return !(*this == o); }
+      bool operator!=(const gd::variant_view& v) const { return !(*this == v); }
+
 
       bool operator !() { return (type_number() == arguments::eTypeNumberUnknown); }
 
@@ -240,24 +257,18 @@ public:
       const argument& operator>>(int& v) const { v = get_int(); return *this; }
       const argument& operator>>(unsigned int& v) const { v = get_uint(); return *this; }
       const argument& operator>>(std::string& v) const { v = get_string(); return *this; }
-      template <typename VALUE>
-      const argument& operator>>(std::pair<std::string_view,VALUE&> pair) const { 
-         auto pPosition = find( pair.first );
-         if( pPosition ) pair.second = get_argument_s(pair.first);
-         return *this;
-      }
 
 
       operator bool() const { assert(type_number() == arguments::eTypeNumberBool); return m_unionValue.b; }
-      operator int8_t() const { assert(type_number() >= arguments::eTypeNumberInt8 && type_number() <= arguments::eTypeNumberUInt8); return m_unionValue.v_int8; }
-      operator uint8_t() const { assert(type_number() >= arguments::eTypeNumberInt8 && type_number() <= arguments::eTypeNumberUInt8); return m_unionValue.v_uint8; }
-      operator int16_t() const { assert(type_number() >= arguments::eTypeNumberInt16 && type_number() <= arguments::eTypeNumberUInt16); return m_unionValue.v_int16; }
-      operator uint16_t() const { assert(type_number() >= arguments::eTypeNumberInt16 && type_number() <= arguments::eTypeNumberUInt16); return m_unionValue.v_uint16; }
-      operator long() const { assert(type_number() >= arguments::eTypeNumberInt32 && type_number() <= arguments::eTypeNumberUInt32); return m_unionValue.v_int32; }
+      operator int8_t() const { assert(type_number() >= static_cast<decltype(type_number())>(arguments::eTypeNumberInt8) && type_number() <= static_cast<decltype(type_number())>(arguments::eTypeNumberUInt8) ); return m_unionValue.v_int8; }
+      operator uint8_t() const { assert(type_number() >= static_cast<decltype(type_number())>(arguments::eTypeNumberInt8) && type_number() <= static_cast<decltype(type_number())>(arguments::eTypeNumberUInt8) ); return m_unionValue.v_uint8; }
+      operator int16_t() const { assert(type_number() >= static_cast<decltype(type_number())>(arguments::eTypeNumberInt16) && type_number() <= static_cast<decltype(type_number())>(arguments::eTypeNumberUInt16) ); return m_unionValue.v_int16; }
+      operator uint16_t() const { assert(type_number() >= static_cast<decltype(type_number())>(arguments::eTypeNumberInt16) && type_number() <= static_cast<decltype(type_number())>(arguments::eTypeNumberUInt16) ); return m_unionValue.v_uint16; }
+      //operator long() const { assert(type_number() >= static_cast<decltype(type_number())>(arguments::eTypeNumberInt32) && type_number() <= static_cast<decltype(type_number())>(arguments::eTypeNumberUInt32)); return m_unionValue.v_int32; }
       operator int32_t() const { assert(type_number() >= arguments::eTypeNumberInt32 && type_number() <= arguments::eTypeNumberUInt32); return m_unionValue.v_int32; }
       operator uint32_t() const { assert(type_number() >= arguments::eTypeNumberInt32 && type_number() <= arguments::eTypeNumberUInt32); return m_unionValue.v_uint32; }
-      operator int64_t() const { assert(type_number() >= arguments::eTypeNumberInt64 && type_number() <= arguments::eTypeNumberUInt64); return m_unionValue.v_int64; }
-      operator uint64_t() const { assert(type_number() >= arguments::eTypeNumberInt64 && type_number() <= arguments::eTypeNumberUInt64); return m_unionValue.v_uint64; }
+      operator int64_t() const { assert(type_number() >= static_cast<decltype(type_number())>(arguments::eTypeNumberInt64) && type_number() <= static_cast<decltype(type_number())>(arguments::eTypeNumberUInt64)); return m_unionValue.v_int64; }
+      operator uint64_t() const { assert(type_number() >= static_cast<decltype(type_number())>(arguments::eTypeNumberInt64) && type_number() <= static_cast<decltype(type_number())>(arguments::eTypeNumberUInt64)); return m_unionValue.v_uint64; }
       operator double() const { assert(type_number() == arguments::eTypeNumberDouble); return m_unionValue.d; }
       operator const char* () const { assert(type_number() == arguments::eTypeNumberUnknown || type_number() == arguments::eTypeNumberString); return (type_number() == arguments::eTypeNumberString) ? m_unionValue.pbsz : ""; }
       operator const wchar_t* () const { assert(type_number() == arguments::eTypeNumberUnknown || type_number() == arguments::eTypeNumberWString); return (type_number() == arguments::eTypeNumberWString) ? m_unionValue.pwsz : L""; }
@@ -295,8 +306,8 @@ public:
       }
 
       unsigned int as_uint() const { return get_uint(); }
-      unsigned int as_int() const { return get_int(); }
-      unsigned int as_variant() const { return get_variant(); }
+      int as_int() const { return get_int(); }
+      gd::variant as_variant() const { return get_variant(); }
 
 
       int          get_int() const;
@@ -312,19 +323,19 @@ public:
 
       std::string  to_string() const { return get_string(); }
 
-      bool         is_null() const { return (m_eType == arguments::eTypeUnknown); }
-      bool         is_bool() const { return (m_eType == arguments::eTypeBool); }
-      bool         is_int32() const { return (m_eType == arguments::eTypeInt32); }
-      bool         is_uint32() const { return (m_eType == arguments::eTypeUInt32); }
-      bool         is_int64() const { return (m_eType == arguments::eTypeInt64); }
-      bool         is_uint64() const { return (m_eType == arguments::eTypeUInt64); }
-      bool         is_double() const { return (m_eType == arguments::eTypeDouble); }
-      bool         is_string() const { return (m_eType == arguments::eTypeString); }
-      bool         is_wstring() const { return (m_eType == arguments::eTypeWString); }
+      bool         is_null() const { return (type_number() == arguments::eTypeNumberUnknown); }
+      bool         is_bool() const { return (type_number() == arguments::eTypeNumberBool); }
+      bool         is_int32() const { return (type_number() == arguments::eTypeNumberInt32); }
+      bool         is_uint32() const { return (type_number() == arguments::eTypeNumberUInt32); }
+      bool         is_int64() const { return (type_number() == arguments::eTypeNumberInt64); }
+      bool         is_uint64() const { return (type_number() == arguments::eTypeNumberUInt64); }
+      bool         is_double() const { return (type_number() == arguments::eTypeNumberDouble); }
+      bool         is_string() const { return (type_number() == arguments::eTypeNumberString); }
+      bool         is_wstring() const { return (type_number() == arguments::eTypeNumberWString); } 
       bool         is_true() const;
       bool         is_primitive() const { return (type_number() > arguments::eTypeNumberUnknown && type_number() <= eTypeNumberDouble); } ///< primitive = built in types in C++
       bool         is_text() const { return (m_eType & arguments::eGroupString) != 0;  } ///< text = some sort of string value, ascii, utf8 or unicode
-      bool         is_binary() const { return m_eType == arguments::eTypeBinary; } ///< binary = blob data, length is unknown if used in argument (work with this in arguments)
+      bool         is_binary() const { return type_number() == arguments::eTypeNumberBinary; } ///< binary = blob data, length is unknown if used in argument (work with this in arguments)
       bool         is_number() const { return (m_eType & (arguments::eGroupInteger|arguments::eGroupDecimal)) != 0; }
       bool         is_decimal() const { return (m_eType & arguments::eGroupDecimal) != 0; }
       bool         is_integer() const { return (m_eType & arguments::eGroupInteger) != 0; }
@@ -402,13 +413,13 @@ public:
       const_iterator(const const_iterator& o) { m_pArguments = o.m_pArguments; m_pPosition = o.m_pPosition; }
       const_iterator& operator=(const const_iterator& o) { m_pArguments = o.m_pArguments; m_pPosition = o.m_pPosition; return *this; }
 
-      argument operator*() const {                                               assert( m_pArguments->verify_d( m_pPosition ));
+      argument operator*() const {                                                                 assert( m_pArguments->verify_d( m_pPosition ));
          return get_argument();
       }
-      self& operator++() {                                                       assert( m_pArguments->verify_d( m_pPosition ));
+      self& operator++() {                                                                         assert( m_pArguments->verify_d( m_pPosition ));
          m_pPosition = m_pArguments->next(m_pPosition); return *this;
       }
-      self& operator++(int) {                                                    assert( m_pArguments->verify_d( m_pPosition ));
+      self& operator++(int) {                                                                      assert( m_pArguments->verify_d( m_pPosition ));
          m_pPosition = m_pArguments->next(m_pPosition); return *this;
       }
       bool operator==(const_iterator& o) { return m_pPosition == o.m_pPosition; }
@@ -417,12 +428,20 @@ public:
       operator const arguments*() const { return m_pArguments; }
       operator arguments::const_pointer() const { return m_pPosition; }
 
-      std::string name() const {                                                 assert( m_pArguments->verify_d( m_pPosition ));
+      std::string name() const {                                                                   assert( m_pArguments->verify_d( m_pPosition ));
          if( arguments::is_name_s(m_pPosition) == true )
          {
             return std::string(arguments::get_name_s(m_pPosition));
          }
          return std::string();
+      }
+
+      std::string_view name(view_tag) const {                                                      assert( m_pArguments->verify_d( m_pPosition ));
+         if( arguments::is_name_s(m_pPosition) == true )
+         {
+            return arguments::get_name_s(m_pPosition);
+         }
+         return std::string_view();
       }
 
       bool compare_name(std::string_view stringName) const { 
@@ -529,6 +548,12 @@ public:
       return argument_edit();
    }
 
+   arguments& operator+=( const std::pair<std::string_view, gd::variant_view>& pairArgument ) {
+      return append_argument( pairArgument, view_tag{} );
+   }
+
+
+
 
    // ## methods ------------------------------------------------------------------
 public:
@@ -563,18 +588,20 @@ public:
    arguments& append(std::wstring_view v) { return append((eTypeNumberWString | eValueLength), (const_pointer)v.data(), ((unsigned int)v.length() + 1) * sizeof(wchar_t)); }
    arguments& append(param_type uType, const_pointer pBuffer, unsigned int uLength);
 
-   arguments& append(std::string_view stringName, std::nullptr_t) { return append(stringName, eTypeNumberUnknown, nullptr, 0); }
-   arguments& append(std::string_view stringName, int8_t v) { return append(stringName, eTypeNumberInt8, (const_pointer)&v, sizeof(int8_t)); }
-   arguments& append(std::string_view stringName, uint8_t v) { return append(stringName, eTypeNumberUInt8, (const_pointer)&v, sizeof(uint8_t)); }
-   arguments& append(std::string_view stringName, int16_t v) { return append(stringName, eTypeNumberInt16, (const_pointer)&v, sizeof(int16_t)); }
-   arguments& append(std::string_view stringName, uint16_t v) { return append(stringName, eTypeNumberUInt16, (const_pointer)&v, sizeof(uint16_t)); }
-   arguments& append(std::string_view stringName, int32_t v) { return append(stringName, eTypeNumberInt32, (const_pointer)&v, sizeof(int32_t)); }
-   arguments& append(std::string_view stringName, uint32_t v) { return append(stringName, eTypeNumberUInt32, (const_pointer)&v, sizeof(uint32_t)); }
-   arguments& append(std::string_view stringName, int64_t v) { return append(stringName, eTypeNumberInt64, (const_pointer)&v, sizeof(int64_t)); }
-   arguments& append(std::string_view stringName, uint64_t v) { return append(stringName, eTypeNumberUInt64, (const_pointer)&v, sizeof(uint64_t)); }
-   arguments& append(std::string_view stringName, std::string_view v) { return append(stringName, (eTypeNumberString | eValueLength), (const_pointer)v.data(), (unsigned int)v.length() + 1); }
-   arguments& append(std::string_view stringName, std::wstring_view v) { return append(stringName, (eTypeNumberWString | eValueLength), (const_pointer)v.data(), ((unsigned int)v.length() + 1) * sizeof(wchar_t)); }
-   arguments& append(std::string_view stringName, param_type uType, const_pointer pBuffer, unsigned int uLength) { return append(stringName.data(), (uint32_t)stringName.length(), uType, pBuffer, uLength); }
+   arguments& append(const std::string_view& stringName, std::nullptr_t) { return append(stringName, eTypeNumberUnknown, nullptr, 0); }
+   arguments& append(const std::string_view& stringName, int8_t v) { return append(stringName, eTypeNumberInt8, (const_pointer)&v, sizeof(int8_t)); }
+   arguments& append(const std::string_view& stringName, uint8_t v) { return append(stringName, eTypeNumberUInt8, (const_pointer)&v, sizeof(uint8_t)); }
+   arguments& append(const std::string_view& stringName, int16_t v) { return append(stringName, eTypeNumberInt16, (const_pointer)&v, sizeof(int16_t)); }
+   arguments& append(const std::string_view& stringName, uint16_t v) { return append(stringName, eTypeNumberUInt16, (const_pointer)&v, sizeof(uint16_t)); }
+   arguments& append(const std::string_view& stringName, int32_t v) { return append(stringName, eTypeNumberInt32, (const_pointer)&v, sizeof(int32_t)); }
+   arguments& append(const std::string_view& stringName, uint32_t v) { return append(stringName, eTypeNumberUInt32, (const_pointer)&v, sizeof(uint32_t)); }
+   arguments& append(const std::string_view& stringName, int64_t v) { return append(stringName, eTypeNumberInt64, (const_pointer)&v, sizeof(int64_t)); }
+   arguments& append(const std::string_view& stringName, uint64_t v) { return append(stringName, eTypeNumberUInt64, (const_pointer)&v, sizeof(uint64_t)); }
+   arguments& append(const std::string_view& stringName, float v) { return append(stringName, eTypeNumberFloat, (const_pointer)&v, sizeof(float)); }
+   arguments& append(const std::string_view& stringName, double v) { return append(stringName, eTypeNumberDouble, (const_pointer)&v, sizeof(double)); }
+   arguments& append(const std::string_view& stringName, std::string_view v) { return append(stringName, (eTypeNumberString | eValueLength), (const_pointer)v.data(), (unsigned int)v.length() + 1); }
+   arguments& append(const std::string_view& stringName, std::wstring_view v) { return append(stringName, (eTypeNumberWString | eValueLength), (const_pointer)v.data(), ((unsigned int)v.length() + 1) * sizeof(wchar_t)); }
+   arguments& append(const std::string_view& stringName, param_type uType, const_pointer pBuffer, unsigned int uLength) { return append(stringName.data(), (uint32_t)stringName.length(), uType, pBuffer, uLength); }
    arguments& append(const char* pbszName, uint32_t uNameLength, param_type uType, const_pointer pBuffer, unsigned int uLength);
    template<typename POINTER>
    arguments& append(const char* pbszName, uint32_t uNameLength, param_type uType, POINTER pBuffer, unsigned int uLength) {
@@ -583,7 +610,7 @@ public:
    }
 
 
-   arguments& append_argument(std::string_view stringName, argument argumentValue) {
+   arguments& append_argument(const std::string_view& stringName, argument argumentValue) {
       auto _l = argumentValue.length();
       const_pointer pData = (argumentValue.type_number() <= eTypeNumberPointer ? (const_pointer)&argumentValue.m_unionValue : (const_pointer)argumentValue.get_raw_pointer());
       return append(stringName, argumentValue.ctype(), pData, argumentValue.length());
@@ -599,9 +626,12 @@ public:
       return append(stringName, uType, pData, argumentValue.length());
    }
 
-   arguments& append_argument(std::string_view stringName, const gd::variant_view& variantValue);
+   arguments& append_argument(const std::string_view& stringName, const gd::variant_view& variantValue);
 
    arguments& append_argument(const std::pair<std::string_view, gd::variant>& pairArgument) {
+      return append_argument(pairArgument.first, pairArgument.second);
+   }
+   arguments& append_argument(const std::pair<std::string_view, gd::variant_view>& pairArgument, view_tag) {
       return append_argument(pairArgument.first, pairArgument.second);
    }
 
@@ -610,6 +640,10 @@ public:
    arguments& append_binary(std::string_view stringName, const uint8_t* puData, unsigned int uLength) { return append(stringName, (eTypeNumberBinary | eValueLength), puData, uLength); }
    arguments& append_uuid( const uint8_t* puData ) { return append(eTypeNumberGuid, puData, 16); }
    arguments& append_uuid(std::string_view stringName, const uint8_t* puData ) { return append(stringName, eTypeNumberGuid, puData, 16); }
+
+   arguments& append_if(const std::string_view& stringName, const char* pbsz );
+   arguments& append_if(const std::string_view& stringName, const wchar_t* pwsz );
+
 
    arguments& set(std::string_view stringName, std::nullptr_t) { return set(stringName, eTypeNumberBool, nullptr, 0); }
    arguments& set(std::string_view stringName, bool v) { return set(stringName, eTypeNumberBool, (const_pointer)&v, sizeof(bool)); }
@@ -623,20 +657,7 @@ public:
    arguments& set(std::string_view stringName, uint64_t v) { return set(stringName, eTypeNumberUInt64, (const_pointer)&v, sizeof(uint64_t)); }
    arguments& set(std::string_view stringName, std::string_view v) { return set(stringName, (eTypeNumberString | eValueLength), (const_pointer)v.data(), (unsigned int)v.length() + 1); }
 
-   arguments& set(std::string_view stringName, const gd::variant_view& variantValue) {
-      auto argumentValue = get_argument_s(variantValue);
-      const_pointer pData = (argumentValue.type_number() <= eTypeNumberPointer ? (const_pointer)&argumentValue.m_unionValue : (const_pointer)argumentValue.get_raw_pointer());
-      unsigned uType = argumentValue.type_number();
-      unsigned uLength;
-      if( uType > ARGUMENTS_NO_LENGTH ) 
-      { 
-         unsigned uZeroEnd = 0;
-         if( uType == eTypeNumberWString )
-         uType |= eValueLength; 
-         uLength = variantValue.length() + get_string_zero_terminate_length_s( uType );
-      }
-      return set(stringName, uType, pData, uLength);
-   }
+   arguments& set(std::string_view stringName, const gd::variant_view& variantValue);
 
    arguments& set(std::string_view stringName, param_type uType, const_pointer pBuffer, unsigned int uLength) { return set(stringName.data(), (uint32_t)stringName.length(), uType, pBuffer, uLength); }
    arguments& set(const char* pbszName, uint32_t uNameLength, param_type uType, const_pointer pBuffer, unsigned int uLength);
@@ -683,6 +704,7 @@ public:
 *///@{
    [[nodiscard]] bool compare(const std::pair<std::string_view, gd::variant_view>& pairMatch) const { return find(pairMatch) != nullptr; }
    [[nodiscard]] bool compare(const std::string_view stringName, const arguments& argumentsCompareTo) const;
+   [[nodiscard]] bool compare_exists(const arguments& argumentsExists) const { return compare_exists_s( *this, argumentsExists ); }
 //@}
 
 /** \name MOVE
@@ -735,7 +757,7 @@ public:
       if( paramV.empty() == true ) {
          auto uOffset = get_buffer_end() - get_buffer_start();
          append(stringName, vInsert);
-         return arguments::get_param_s(get_buffer_start() + uOffset);
+         return arguments::get_argument_s(get_buffer_start() + uOffset);
       }
       return argument();
    }
@@ -759,7 +781,7 @@ public:
    
 
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(DEBUG) || !defined(NODEBUG)
    bool verify_d(const_pointer pPosition) const { return pPosition >= m_pBuffer && pPosition < (m_pBuffer + m_uLength) ? true : false; }
 #endif
 //@}
@@ -806,6 +828,8 @@ public:
    static bool compare_argument_s(const argument& a, const gd::variant_view& v);
    static bool compare_argument_group_s(const argument& argument1, const argument& argument2);
    static bool compare_argument_group_s(const argument& a1, const gd::variant_view& v2);
+
+   static bool compare_exists_s(const arguments& argumentsSource, const arguments& argumentsFind);
    /// compare if argument type is fixed size, this is useful when setting values in arguments object
    static constexpr bool is_type_fixed_size_s(unsigned uType) { return (uType & ~eTypeNumber_MASK) <= eTypeNumberGuid; }
 
@@ -944,6 +968,19 @@ public:
 
 };
 
+/// appends char pointer if it is valid
+inline arguments& arguments::append_if(const std::string_view& stringName, const char* pbsz ) { 
+   if( pbsz == nullptr ) return *this;
+   return append(stringName, std::string_view(pbsz)); 
+}
+
+/// appends wchar pointer if it is valid
+inline arguments& arguments::append_if(const std::string_view& stringName, const wchar_t* pwsz ) { 
+   if( pwsz == nullptr ) return *this;
+   return append(stringName, std::wstring_view(pwsz)); 
+}
+
+
 // ================================================================================================
 // ================================================================================= arguments_return
 // ================================================================================================
@@ -952,7 +989,7 @@ public:
  * \brief simplifies using type deduction to return value as a pair
  *
  * arguments_return is just to simplify how to write code returning values.
- * constructing `arguments` needs two "{{ }}" and ´arguments_return´ only needs one like {}
+ * constructing `arguments` needs two "{{ }}" and ï¿½arguments_returnï¿½ only needs one like {}
  *
  \code
  // sample on how to return
@@ -967,6 +1004,45 @@ public:
       append_argument(pairArgument);
    }
 };
+
+constexpr uint8_t ctype_size[arguments::CType_MAX] = {
+   0,       // eTypeNumberUnknown = 0,
+   1,       // eTypeNumberBool = 1,
+   1,       // eCTypeNumberInt8 = 2,
+   1,       // eCTypeNumberUInt8,
+   2,       // eCTypeNumberInt16,
+   2,       // eCTypeNumberUInt16,
+   4,       // eCTypeNumberInt32,
+   4,       // eCTypeNumberUInt32,
+   8,       // eCTypeNumberInt64,
+   8,       // eCTypeNumberUInt64,
+
+   sizeof(float), // eTypeNumberFloat,
+   sizeof(double),// eTypeNumberDouble,
+
+   sizeof(void*), //eTypeNumberPointer,
+   16,      // eTypeNumberGuid   
+};
+
+inline arguments& arguments::set(std::string_view stringName, const gd::variant_view& variantValue) {
+   auto argumentValue = get_argument_s(variantValue);
+   const_pointer pData = (argumentValue.type_number() <= eTypeNumberPointer ? (const_pointer)&argumentValue.m_unionValue : (const_pointer)argumentValue.get_raw_pointer());
+   unsigned uType = argumentValue.type_number();
+   unsigned uLength;
+   if( uType > ARGUMENTS_NO_LENGTH ) 
+   { 
+      unsigned uZeroEnd = 0;
+      if( uType == eTypeNumberWString )
+      uType |= eValueLength; 
+      uLength = variantValue.length() + get_string_zero_terminate_length_s( uType );
+   }
+   else
+   {
+      uLength = ctype_size[uType];
+   }
+   return set(stringName, uType, pData, uLength);
+}
+
 
 /// return argument object that can be used to edit value
 inline arguments::argument_edit arguments::find_edit_argument(std::string_view stringName) {
@@ -990,6 +1066,8 @@ inline bool arguments::compare(const std::string_view stringName, const argument
    const argument argumentCompareTo = argumentsCompareTo.get_argument(stringName);
    return compare_argument_s(argumentCompare, argumentCompareTo);
 }
+
+
 
 // ================================================================================================
 // ================================================================================= FREE FUNCTIONS
@@ -1027,3 +1105,10 @@ constexpr std::string_view arguments::type_name_s(uint32_t uType)
 
 
 _GD_ARGUMENT_END
+
+
+#if defined(_MSC_VER)
+   #pragma warning(pop)
+#else
+   #pragma GCC diagnostic pop
+#endif

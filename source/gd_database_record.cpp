@@ -195,21 +195,85 @@ record& record::add( unsigned uColumnType, unsigned uSize, const std::string_vie
 /** ---------------------------------------------------------------------------
  * @brief return buffer for value buffer
  * @param uIndex column index buffer is returned for
- * @return 
+ * @return uint8_t* pointer to buffer storing column value data
 */
-uint8_t* record::get_value_buffer( unsigned uIndex ) const
+uint8_t* record::buffer_get( unsigned uIndex ) const
 {
    const record::column* pcolumn = get_column( uIndex );
    if( pcolumn->size() != 0 )
    {
-      return m_buffersValue.primitive_data_offset( pcolumn->value() );
+      if( pcolumn->is_fixed() == true )
+      {
+         return m_buffersValue.primitive_data_offset( pcolumn->value() );
+      }
+      else
+      {
+         return m_buffersValue.derived_data_value( pcolumn->value() );
+      }
    }
 
    return nullptr;
 }
 
+/** ---------------------------------------------------------------------------
+ * @brief Get alias for column if alias is set
+ * @param uIndex index to column alias is returned for
+ * @return alias name if found, empty if no alias
+*/
+std::string_view record::alias_get( unsigned uIndex ) const
+{                                                                              assert( uIndex < size() );
+   const record::column* pcolumn = get_column( uIndex );
+   if( pcolumn->alias() > 0 ) return m_namesColumn.get( pcolumn->alias() );
 
-/**
+   return std::string_view();
+}
+
+/** ---------------------------------------------------------------------------
+ * @brief Return all names in vector
+ * @return std::vector<std::string_view> vector with column names
+*/
+std::vector<std::string_view> record::alias_get() const
+{
+   std::vector<std::string_view> vectorAlias;
+   for( unsigned u = 0, uTo = size(); u < uTo; u++ )
+   {
+      vectorAlias.push_back( name_get( u ) );
+   }
+
+   return vectorAlias;
+}
+
+
+/** ---------------------------------------------------------------------------
+ * @brief Get name for column if name is set
+ * @param uIndex index to column name is returned for 
+ * @return column name if found, empty if no name
+*/
+std::string_view record::name_get( unsigned uIndex ) const
+{                                                                              assert( uIndex < size() );
+   const record::column* pcolumn = get_column( uIndex );
+   if( pcolumn->name() ) return m_namesColumn.get( pcolumn->name() );
+
+   return std::string_view();
+}
+
+/** ---------------------------------------------------------------------------
+ * @brief Return all names in vector
+ * @return std::vector<std::string_view> vector with column names
+*/
+std::vector<std::string_view> record::name_get() const
+{
+   std::vector<std::string_view> vectorName;
+   for( unsigned u = 0, uTo = size(); u < uTo; u++ )
+   {
+      vectorName.push_back( name_get( u ) );
+   }
+
+   return vectorName;
+}
+
+
+/** ---------------------------------------------------------------------------
  * @brief empty columns
 */
 void record::clear()

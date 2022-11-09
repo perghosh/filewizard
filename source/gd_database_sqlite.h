@@ -9,6 +9,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstring>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -87,6 +88,12 @@ public:
    /// Execute sql, any sql
    std::pair<bool, std::string> execute(const std::string_view& stringQuery);
 
+   /// get last inserted key
+   gd::variant get_insert_key() const;
+
+   /// get number of changes in last call to database
+   gd::variant get_change_count() const;
+
    /// close sqlite connection if open
    void close() { if( m_bOwner == true ) { close_s( m_psqlite3 ); } m_psqlite3 = nullptr; }
 
@@ -127,6 +134,7 @@ inline std::pair<bool, std::string> database::execute(const std::string_view& st
 
 
 
+
 /**
  * \brief
  *
@@ -159,16 +167,21 @@ private:
 
 // ## operator -----------------------------------------------------------------
 public:
-   // ## index operators, returns variant_view
+   // ## Index operators, returns variant_view with value from column
+   //    Using index to column or column name it is possible to access column value
+   //    matching index or name.
    gd::variant_view operator[](unsigned uIndex) const { return get_variant_view(uIndex); }
    gd::variant_view operator[](const std::string_view& stringName) const { return get_variant_view(stringName); }
+
+   /// get internal record that has information about columns
+   operator const record& () const { return m_recordRow; }
 
 
 // ## methods ------------------------------------------------------------------
 public:
 /** \name GET/SET
 *///@{
-
+   unsigned get_column_count() const { return m_recordRow.size(); }
 //@}
 
 /** \name OPERATION
@@ -183,8 +196,6 @@ public:
    std::pair<bool, std::string> next();
    /// check if row is valid
    bool is_valid_row() const { return (m_uState & row) == row; }
-
-   unsigned size() const { return m_recordRow.size(); }
 
    /// close statement if open
    void close() {
