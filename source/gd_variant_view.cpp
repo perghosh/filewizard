@@ -1,14 +1,21 @@
+#include <charconv>
 #include <cwchar>
 
 #include "gd_utf8.hpp"
 #include "gd_variant_view.h"
 
 
-#if defined(_MSC_VER)
-   #pragma warning( disable : 4996 26812 )
-#else
+
+#if defined( __clang__ )
+   #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+   #pragma clang diagnostic ignored "-Wswitch"
+   #pragma clang diagnostic ignored "-Wformat"
+#elif defined( __GNUC__ )
+   #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
    #pragma GCC diagnostic ignored "-Wswitch"
    #pragma GCC diagnostic ignored "-Wformat"
+#elif defined( _MSC_VER )
+   #pragma warning( disable : 4996 26812 )
 #endif
 
 
@@ -146,6 +153,41 @@ int64_t variant_view::get_int64() const
    return 0;
 }
 
+uint64_t variant_view::get_uint64() const
+{
+   switch( type_number() )
+   {
+   case eTypeNumberUnknown     : return 0;
+   case eTypeNumberBit         : return (m_V.int8 & 0x01 ? 1 : 0);
+   case eTypeNumberBool        : return (m_V.b == true ? 1 : 0);
+   case eTypeNumberInt8        : return (uint64_t)m_V.int8;
+   case eTypeNumberInt16       : return (uint64_t)m_V.int16;
+   case eTypeNumberInt32       : return (uint64_t)m_V.int32;
+   case eTypeNumberInt64       : return (uint64_t)m_V.int64;
+   case eTypeNumberUInt8       : return (uint64_t)m_V.uint8;
+   case eTypeNumberUInt16      : return (uint64_t)m_V.uint16;
+   case eTypeNumberUInt32      : return (uint64_t)m_V.uint32;
+   case eTypeNumberUInt64      : return (uint64_t)m_V.uint64;
+   case eTypeNumberFloat       : return (uint64_t)m_V.f;
+   case eTypeNumberDouble      : return (uint64_t)m_V.d;
+   case eTypeNumberGuid        : return 0;
+   case eTypeNumberBinary      : return 0;
+   case eTypeNumberUtf8String  : 
+   case eTypeNumberString      :
+   {
+      uint64_t v_;      
+      std::from_chars( m_V.pbsz, m_V.pbsz + length(), v_ );
+      return v_;
+   }
+   case eTypeNumberWString     : return (uint64_t)std::wcstoll( m_V.pwsz, 0, 10 );
+   //case eTypeNumberUtf32String : return _wtoi64( m_V.pwsz );                   // #TODO fix this
+   default:                                                                                        assert( false );
+   }
+
+   return 0;
+}
+
+
 
 double variant_view::get_decimal() const
 {
@@ -164,10 +206,14 @@ double variant_view::get_decimal() const
    case eTypeNumberUInt64      : return (double)m_V.uint64;
    case eTypeNumberFloat       : return (double)m_V.f;
    case eTypeNumberDouble      : return m_V.d;
-   case eTypeNumberGuid        : 
-   case eTypeNumberBinary      :
+   case eTypeNumberGuid        : return 0.0;
+   case eTypeNumberBinary      : return 0.0;
    case eTypeNumberUtf8String  :
-   case eTypeNumberString      :
+   case eTypeNumberString: {
+      double dValue = std::strtod( c_str(), nullptr );
+      return dValue;
+      }
+      break;
    case eTypeNumberWString     :
       break;
    }
@@ -191,20 +237,18 @@ std::string variant_view::get_string() const
    case eTypeNumberUInt64      : return std::to_string( m_V.uint64 );
    case eTypeNumberFloat       : return std::to_string(m_V.f);
    case eTypeNumberDouble      : return std::to_string(m_V.d);
-      /*
-   case eTypeNumberGuid        : 
-      {  assert( false );
-      gd_std::wstring s;
-      s.assign_hex( m_V.pb, m_uSize );
-      return s;
+   case eTypeNumberGuid        : {  
+      std::string stringHex;
+      gd::utf8::print_hex( m_V.pb, m_V.pb + 16, stringHex );
+      return stringHex;
       }
-   case eTypeNumberBinary      :
-      {
-         gd_std::wstring s;
-         s.assign_hex( m_V.pb, m_uSize );
-         return s;
+      break;
+   case eTypeNumberBinary      : {
+      std::string stringHex;
+      gd::utf8::print_hex( m_V.pb, m_V.pb + m_uSize, stringHex );
+      return stringHex;
       }
-      */
+      break;
    case eTypeNumberUtf8String  : 
    case eTypeNumberString      : return std::string( m_V.pbsz, m_uSize ); 
    case eTypeNumberWString     : 
@@ -222,6 +266,63 @@ std::string variant_view::get_string() const
 
    return std::string();
 }
+
+std::string variant_view::get_string( gd::variant_type::tag_scientific ) const
+{
+   switch( type_number() )
+   {
+   case eTypeNumberUnknown     : return std::string();
+   case eTypeNumberBool        : return std::to_string( m_V.b );
+   case eTypeNumberInt8        : return std::to_string( m_V.int8 );
+   case eTypeNumberInt16       : return std::to_string( m_V.int16 );
+   case eTypeNumberInt32       : return std::to_string( m_V.int32 );
+   case eTypeNumberInt64       : return std::to_string( m_V.int64 );
+   case eTypeNumberUInt8       : return std::to_string( m_V.uint8 );
+   case eTypeNumberUInt16      : return std::to_string( m_V.uint16 );
+   case eTypeNumberUInt32      : return std::to_string( m_V.uint32 );
+   case eTypeNumberUInt64      : return std::to_string( m_V.uint64 );
+   case eTypeNumberFloat       : {
+      char pbszBuffer[32];
+      sprintf( pbszBuffer, "%e", static_cast< double >(m_V.f) );
+      return std::string( pbszBuffer );
+      }
+      break;
+   case eTypeNumberDouble      : {
+      char pbszBuffer[40];
+      sprintf( pbszBuffer, "%e", m_V.d );
+      return std::string( pbszBuffer );
+      }
+      break;
+   case eTypeNumberGuid        : {  
+      std::string stringHex;
+      gd::utf8::print_hex( m_V.pb, m_V.pb + 16, stringHex );
+      return stringHex;
+      }
+      break;
+   case eTypeNumberBinary      : {
+      std::string stringHex;
+      gd::utf8::print_hex( m_V.pb, m_V.pb + m_uSize, stringHex );
+      return stringHex;
+      }
+      break;
+   case eTypeNumberUtf8String  : 
+   case eTypeNumberString      : return std::string( m_V.pbsz, m_uSize ); 
+   case eTypeNumberWString     : 
+   {
+      std::string s;
+      gd::utf8::convert_utf16_to_uft8( reinterpret_cast<const uint16_t*>(m_V.pwsz), s);
+      return std::move(s);
+   }
+      /*
+   case eTypeNumberJson        : return gd_std::wstring( gd_std::string::utf8( m_V.pbsz ), m_uSize ); 
+   case eTypeNumberXml         : return gd_std::wstring( gd_std::string::utf8( m_V.pbsz ), m_uSize ); 
+      break;
+   */
+   }
+
+   return std::string();
+}
+
 
 /** ---------------------------------------------------------------------------
  * @brief return value as string_view
@@ -389,11 +490,43 @@ char* variant_view::get_string( char* pbszBuffer ) const
 
 
 
+/** ---------------------------------------------------------------------------
+ * @brief checks if we have a "true" value
+ * A true value is a valid type with content, If variant is a number then 0 is
+ * false, all other numbers are true. If string then empty string is false, string
+ * with characters is true. If binary then empty binary is false, binary with content
+ * is true.
+ * 
+*Sample code to show how `is_true` behaves.*
+@code
+gd::variant_view variantviewTest;
+
+variantviewTest = 0;     assert( variantviewTest.is_true() == false );
+variantviewTest = 1;     assert( variantviewTest.is_true() == true );
+variantviewTest = -1;    assert( variantviewTest.is_true() == true );
+variantviewTest = 321;   assert( variantviewTest.is_true() == true );
+variantviewTest = "";    assert( variantviewTest.is_true() == false );
+variantviewTest = L"";   assert( variantviewTest.is_true() == false );
+variantviewTest = (void*)nullptr;   assert( variantviewTest.is_true() == false );
+@endcode
+
+ * @return true if variant has content, false if not
+*/
 bool variant_view::is_true() const
 {
-   if( (unsigned int)m_uType & variant_type::eGroupInteger ) { if( m_V.uint64 != 0 ) return true; }
+   if( (unsigned int)m_uType & variant_type::eGroupInteger ) 
+   { 
+      if( m_uType & variant_type::eGroupSize32 ) return m_V.int32 != 0;
+      else if(m_uType & variant_type::eGroupSize64 ) return m_V.uint64 != 0; 
+      else if(m_uType & variant_type::eGroupSize16 ) return m_V.uint16 != 0; 
+      return m_V.uint8 != 0;
+   }
    else if( (unsigned int)m_uType & variant_type::eGroupBoolean ) { return m_V.b; }
-   if( (unsigned int)m_uType & variant_type::eGroupDecimal ) { if( m_V.d != 0.0 ) return true; }
+   else if( m_uType & variant_type::eGroupDecimal ) 
+   { 
+      if( m_uType & variant_type::eGroupSize64 ) return m_V.d != 0;
+      return m_V.f != 0.0;
+   }
    else if( (unsigned int)m_uType & variant_type::eGroupString ) 
    {                                                                             assert( m_V.pwsz != nullptr );
       if( type_number() == eTypeNumberWString )
@@ -402,11 +535,19 @@ bool variant_view::is_true() const
       }
       else if(m_V.pbsz[0] != '\0') return true; 
    }
+   else if( ( unsigned int )m_uType & variant_type::eGroupBinary )
+   {
+      return m_uSize > 0;                                                      // has binary content ?
+   }
+   else if( m_uType == eTypePointer )
+   {
+      return m_V.p != nullptr;
+   }
    return false;
 }
 
 
-void variant_view::change( variant_type::enumType eType )
+void variant_view::convert( variant_type::enumType eType )
 {
    if( (unsigned int)eType & variant_type::eGroupInteger )
    {
@@ -455,7 +596,53 @@ void variant_view::change( variant_type::enumType eType )
    else                                                                          assert( false );
 }
 
-bool variant_view::compare( const variant_view& v )
+/** ---------------------------------------------------------------------------
+ * @brief convert take internal value and into new variant
+ * @param uType new type to convert to
+ * @param variantTo variant getting new value
+ * @return true if ok, false if not
+*/
+bool variant_view::convert_to( unsigned uType, variant& variantTo ) const
+{
+   return variant::convert_to_s( (variant*)this, &variantTo, uType );
+}
+
+/** --------------------------------------------------------------------------- * @brief get address to value
+ * @return pointer to value as uint8_t*
+*/
+const uint8_t* variant_view::data() const noexcept
+{
+   switch( type_number() )
+   {
+   case eTypeNumberUnknown: return nullptr;
+   case eTypeNumberBool: return (const uint8_t*)&m_V.b;
+   case eTypeNumberInt8: return (const uint8_t*)&m_V.int8;
+   case eTypeNumberInt16: return (const uint8_t*)&m_V.int16;
+   case eTypeNumberInt32: return (const uint8_t*)&m_V.int32;
+   case eTypeNumberInt64: return (const uint8_t*)&m_V.int64;
+   case eTypeNumberUInt8: return (const uint8_t*)&m_V.uint8;
+   case eTypeNumberUInt16: return (const uint8_t*)&m_V.uint16;
+   case eTypeNumberUInt32: return (const uint8_t*)&m_V.uint32;
+   case eTypeNumberUInt64: return (const uint8_t*)&m_V.uint64;
+   case eTypeNumberFloat: return (const uint8_t*)&m_V.f; 
+   case eTypeNumberDouble: return (const uint8_t*)&m_V.d; 
+   case eTypeNumberPointer: return (const uint8_t*)&m_V.p; 
+   case eTypeNumberGuid: 
+   case eTypeNumberString:
+   case eTypeNumberUtf8String:
+   case eTypeNumberWString: 
+   case eTypeNumberUtf32String:
+   case eTypeNumberBinary: return (const uint8_t*)m_V.pb_const;
+   case eTypeNumberBit: return (const uint8_t*)&m_V.int8;
+   default:                                                                      assert(false);
+
+   }
+
+   return nullptr;
+}
+
+
+bool variant_view::compare( const variant_view& v ) const
 {
    if( v.type_number() != type_number() ) return false;
 
@@ -493,6 +680,177 @@ bool variant_view::compare( const variant_view& v )
    return false;
 }
 
+/** ---------------------------------------------------------------------------
+ * @brief compares if this is less than passed value
+ * @param v value to check if this is less than
+ * @return true if this is less than passed value
+*/
+bool variant_view::less( const variant_view& v ) const
+{
+   if( v.type_number() != type_number() ) return false;
+
+   switch( type_number() )
+   {
+   case eTypeNumberUnknown: return true;
+   case eTypeNumberBool: return m_V.b < v.m_V.b;
+   case eTypeNumberInt8: return m_V.int8 < v.m_V.int8;
+   case eTypeNumberInt16: return m_V.int16 < v.m_V.int16;
+   case eTypeNumberInt32: return m_V.int32 < v.m_V.int32;
+   case eTypeNumberInt64: return m_V.int64 < v.m_V.int64;
+   case eTypeNumberUInt8: return m_V.uint8 < v.m_V.uint8;
+   case eTypeNumberUInt16: return m_V.uint16 < v.m_V.uint16;
+   case eTypeNumberUInt32: return m_V.uint32 < v.m_V.uint32;
+   case eTypeNumberUInt64: return m_V.uint64 < v.m_V.uint64;
+   case eTypeNumberFloat: return m_V.f < v.m_V.f; 
+   case eTypeNumberDouble: return m_V.d < v.m_V.d; 
+   case eTypeNumberPointer: return m_V.p < v.m_V.p; 
+   case eTypeNumberGuid: 
+      return (memcmp( m_V.pbsz, v.m_V.pbsz, 16 ) < 0);
+   case eTypeNumberString:
+   case eTypeNumberUtf8String:
+      return memcmp( m_V.pbsz, v.m_V.pbsz, m_uSize ) < 0;
+   case eTypeNumberWString: 
+      return memcmp( m_V.pbsz, v.m_V.pbsz, m_uSize * sizeof( wchar_t ) ) < 0;
+   case eTypeNumberUtf32String:
+      return memcmp( m_V.pbsz, v.m_V.pbsz, m_uSize * sizeof( int32_t ) ) < 0;
+   case eTypeNumberBinary:
+      return memcmp( m_V.pbsz, v.m_V.pbsz, m_uSize ) < 0;
+   case eTypeNumberBit: return m_V.int8 < v.m_V.int8;
+   default:                                                                      assert(false);
+
+   }
+
+   return false;
+}
+
+uint32_t variant_view::length_in_bytes() const
+{
+   switch( type_number() )
+   {
+   case eTypeNumberUnknown: return 0;
+   case eTypeNumberBool: return 1;
+   //case eTypeNumberInt8: return std::to_wstring(m_V.int8);
+   //case eTypeNumberInt16: return std::to_wstring(m_V.int16);
+   //case eTypeNumberInt32: return std::to_wstring(m_V.int32);
+   //case eTypeNumberInt64: return std::to_wstring(m_V.int64);
+   //case eTypeNumberUInt8: return std::to_wstring(m_V.uint8);
+   //case eTypeNumberUInt16: return std::to_wstring(m_V.uint16);
+   //case eTypeNumberUInt32: return std::to_wstring(m_V.uint32);
+   //case eTypeNumberUInt64: return std::to_wstring(m_V.uint64);
+   //case eTypeNumberFloat: return std::to_wstring(m_V.f); 
+   //case eTypeNumberGuid: return 16;
+   // case eTypeNumberDouble: return std::to_wstring(m_V.d); 
+   case eTypeNumberString: return m_uSize;
+   case eTypeNumberUtf8String: return m_uSize;
+   case eTypeNumberWString: return m_uSize * 2;
+   //case eTypeNumberJson: return gd_std::wstring( gd_std::string::utf8( m_V.pbsz ), m_uSize ).get_wstring();
+   //case eTypeNumberXml: return gd_std::wstring( gd_std::string::utf8( m_V.pbsz ), m_uSize ).get_wstring();
+   case eTypeNumberBit: return 1;
+   default:                                                                      assert(false);
+
+   }
+
+    return 0;
+}
+
+/** ---------------------------------------------------------------------------
+ * @brief copy value in `variant_view` into variant
+ * @param variantviewFrom value to copy from
+ * @param variantTo copy to this variant
+*/
+void variant_view::copy_s( const variant_view& variantviewFrom, variant& variantTo )
+{
+   variantTo.clear();
+   
+   if( variantviewFrom.type_number() <= eTypeTipRegister )
+   {
+      memcpy( &variantTo, &variantviewFrom, sizeof(variant) );
+   }
+   else
+   {
+      switch( variantviewFrom.type_number() )
+      {
+      case eTypeNumberGuid:
+         variantTo.assign( (const uint8_t*)variantviewFrom.get_void(), variant_type::eTypeGuid, variantviewFrom.length(), variant_type::tag_raw{});
+         break;
+      case eTypeNumberString:
+         variantTo.assign( (const char*)variantviewFrom, variantviewFrom.length() );
+         break;
+      case eTypeNumberUtf8String:
+         variantTo.assign( (const char8_t*)variantviewFrom, variantviewFrom.length() );
+         break;
+      case eTypeNumberWString:
+         variantTo.assign( (const wchar_t*)variantviewFrom, variantviewFrom.length() );
+         break;
+      case eTypeNumberBinary:
+         variantTo.assign( (const uint8_t*)variantviewFrom.get_void(), variant_type::eTypeBinary, variantviewFrom.length(), variant_type::tag_raw{});
+         break;
+      default:                                                                                     assert(false);
+
+      }
+   }
+}
+
+/** ---------------------------------------------------------------------------
+ * @brief copy variant to variant_view
+ * @param variantFrom variant that is copied into variant_view
+ * @param variantviewTo variant_view that get data from variant
+*/
+void variant_view::copy_s( const variant& variantFrom, variant_view& variantviewTo )
+{
+   memcpy( &variantviewTo, &variantFrom, sizeof(variant) );
+}
+
+namespace debug {
+   /** ------------------------------------------------------------------------
+    * @brief print data in variant_view to view what it contains, usefull in debug
+    * @param argumentsToPrint value to print
+    * @return string value as string
+   */
+   std::string print( const variant_view& v )
+   {
+      std::string stringPrint; 
+      stringPrint = gd::variant::get_type_name_s( v.type() );
+      stringPrint += ": ";
+      stringPrint += v.as_string();
+
+      return stringPrint;
+   }
+
+   /** ------------------------------------------------------------------------
+    * @brief print value, usefull in debug
+    * @param argumentsToPrint value to print
+    * @return string value as string
+   */
+   std::string print_value( const variant_view& v )
+   {
+      std::string stringPrint; 
+      stringPrint += v.as_string();
+
+      return stringPrint;
+   }
+
+   /** ------------------------------------------------------------------------
+    * @brief print vector values
+    * @param argumentsToPrint value to print
+    * @return string value as string
+   */
+   std::string print( const std::vector<variant_view>& v_ )
+   {
+      std::string stringPrint; 
+      for( const auto& it : v_ )
+      {
+         if( stringPrint.empty() == false ) stringPrint.append(std::string_view{ ", " });
+         stringPrint += gd::variant::get_type_name_s( it.type() );
+         stringPrint += ": ";
+         stringPrint += it.as_string();
+      }
+
+      return stringPrint;
+   }
+
+
+}
 
 
 } /* namespace gd */
